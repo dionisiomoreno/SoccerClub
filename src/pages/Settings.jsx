@@ -30,21 +30,21 @@ export default function Settings() {
   useEffect(() => { if (isAdmin) loadTeamSettings() }, [isAdmin])
 
   async function loadTeamSettings() {
-  const { data, error } = await supabase.from('team_settings').select('*').single()
-  if (data) setTeamSettings(data)
-  else setTeamSettings({
-    nome_squadra: 'ASD Castelmauro Calcio 1986',
-    indirizzo: '',
-    citta: '',
-    telefono: '',
-    email: '',
-    sito_web: '',
-    anno_fondazione: 1986,
-    lat: null,
-    lng: null,
-    raggio_timbratura: 200
-  })
-}
+    const { data, error } = await supabase.from('team_settings').select('*').single()
+    if (data) setTeamSettings(data)
+    else setTeamSettings({
+      nome_squadra: 'ASD Castelmauro Calcio 1986',
+      indirizzo: '',
+      citta: '',
+      telefono: '',
+      email: '',
+      sito_web: '',
+      anno_fondazione: 1986,
+      lat: null,
+      lng: null,
+      raggio_timbratura: 200
+    })
+  }
 
   function setTeam(k, v) { setTeamSettings(t => ({ ...t, [k]: v })) }
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
@@ -69,21 +69,37 @@ export default function Settings() {
 
   async function saveTeamSettings() {
     setSavingTeam(true)
-    const { error } = await supabase.from('team_settings').update({
-      nome_squadra: teamSettings.nome_squadra,
-      indirizzo: teamSettings.indirizzo,
-      citta: teamSettings.citta,
-      telefono: teamSettings.telefono,
-      email: teamSettings.email,
-      sito_web: teamSettings.sito_web,
-      anno_fondazione: teamSettings.anno_fondazione,
-      lat: teamSettings.lat,
-      lng: teamSettings.lng,
-      raggio_timbratura: teamSettings.raggio_timbratura,
-      updated_at: new Date().toISOString()
-    }).eq('id', teamSettings.id)
+    let error
+    if (teamSettings.id) {
+      ;({ error } = await supabase.from('team_settings').update({
+        nome_squadra: teamSettings.nome_squadra,
+        indirizzo: teamSettings.indirizzo,
+        citta: teamSettings.citta,
+        telefono: teamSettings.telefono,
+        email: teamSettings.email,
+        sito_web: teamSettings.sito_web,
+        anno_fondazione: teamSettings.anno_fondazione,
+        lat: teamSettings.lat,
+        lng: teamSettings.lng,
+        raggio_timbratura: teamSettings.raggio_timbratura,
+        updated_at: new Date().toISOString()
+      }).eq('id', teamSettings.id))
+    } else {
+      ;({ error } = await supabase.from('team_settings').insert([{
+        nome_squadra: teamSettings.nome_squadra,
+        indirizzo: teamSettings.indirizzo,
+        citta: teamSettings.citta,
+        telefono: teamSettings.telefono,
+        email: teamSettings.email,
+        sito_web: teamSettings.sito_web,
+        anno_fondazione: teamSettings.anno_fondazione,
+        lat: teamSettings.lat,
+        lng: teamSettings.lng,
+        raggio_timbratura: teamSettings.raggio_timbratura
+      }]))
+    }
     if (error) toast.error(error.message)
-    else toast.success('Impostazioni squadra salvate')
+    else { toast.success('Impostazioni squadra salvate'); loadTeamSettings() }
     setSavingTeam(false)
   }
 
