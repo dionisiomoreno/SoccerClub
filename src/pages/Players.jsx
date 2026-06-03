@@ -112,6 +112,42 @@ function PlayerModal({ player, onClose, onSaved }) {
               </select>
             </div>
           </div>
+          {/* Valori economici personalizzati */}
+          <div className="border-t border-[#e7eaec] pt-3">
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Valori economici personalizzati</label>
+            <p className="text-xs text-[#999] mb-2">Lascia vuoto per usare i valori globali della squadra.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(form.role === 'player_paid' || form.role === 'player_volunteer') && <>
+                <div>
+                  <label className="block text-xs text-[#999] mb-1">Allenamento (€)</label>
+                  <input type="number" min="0" value={form.importo_allenamento ?? ''} onChange={e=>set('importo_allenamento', e.target.value === '' ? null : +e.target.value)}
+                    placeholder="Es. 20"
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#999] mb-1">Partita (€)</label>
+                  <input type="number" min="0" value={form.importo_partita ?? ''} onChange={e=>set('importo_partita', e.target.value === '' ? null : +e.target.value)}
+                    placeholder="Es. 30"
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#999] mb-1">Carburante (€)</label>
+                  <input type="number" min="0" value={form.importo_carburante ?? ''} onChange={e=>set('importo_carburante', e.target.value === '' ? null : +e.target.value)}
+                    placeholder="Es. 5"
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+              </>}
+              {form.role === 'mister' && (
+                <div className="col-span-2">
+                  <label className="block text-xs text-[#999] mb-1">Compenso fisso mensile (€)</label>
+                  <input type="number" min="0" value={form.compenso_fisso ?? ''} onChange={e=>set('compenso_fisso', e.target.value === '' ? null : +e.target.value)}
+                    placeholder="Es. 500"
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+              )}
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.active} onChange={e=>set('active',e.target.checked)} className="accent-[#1ab394]"/>
             <span className="text-sm text-[#676a6c]">Attivo</span>
