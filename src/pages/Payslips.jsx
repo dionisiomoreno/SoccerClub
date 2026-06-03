@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { Download, Plus } from 'lucide-react'
+import { Download, Plus, Fuel } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import clsx from 'clsx'
@@ -11,17 +11,18 @@ import autoTable from 'jspdf-autotable'
 const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
 const YEARS = [2024, 2025, 2026]
 
-function generatePDF(payslip, player, attendances, sanctions) {
+function generatePDF(payslip, player, attendances, sanctions, teamSettings) {
   const doc = new jsPDF()
+  // Header
   doc.setFillColor(26, 179, 148)
   doc.rect(0, 0, 210, 30, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
-  doc.text('SoccerClub', 14, 13)
+  doc.text(teamSettings?.nome_squadra || 'SoccerClub', 14, 13)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text('ASD Castelmauro Calcio 1986', 14, 22)
+  doc.text(teamSettings?.citta || 'ASD Castelmauro Calcio 1986', 14, 22)
   doc.setTextColor(0, 0, 0)
   doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
@@ -30,13 +31,23 @@ function generatePDF(payslip, player, attendances, sanctions) {
   doc.setFont('helvetica', 'normal')
   doc.text(`Calciatore: ${player?.cognome} ${player?.nome}`, 14, 55)
   doc.text(`Generato il: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 62)
+
+  // Tabella presenze
   autoTable(doc, {
     startY: 72,
-    head: [['Tipo', 'Data', 'Importo']],
-    body: attendances.map(a => [a.type === 'training' ? 'Allenamento' : 'Partita', format(new Date(a.date), 'dd/MM/yyyy'), `€${a.amount}`]),
+    head: [['Tipo', 'Data', 'Base', 'Carburante', 'Totale']],
+    body: attendances.map(a => [
+      a.type === 'training' ? 'Allenamento' : 'Partita',
+      format(new Date(a.date), 'dd/MM/yyyy'),
+      `€${a.amount}`,
+      a.rimborso_carburante > 0 ? `€${a.rimborso_carburante}` : '—',
+      `€${(a.amount || 0) + (a.rimborso_carburante || 0)}`
+    ]),
     headStyles: { fillColor: [26, 179, 148] },
     styles: { fontSize: 9 }
   })
+
+  // Tabella sanzioni
   if (sanctions.length > 0) {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 10,
@@ -46,30 +57,37 @@ function generatePDF(payslip, player, attendances, sanctions) {
       styles: { fontSize: 9 }
     })
   }
+
+  // Riepilogo
   const y = doc.lastAutoTable.finalY + 15
   doc.setFillColor(245, 245, 245)
-  doc.rect(14, y, 182, 30, 'F')
+  doc.rect(14, y, 182, 38, 'F')
   doc.setFontSize(10)
-  doc.text(`Lordo: €${payslip.lordo}`, 20, y + 10)
-  doc.setTextColor(200, 0, 0)
-  doc.text(`Sanzioni: -€${payslip.sanzioni}`, 20, y + 18)
+  doc.setTextColor(0,0,0)
+  doc.text(`Presenze: €${payslip.lordo - (payslip.carburante || 0)}`, 20, y + 9)
+  doc.setTextColor(59, 130, 246)
+  doc.text(`Carburante: €${payslip.carburante || 0}`, 20, y + 17)
+  doc.setTextColor(192, 0, 0)
+  doc.text(`Sanzioni: -€${payslip.sanzioni}`, 20, y + 25)
   doc.setTextColor(26, 179, 148)
   doc.setFont('helvetica', 'bold')
-  doc.text(`Netto: €${payslip.netto}`, 20, y + 26)
+  doc.text(`Netto totale: €${payslip.netto}`, 20, y + 33)
   doc.setTextColor(0, 0, 0)
   doc.setFont('helvetica', 'normal')
-  doc.text('Firma: ______________________', 120, y + 26)
+  doc.text('Firma: ______________________', 120, y + 33)
   doc.save(`cedolino_${player?.cognome}_${MONTHS[payslip.month - 1]}_${payslip.year}.pdf`)
 }
 
 function GenerateModal({ onClose, onSaved }) {
   const [players, setPlayers] = useState([])
+  const [teamSettings, setTeamSettings] = useState(null)
   const [form, setForm] = useState({ player_id: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() })
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     supabase.from('profiles').select('*').eq('role', 'player_paid').eq('active', true).order('cognome').then(({ data }) => setPlayers(data || []))
+    supabase.from('team_settings').select('*').single().then(({ data }) => setTeamSettings(data))
   }, [])
 
   async function calcola() {
@@ -81,9 +99,11 @@ function GenerateModal({ onClose, onSaved }) {
       supabase.from('attendances').select('*').eq('player_id', form.player_id).gte('date', start).lte('date', end),
       supabase.from('sanctions').select('*').eq('player_id', form.player_id).gte('date', start).lte('date', end)
     ])
-    const lordo = (att || []).reduce((s, a) => s + (a.amount || 0), 0)
+    const presenze = (att || []).reduce((s, a) => s + (a.amount || 0), 0)
+    const carburante = (att || []).reduce((s, a) => s + (a.rimborso_carburante || 0), 0)
+    const lordo = presenze + carburante
     const sanzioni = (san || []).reduce((s, a) => s + (a.amount || 0), 0)
-    setPreview({ att: att || [], san: san || [], lordo, sanzioni, netto: lordo - sanzioni })
+    setPreview({ att: att || [], san: san || [], presenze, carburante, lordo, sanzioni, netto: lordo - sanzioni })
     setLoading(false)
   }
 
@@ -91,12 +111,20 @@ function GenerateModal({ onClose, onSaved }) {
     if (!preview) return
     setLoading(true)
     const player = players.find(p => p.id === form.player_id)
-    const payslipData = { player_id: form.player_id, month: form.month, year: form.year, lordo: preview.lordo, sanzioni: preview.sanzioni, netto: preview.netto }
-    const { data: ps, error } = await supabase.from('payslips').upsert([payslipData], { onConflict: 'player_id,month,year' }).select().single()
+    const payslipData = {
+      player_id: form.player_id, month: form.month, year: form.year,
+      lordo: preview.lordo, sanzioni: preview.sanzioni, netto: preview.netto,
+      carburante: preview.carburante
+    }
+    const { data: ps, error } = await supabase.from('payslips')
+      .upsert([payslipData], { onConflict: 'player_id,month,year' }).select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
-    await supabase.from('notifications').insert([{ user_id: form.player_id, type: 'payslip_generated', message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} disponibile`, read: false }])
-    generatePDF({ ...payslipData, ...ps }, player, preview.att, preview.san)
-    toast.success('Cedolino generato')
+    await supabase.from('notifications').insert([{
+      user_id: form.player_id, type: 'payslip_generated',
+      message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} disponibile — Netto: €${preview.netto}`, read: false
+    }])
+    generatePDF({ ...payslipData, ...ps }, player, preview.att, preview.san, teamSettings)
+    toast.success('Cedolino generato!')
     onSaved()
     setLoading(false)
   }
@@ -133,22 +161,26 @@ function GenerateModal({ onClose, onSaved }) {
               </select>
             </div>
           </div>
-          <button onClick={calcola} disabled={loading} className="w-full border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">
+          <button onClick={calcola} disabled={loading}
+            className="w-full border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">
             Calcola anteprima
           </button>
           {preview && (
-            <div className="bg-gray-50 border border-[#e7eaec] rounded p-3 space-y-1 text-sm">
-              <div className="flex justify-between text-[#676a6c]"><span>Allenamenti</span><span>{preview.att.filter(a => a.type === 'training').length}</span></div>
-              <div className="flex justify-between text-[#676a6c]"><span>Partite</span><span>{preview.att.filter(a => a.type === 'match').length}</span></div>
+            <div className="bg-gray-50 border border-[#e7eaec] rounded p-3 space-y-1.5 text-sm">
+              <div className="flex justify-between text-[#676a6c]"><span>Allenamenti</span><span>{preview.att.filter(a=>a.type==='training').length}</span></div>
+              <div className="flex justify-between text-[#676a6c]"><span>Partite</span><span>{preview.att.filter(a=>a.type==='match').length}</span></div>
+              <div className="flex justify-between text-[#676a6c]"><span>Presenze</span><span>€{preview.presenze}</span></div>
+              <div className="flex justify-between text-blue-500 items-center"><span className="flex items-center gap-1"><Fuel size={12}/>Carburante</span><span>€{preview.carburante}</span></div>
               <div className="flex justify-between text-[#676a6c]"><span>Lordo</span><span>€{preview.lordo}</span></div>
               <div className="flex justify-between text-red-500"><span>Sanzioni</span><span>-€{preview.sanzioni}</span></div>
-              <div className="flex justify-between text-[#1ab394] font-bold border-t border-[#e7eaec] pt-1"><span>Netto</span><span>€{preview.netto}</span></div>
+              <div className="flex justify-between text-[#1ab394] font-bold border-t border-[#e7eaec] pt-1.5"><span>Netto</span><span>€{preview.netto}</span></div>
             </div>
           )}
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
-          <button onClick={save} disabled={loading || !preview} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
+          <button onClick={save} disabled={loading || !preview}
+            className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
             Genera PDF
           </button>
         </div>
@@ -161,10 +193,12 @@ export default function Payslips() {
   const { profile, isAdmin, isMister } = useAuth()
   const [tab, setTab] = useState('players')
   const [payslips, setPayslips] = useState([])
+  const [teamSettings, setTeamSettings] = useState(null)
   const [modal, setModal] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [tab])
+  useEffect(() => { supabase.from('team_settings').select('*').single().then(({ data }) => setTeamSettings(data)) }, [])
 
   async function load() {
     setLoading(true)
@@ -187,7 +221,7 @@ export default function Payslips() {
       supabase.from('attendances').select('*').eq('player_id', p.player_id).gte('date', start).lte('date', end),
       supabase.from('sanctions').select('*').eq('player_id', p.player_id).gte('date', start).lte('date', end)
     ])
-    generatePDF(p, p.profiles, att || [], san || [])
+    generatePDF(p, p.profiles, att || [], san || [], teamSettings)
   }
 
   return (
@@ -228,7 +262,8 @@ export default function Payslips() {
                 {(isAdmin || isMister) && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Calciatore</th>}
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Periodo</th>
                 {tab === 'players' && <>
-                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Lordo</th>
+                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Presenze</th>
+                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Carb.</th>
                   <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Sanzioni</th>
                 </>}
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Netto</th>
@@ -241,7 +276,12 @@ export default function Payslips() {
                   {(isAdmin || isMister) && <td className="px-4 py-3 text-[#2f4050] font-medium">{p.profiles?.cognome} {p.profiles?.nome}</td>}
                   <td className="px-4 py-3 text-[#999]">{MONTHS[p.month - 1]} {p.year}</td>
                   {tab === 'players' && <>
-                    <td className="px-4 py-3 text-[#676a6c]">€{p.lordo}</td>
+                    <td className="px-4 py-3 text-[#676a6c]">€{(p.lordo || 0) - (p.carburante || 0)}</td>
+                    <td className="px-4 py-3">
+                      {p.carburante > 0
+                        ? <span className="text-blue-500 flex items-center gap-1"><Fuel size={11}/>€{p.carburante}</span>
+                        : <span className="text-[#999]">—</span>}
+                    </td>
                     <td className="px-4 py-3 text-red-500">-€{p.sanzioni}</td>
                   </>}
                   <td className="px-4 py-3 text-[#1ab394] font-bold">€{p.netto ?? p.compenso}</td>
