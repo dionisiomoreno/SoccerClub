@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { User, Lock, Shield, MapPin, Loader } from 'lucide-react'
+import { User, Lock, Shield, MapPin, Loader, Euro } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const ROLE_LABELS = { admin: 'Admin', mister: 'Mister', player_paid: 'Calciatore', player_volunteer: 'Volontario' }
@@ -15,7 +15,10 @@ export default function Settings() {
     telefono: profile?.telefono || '',
     taglia: profile?.taglia || 'M',
     codice_fiscale: profile?.codice_fiscale || '',
-    numero_patente: profile?.numero_patente || ''
+    numero_patente: profile?.numero_patente || '',
+    numero_tessera: profile?.numero_tessera || '',
+    data_visita_medica: profile?.data_visita_medica || '',
+    scadenza_visita_medica: profile?.scadenza_visita_medica || ''
   })
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -34,15 +37,10 @@ export default function Settings() {
     if (data) setTeamSettings(data)
     else setTeamSettings({
       nome_squadra: 'ASD Castelmauro Calcio 1986',
-      indirizzo: '',
-      citta: '',
-      telefono: '',
-      email: '',
-      sito_web: '',
-      anno_fondazione: 1986,
-      lat: null,
-      lng: null,
-      raggio_timbratura: 200
+      indirizzo: '', citta: '', telefono: '', email: '',
+      sito_web: '', anno_fondazione: 1986,
+      lat: null, lng: null, raggio_timbratura: 200,
+      importo_allenamento: 20, importo_partita: 30, importo_carburante: 0
     })
   }
 
@@ -58,7 +56,7 @@ export default function Settings() {
   }
 
   async function savePassword() {
-    if (password.length < 6) return toast.error('La password deve essere di almeno 6 caratteri')
+    if (password.length < 6) return toast.error('Minimo 6 caratteri')
     if (password !== confirmPassword) return toast.error('Le password non coincidono')
     setSavingPassword(true)
     const { error } = await supabase.auth.updateUser({ password })
@@ -82,6 +80,9 @@ export default function Settings() {
         lat: teamSettings.lat,
         lng: teamSettings.lng,
         raggio_timbratura: teamSettings.raggio_timbratura,
+        importo_allenamento: teamSettings.importo_allenamento,
+        importo_partita: teamSettings.importo_partita,
+        importo_carburante: teamSettings.importo_carburante,
         updated_at: new Date().toISOString()
       }).eq('id', teamSettings.id))
     } else {
@@ -95,11 +96,14 @@ export default function Settings() {
         anno_fondazione: teamSettings.anno_fondazione,
         lat: teamSettings.lat,
         lng: teamSettings.lng,
-        raggio_timbratura: teamSettings.raggio_timbratura
+        raggio_timbratura: teamSettings.raggio_timbratura,
+        importo_allenamento: teamSettings.importo_allenamento,
+        importo_partita: teamSettings.importo_partita,
+        importo_carburante: teamSettings.importo_carburante
       }]))
     }
     if (error) toast.error(error.message)
-    else { toast.success('Impostazioni squadra salvate'); loadTeamSettings() }
+    else { toast.success('Impostazioni salvate'); loadTeamSettings() }
     setSavingTeam(false)
   }
 
@@ -113,12 +117,8 @@ export default function Settings() {
       if (data && data.length > 0) {
         setTeamSettings(t => ({ ...t, lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }))
         toast.success('Coordinate GPS rilevate!')
-      } else {
-        toast.error('Indirizzo non trovato')
-      }
-    } catch(e) {
-      toast.error('Errore nel rilevamento coordinate')
-    }
+      } else toast.error('Indirizzo non trovato')
+    } catch(e) { toast.error('Errore nel rilevamento') }
     setGeoLoading(false)
   }
 
@@ -126,11 +126,7 @@ export default function Settings() {
     if (!navigator.geolocation) return toast.error('Geolocalizzazione non supportata')
     setGeoLoading(true)
     navigator.geolocation.getCurrentPosition(
-      pos => {
-        setTeamSettings(t => ({ ...t, lat: pos.coords.latitude, lng: pos.coords.longitude }))
-        toast.success('Posizione attuale salvata!')
-        setGeoLoading(false)
-      },
+      pos => { setTeamSettings(t => ({ ...t, lat: pos.coords.latitude, lng: pos.coords.longitude })); toast.success('Posizione salvata!'); setGeoLoading(false) },
       () => { toast.error('Impossibile rilevare la posizione'); setGeoLoading(false) }
     )
   }
@@ -163,10 +159,14 @@ export default function Settings() {
           <h2 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Dati personali</h2>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {[['nome','Nome'],['cognome','Cognome'],['telefono','Telefono'],['codice_fiscale','Codice fiscale'],['numero_patente','N° patente']].map(([k, l]) => (
+          {[
+            ['nome','Nome'],['cognome','Cognome'],['telefono','Telefono'],
+            ['codice_fiscale','Codice fiscale'],['numero_patente','N° patente'],
+            ['numero_tessera','N° tessera FIGC']
+          ].map(([k, l]) => (
             <div key={k}>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
-              <input value={form[k]} onChange={e => set(k, e.target.value)}
+              <input value={form[k]||''} onChange={e => set(k, e.target.value)}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           ))}
@@ -178,6 +178,24 @@ export default function Settings() {
             </select>
           </div>
         </div>
+
+        {/* Visita medica */}
+        <div className="border-t border-[#e7eaec] pt-3">
+          <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Visita medica</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Data visita</label>
+              <input type="date" value={form.data_visita_medica||''} onChange={e => set('data_visita_medica', e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Scadenza visita</label>
+              <input type="date" value={form.scadenza_visita_medica||''} onChange={e => set('scadenza_visita_medica', e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+            </div>
+          </div>
+        </div>
+
         <button onClick={saveProfile} disabled={savingProfile}
           className="bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white px-6 py-2 rounded text-sm font-semibold">
           {savingProfile ? 'Salvataggio...' : 'Salva modifiche'}
@@ -257,6 +275,35 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Valori economici */}
+              <div className="border-t border-[#e7eaec] pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Euro size={16} className="text-[#1ab394]"/>
+                  <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Valori economici</h3>
+                </div>
+                <p className="text-xs text-[#999]">Importi utilizzati per il calcolo automatico dei cedolini mensili.</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Allenamento (€)</label>
+                    <input type="number" min="0" value={teamSettings.importo_allenamento ?? 20} onChange={e => setTeam('importo_allenamento', +e.target.value)}
+                      className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Partita (€)</label>
+                    <input type="number" min="0" value={teamSettings.importo_partita ?? 30} onChange={e => setTeam('importo_partita', +e.target.value)}
+                      className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Carburante (€)</label>
+                    <input type="number" min="0" value={teamSettings.importo_carburante ?? 0} onChange={e => setTeam('importo_carburante', +e.target.value)}
+                      className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                  </div>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded p-3 text-xs text-blue-700">
+                  💡 Il rimborso carburante viene aggiunto automaticamente ad ogni presenza registrata.
+                </div>
+              </div>
+
               {/* Geolocalizzazione */}
               <div className="border-t border-[#e7eaec] pt-4 space-y-3">
                 <div className="flex items-center gap-2">
@@ -264,7 +311,6 @@ export default function Settings() {
                   <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Struttura sportiva</h3>
                 </div>
                 <p className="text-xs text-[#999]">Imposta la posizione della struttura per la timbratura geolocalizzata.</p>
-
                 <div>
                   <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Indirizzo struttura</label>
                   <div className="flex gap-2">
@@ -273,45 +319,38 @@ export default function Settings() {
                       className="flex-1 border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                     <button onClick={geocodeAddress} disabled={geoLoading}
                       className="bg-[#1c84c6] hover:bg-[#1a75b0] disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-semibold flex items-center gap-1">
-                      {geoLoading ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>}
-                      Rileva
+                      {geoLoading ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>} Rileva
                     </button>
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Raggio timbratura (metri)</label>
                   <input type="number" min="50" max="2000" value={teamSettings.raggio_timbratura || 200}
                     onChange={e => setTeam('raggio_timbratura', +e.target.value)}
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Latitudine</label>
                     <input type="number" step="0.0000001" value={teamSettings.lat || ''}
-                      onChange={e => setTeam('lat', parseFloat(e.target.value))}
-                      placeholder="41.7654321"
+                      onChange={e => setTeam('lat', parseFloat(e.target.value))} placeholder="41.7654321"
                       className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Longitudine</label>
                     <input type="number" step="0.0000001" value={teamSettings.lng || ''}
-                      onChange={e => setTeam('lng', parseFloat(e.target.value))}
-                      placeholder="14.7654321"
+                      onChange={e => setTeam('lng', parseFloat(e.target.value))} placeholder="14.7654321"
                       className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                   </div>
                 </div>
-
                 {teamSettings.lat && teamSettings.lng && (
                   <div className="bg-green-50 border border-green-200 rounded p-3 flex items-center gap-2">
                     <MapPin size={14} className="text-green-600"/>
                     <span className="text-green-700 text-sm">
-                      Struttura configurata: {Number(teamSettings.lat).toFixed(5)}, {Number(teamSettings.lng).toFixed(5)} — raggio {teamSettings.raggio_timbratura}m
+                      Configurata: {Number(teamSettings.lat).toFixed(5)}, {Number(teamSettings.lng).toFixed(5)} — raggio {teamSettings.raggio_timbratura}m
                     </span>
                   </div>
                 )}
-
                 <button onClick={useCurrentPosition} disabled={geoLoading}
                   className="w-full border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm flex items-center justify-center gap-2">
                   {geoLoading ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>}
