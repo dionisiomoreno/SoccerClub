@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { UserPlus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, Download, Eye, X } from 'lucide-react'
+import { UserPlus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, Download, Eye, X, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { format, differenceInDays } from 'date-fns'
+import { it } from 'date-fns/locale'
 
 const ROLES = ['admin','mister','player_paid','player_volunteer']
 const ROLE_LABELS = { admin:'Admin', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario' }
@@ -16,12 +18,21 @@ const ROLE_COLORS = {
 }
 const TAGLIE = ['XS','S','M','L','XL','XXL']
 
-// ── Modal aggiunta/modifica ──────────────────────────────────
+function MedicalBadge({ date }) {
+  if (!date) return <span className="text-xs text-[#999]">—</span>
+  const days = differenceInDays(new Date(date), new Date())
+  if (days < 0) return <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-red-100 text-red-600"><AlertTriangle size={10}/> Scaduta</span>
+  if (days <= 30) return <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-600"><AlertTriangle size={10}/> {days}gg</span>
+  return <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-600">Valida</span>
+}
+
 function PlayerModal({ player, onClose, onSaved }) {
   const isEdit = !!player?.id
   const [form, setForm] = useState({
     nome: '', cognome: '', email: '', telefono: '', data_nascita: '',
-    codice_fiscale: '', numero_patente: '', taglia: 'M', role: 'player_paid', active: true,
+    codice_fiscale: '', numero_patente: '', numero_tessera: '',
+    data_visita_medica: '', scadenza_visita_medica: '',
+    taglia: 'M', role: 'player_paid', active: true,
     ...player
   })
   const [loading, setLoading] = useState(false)
@@ -45,31 +56,61 @@ function PlayerModal({ player, onClose, onSaved }) {
           <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
         </div>
         <div className="p-4 space-y-3">
-          {[['nome','Nome'],['cognome','Cognome'],['telefono','Telefono'],['data_nascita','Data nascita','date'],['codice_fiscale','Codice fiscale'],['numero_patente','N° patente']].map(([k,l,t='text']) => (
+          {/* Dati base */}
+          <div className="grid grid-cols-2 gap-3">
+            {[['nome','Nome'],['cognome','Cognome']].map(([k,l]) => (
+              <div key={k}>
+                <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
+                <input value={form[k]||''} onChange={e=>set(k,e.target.value)}
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              </div>
+            ))}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email</label>
+            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)} disabled={isEdit}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] disabled:opacity-50 disabled:bg-gray-50"/>
+          </div>
+          {[['telefono','Telefono'],['data_nascita','Data nascita','date'],['codice_fiscale','Codice fiscale'],['numero_patente','N° patente'],['numero_tessera','N° tessera FIGC']].map(([k,l,t='text']) => (
             <div key={k}>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
               <input type={t} value={form[k]||''} onChange={e=>set(k,e.target.value)}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           ))}
-          <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email</label>
-            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)} disabled={isEdit}
-              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] disabled:opacity-50 disabled:bg-gray-50"/>
+
+          {/* Visita medica */}
+          <div className="border-t border-[#e7eaec] pt-3">
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-2">Visita medica</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-[#999] mb-1">Data visita</label>
+                <input type="date" value={form.data_visita_medica||''} onChange={e=>set('data_visita_medica',e.target.value)}
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              </div>
+              <div>
+                <label className="block text-xs text-[#999] mb-1">Scadenza</label>
+                <input type="date" value={form.scadenza_visita_medica||''} onChange={e=>set('scadenza_visita_medica',e.target.value)}
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Taglia</label>
-            <select value={form.taglia} onChange={e=>set('taglia',e.target.value)}
-              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-              {TAGLIE.map(t=><option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ruolo</label>
-            <select value={form.role} onChange={e=>set('role',e.target.value)}
-              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-              {ROLES.map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-            </select>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Taglia</label>
+              <select value={form.taglia} onChange={e=>set('taglia',e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+                {TAGLIE.map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ruolo</label>
+              <select value={form.role} onChange={e=>set('role',e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+                {ROLES.map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+              </select>
+            </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.active} onChange={e=>set('active',e.target.checked)} className="accent-[#1ab394]"/>
@@ -87,7 +128,6 @@ function PlayerModal({ player, onClose, onSaved }) {
   )
 }
 
-// ── Scheda dettagliata calciatore ────────────────────────────
 function PlayerDetailModal({ player, onClose }) {
   const [stats, setStats] = useState(null)
 
@@ -101,13 +141,13 @@ function PlayerDetailModal({ player, onClose }) {
     ])
     const trainings = (att.data || []).filter(a => a.type === 'training').length
     const matches = (att.data || []).filter(a => a.type === 'match').length
-    const totalAtt = trainings + matches
     const lordo = (att.data || []).reduce((s, a) => s + (a.amount || 0), 0)
     const sanzioni = (san.data || []).reduce((s, a) => s + (a.amount || 0), 0)
-    setStats({ trainings, matches, totalAtt, lordo, sanzioni, netto: lordo - sanzioni, lastPayslip: pay.data?.[0] })
+    setStats({ trainings, matches, total: trainings + matches, lordo, sanzioni, netto: lordo - sanzioni, lastPayslip: pay.data?.[0] })
   }
 
   const initials = `${player.nome?.[0]||''}${player.cognome?.[0]||''}`.toUpperCase()
+  const medicalDays = player.scadenza_visita_medica ? differenceInDays(new Date(player.scadenza_visita_medica), new Date()) : null
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -116,33 +156,28 @@ function PlayerDetailModal({ player, onClose }) {
           <h2 className="text-[#2f4050] font-bold">Scheda Calciatore</h2>
           <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
         </div>
-
         <div className="p-4 space-y-4">
-          {/* Header */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-[#1ab394]/20 text-[#1ab394] flex items-center justify-center text-2xl font-bold flex-shrink-0">
-              {initials}
-            </div>
+            <div className="w-16 h-16 rounded-full bg-[#1ab394]/20 text-[#1ab394] flex items-center justify-center text-2xl font-bold flex-shrink-0">{initials}</div>
             <div>
               <div className="text-[#2f4050] font-bold text-lg">{player.nome} {player.cognome}</div>
               <div className="text-[#999] text-sm">{player.email}</div>
-              <span className={clsx('mt-1 inline-block px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[player.role])}>
-                {ROLE_LABELS[player.role]}
-              </span>
+              <span className={clsx('mt-1 inline-block px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[player.role])}>{ROLE_LABELS[player.role]}</span>
             </div>
           </div>
 
           {/* Dati anagrafici */}
-          <div className="bg-gray-50 rounded p-4 space-y-2">
+          <div className="bg-gray-50 rounded p-4">
             <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Dati anagrafici</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
               {[
                 ['Telefono', player.telefono],
-                ['Data nascita', player.data_nascita],
+                ['Data nascita', player.data_nascita ? format(new Date(player.data_nascita), 'dd/MM/yyyy') : null],
                 ['Codice fiscale', player.codice_fiscale],
                 ['N° patente', player.numero_patente],
+                ['N° tessera FIGC', player.numero_tessera],
                 ['Taglia', player.taglia],
-                ['Stato', player.active ? '✅ Attivo' : '❌ Non attivo']
+                ['Stato', player.active ? '✅ Attivo' : '❌ Non attivo'],
               ].map(([l, v]) => (
                 <div key={l}>
                   <div className="text-[#999] text-xs">{l}</div>
@@ -152,12 +187,40 @@ function PlayerDetailModal({ player, onClose }) {
             </div>
           </div>
 
+          {/* Visita medica */}
+          <div className="bg-gray-50 rounded p-4">
+            <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Visita medica</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-[#999] text-xs">Data visita</div>
+                <div className="text-[#2f4050] font-medium">{player.data_visita_medica ? format(new Date(player.data_visita_medica), 'dd/MM/yyyy') : '—'}</div>
+              </div>
+              <div>
+                <div className="text-[#999] text-xs">Scadenza</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#2f4050] font-medium">{player.scadenza_visita_medica ? format(new Date(player.scadenza_visita_medica), 'dd/MM/yyyy') : '—'}</span>
+                  <MedicalBadge date={player.scadenza_visita_medica}/>
+                </div>
+              </div>
+            </div>
+            {medicalDays !== null && medicalDays <= 30 && medicalDays >= 0 && (
+              <div className="mt-2 flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-700">
+                <AlertTriangle size={13}/> Visita medica in scadenza tra {medicalDays} giorni!
+              </div>
+            )}
+            {medicalDays !== null && medicalDays < 0 && (
+              <div className="mt-2 flex items-center gap-2 bg-red-50 border border-red-200 rounded p-2 text-xs text-red-600">
+                <AlertTriangle size={13}/> Visita medica scaduta!
+              </div>
+            )}
+          </div>
+
           {/* Statistiche */}
           {!stats ? (
             <div className="flex items-center justify-center h-16"><div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
           ) : (
             <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide">Statistiche</h3>
+              <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide">Statistiche presenze</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-blue-50 border border-blue-100 rounded p-3 text-center">
                   <div className="text-xl font-bold text-blue-600">{stats.trainings}</div>
@@ -168,7 +231,7 @@ function PlayerDetailModal({ player, onClose }) {
                   <div className="text-xs text-[#999] mt-1">Partite</div>
                 </div>
                 <div className="bg-green-50 border border-green-100 rounded p-3 text-center">
-                  <div className="text-xl font-bold text-green-600">{stats.totalAtt}</div>
+                  <div className="text-xl font-bold text-green-600">{stats.total}</div>
                   <div className="text-xs text-[#999] mt-1">Totale</div>
                 </div>
               </div>
@@ -199,7 +262,6 @@ function PlayerDetailModal({ player, onClose }) {
   )
 }
 
-// ── Esporta PDF rosa ─────────────────────────────────────────
 function exportPDF(players) {
   const doc = new jsPDF()
   doc.setFillColor(26, 179, 148)
@@ -210,24 +272,21 @@ function exportPDF(players) {
   doc.text('Lista Calciatori Tesserati', 14, 13)
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
-  doc.text(`ASD Castelmauro Calcio 1986 — Generata il ${new Date().toLocaleDateString('it-IT')}`, 14, 22)
-
+  doc.text(`ASD Castelmauro Calcio 1986 — ${new Date().toLocaleDateString('it-IT')}`, 14, 22)
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Cognome e Nome', 'Email', 'Ruolo', 'Taglia', 'Stato']],
+    head: [['#', 'Cognome e Nome', 'N° Tessera', 'Ruolo', 'Visita Medica', 'Stato']],
     body: players.map((p, i) => [
       i + 1,
       `${p.cognome} ${p.nome}`,
-      p.email,
+      p.numero_tessera || '—',
       ROLE_LABELS[p.role] || p.role,
-      p.taglia || '—',
+      p.scadenza_visita_medica ? format(new Date(p.scadenza_visita_medica), 'dd/MM/yyyy') : '—',
       p.active ? 'Attivo' : 'Non attivo'
     ]),
     headStyles: { fillColor: [26, 179, 148], fontSize: 9 },
-    styles: { fontSize: 8 },
-    columnStyles: { 0: { cellWidth: 8 }, 2: { cellWidth: 55 } }
+    styles: { fontSize: 8 }
   })
-
   doc.setFontSize(8)
   doc.setTextColor(150)
   doc.text(`Totale: ${players.length} calciatori`, 14, doc.lastAutoTable.finalY + 8)
@@ -235,7 +294,6 @@ function exportPDF(players) {
   toast.success('PDF esportato!')
 }
 
-// ── Pagina principale ────────────────────────────────────────
 export default function Players() {
   const [players, setPlayers] = useState([])
   const [search, setSearch] = useState('')
@@ -277,6 +335,15 @@ export default function Players() {
   const paid = filtered.filter(p => p.role === 'player_paid').length
   const volunteers = filtered.filter(p => p.role === 'player_volunteer').length
   const active = filtered.filter(p => p.active).length
+  const medicalExpiring = filtered.filter(p => {
+    if (!p.scadenza_visita_medica) return false
+    const days = differenceInDays(new Date(p.scadenza_visita_medica), new Date())
+    return days >= 0 && days <= 30
+  }).length
+  const medicalExpired = filtered.filter(p => {
+    if (!p.scadenza_visita_medica) return false
+    return differenceInDays(new Date(p.scadenza_visita_medica), new Date()) < 0
+  }).length
 
   return (
     <div className="space-y-4">
@@ -286,19 +353,17 @@ export default function Players() {
           <p className="text-sm text-[#999] mt-1">Gestione rosa della squadra</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => exportPDF(filtered)}
-            className="flex items-center gap-2 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
+          <button onClick={() => exportPDF(filtered)} className="flex items-center gap-2 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
             <Download size={15}/> PDF
           </button>
-          <button onClick={() => setModal({})}
-            className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
+          <button onClick={() => setModal({})} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
             <UserPlus size={16}/> Nuovo
           </button>
         </div>
       </div>
 
-      {/* KPI veloci */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* KPI */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
           <div className="text-xl font-bold text-[#1ab394]">{active}</div>
           <div className="text-xs text-[#999] uppercase tracking-wide">Attivi</div>
@@ -311,7 +376,24 @@ export default function Players() {
           <div className="text-xl font-bold text-yellow-600">{volunteers}</div>
           <div className="text-xs text-[#999] uppercase tracking-wide">Volontari</div>
         </div>
+        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+          <div className="text-xl font-bold text-yellow-500">{medicalExpiring}</div>
+          <div className="text-xs text-[#999] uppercase tracking-wide">Visite in scadenza</div>
+        </div>
+        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+          <div className="text-xl font-bold text-red-500">{medicalExpired}</div>
+          <div className="text-xs text-[#999] uppercase tracking-wide">Visite scadute</div>
+        </div>
       </div>
+
+      {/* Alert visite */}
+      {(medicalExpired > 0 || medicalExpiring > 0) && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">
+          <AlertTriangle size={16}/>
+          {medicalExpired > 0 && <span><strong>{medicalExpired}</strong> visita/e medica scaduta/e.</span>}
+          {medicalExpiring > 0 && <span><strong>{medicalExpiring}</strong> visita/e in scadenza entro 30 giorni.</span>}
+        </div>
+      )}
 
       {/* Filtri */}
       <div className="flex gap-2 flex-wrap">
@@ -335,7 +417,6 @@ export default function Players() {
 
       <div className="text-xs text-[#999]">{filtered.length} calciatori trovati</div>
 
-      {/* Tabella */}
       <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
@@ -346,7 +427,7 @@ export default function Players() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#e7eaec] bg-gray-50">
-                  {['Calciatore','Email','Telefono','Ruolo','Taglia','Stato','Azioni'].map(h=>(
+                  {['Calciatore','Email','N° Tessera','Ruolo','Visita Medica','Stato','Azioni'].map(h=>(
                     <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -363,13 +444,13 @@ export default function Players() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-[#999]">{p.email}</td>
-                    <td className="px-4 py-3 text-[#999]">{p.telefono||'—'}</td>
+                    <td className="px-4 py-3 text-[#676a6c] font-mono text-xs">{p.numero_tessera || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[p.role])}>
                         {ROLE_LABELS[p.role]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[#999]">{p.taglia||'—'}</td>
+                    <td className="px-4 py-3"><MedicalBadge date={p.scadenza_visita_medica}/></td>
                     <td className="px-4 py-3">
                       <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', p.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
                         {p.active ? 'Attivo' : 'Non attivo'}
@@ -377,12 +458,12 @@ export default function Players() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <button onClick={()=>setDetailPlayer(p)} className="text-[#999] hover:text-[#1c84c6] transition-colors" title="Scheda"><Eye size={15}/></button>
-                        <button onClick={()=>toggleActive(p)} className="text-[#999] hover:text-[#1ab394] transition-colors" title="Attiva/Disattiva">
+                        <button onClick={()=>setDetailPlayer(p)} className="text-[#999] hover:text-[#1c84c6]" title="Scheda"><Eye size={15}/></button>
+                        <button onClick={()=>toggleActive(p)} className="text-[#999] hover:text-[#1ab394]">
                           {p.active ? <ToggleRight size={18} className="text-[#1ab394]"/> : <ToggleLeft size={18}/>}
                         </button>
-                        <button onClick={()=>setModal(p)} className="text-[#999] hover:text-[#1c84c6] transition-colors" title="Modifica"><Edit2 size={15}/></button>
-                        <button onClick={()=>deletePlayer(p)} className="text-[#999] hover:text-red-500 transition-colors" title="Elimina"><Trash2 size={15}/></button>
+                        <button onClick={()=>setModal(p)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={15}/></button>
+                        <button onClick={()=>deletePlayer(p)} className="text-[#999] hover:text-red-500"><Trash2 size={15}/></button>
                       </div>
                     </td>
                   </tr>
