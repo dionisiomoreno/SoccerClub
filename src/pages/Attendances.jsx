@@ -111,11 +111,11 @@ export default function Attendances() {
       const target = await getTargetLocation(type)
       setGeoTarget(target)
 
-      // Importi da team_settings
-      const importoBase = type === 'training'
-        ? (teamSettings?.importo_allenamento ?? 20)
-        : (teamSettings?.importo_partita ?? 30)
-      const carburante = teamSettings?.importo_carburante ?? 0
+     // Importi: usa valori calciatore se definiti, altrimenti globali
+const importoBase = type === 'training'
+  ? (profile?.importo_allenamento ?? teamSettings?.importo_allenamento ?? 20)
+  : (profile?.importo_partita ?? teamSettings?.importo_partita ?? 30)
+const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburante ?? 0
 
       if (!target) {
         const { error } = await supabase.from('attendances').insert([{
