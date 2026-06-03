@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import { Download, Plus, Fuel } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
-import clsx from 'clsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -13,7 +12,6 @@ const YEARS = [2024, 2025, 2026]
 
 function generatePDF(payslip, player, attendances, sanctions, teamSettings) {
   const doc = new jsPDF()
-  // Header
   doc.setFillColor(26, 179, 148)
   doc.rect(0, 0, 210, 30, 'F')
   doc.setTextColor(255, 255, 255)
@@ -32,7 +30,6 @@ function generatePDF(payslip, player, attendances, sanctions, teamSettings) {
   doc.text(`Calciatore: ${player?.cognome} ${player?.nome}`, 14, 55)
   doc.text(`Generato il: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 62)
 
-  // Tabella presenze
   autoTable(doc, {
     startY: 72,
     head: [['Tipo', 'Data', 'Base', 'Carburante', 'Totale']],
@@ -47,7 +44,6 @@ function generatePDF(payslip, player, attendances, sanctions, teamSettings) {
     styles: { fontSize: 9 }
   })
 
-  // Tabella sanzioni
   if (sanctions.length > 0) {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 10,
@@ -58,7 +54,6 @@ function generatePDF(payslip, player, attendances, sanctions, teamSettings) {
     })
   }
 
-  // Riepilogo
   const y = doc.lastAutoTable.finalY + 15
   doc.setFillColor(245, 245, 245)
   doc.rect(14, y, 182, 38, 'F')
@@ -72,7 +67,7 @@ function generatePDF(payslip, player, attendances, sanctions, teamSettings) {
   doc.setTextColor(26, 179, 148)
   doc.setFont('helvetica', 'bold')
   doc.text(`Netto totale: €${payslip.netto}`, 20, y + 33)
-  doc.setTextColor(0, 0, 0)
+  doc.setTextColor(0,0,0)
   doc.setFont('helvetica', 'normal')
   doc.text('Firma: ______________________', 120, y + 33)
   doc.save(`cedolino_${player?.cognome}_${MONTHS[payslip.month - 1]}_${payslip.year}.pdf`)
@@ -121,7 +116,7 @@ function GenerateModal({ onClose, onSaved }) {
     if (error) { toast.error(error.message); setLoading(false); return }
     await supabase.from('notifications').insert([{
       user_id: form.player_id, type: 'payslip_generated',
-      message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} disponibile — Netto: €${preview.netto}`, read: false
+      message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} — Netto: €${preview.netto}`, read: false
     }])
     generatePDF({ ...payslipData, ...ps }, player, preview.att, preview.san, teamSettings)
     toast.success('Cedolino generato!')
@@ -222,14 +217,15 @@ export default function Payslips() {
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#2f4050]">Cedolini</h1>
-          <p className="text-sm text-[#999] mt-1">Rimborsi mensili calciatori e staff</p>
+          <h1 className="text-2xl font-bold text-[#2f4050]">Cedolini Calciatori</h1>
+          <p className="text-sm text-[#999] mt-1">Rimborsi mensili calciatori</p>
         </div>
         {(isAdmin || isMister) && (
           <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
             <Plus size={16}/> Genera
           </button>
         )}
+      </div>
 
       <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
         {loading ? (
@@ -261,13 +257,11 @@ export default function Payslips() {
                       : <span className="text-[#999]">—</span>}
                   </td>
                   <td className="px-4 py-3 text-red-500">-€{p.sanzioni}</td>
-                  <td className="px-4 py-3 text-[#1ab394] font-bold">€{p.netto ?? p.compenso}</td>
+                  <td className="px-4 py-3 text-[#1ab394] font-bold">€{p.netto}</td>
                   <td className="px-4 py-3">
-                    {tab === 'players' && (
-                      <button onClick={() => downloadPDF(p)} className="text-[#999] hover:text-[#1ab394] flex items-center gap-1 text-xs">
-                        <Download size={13}/> PDF
-                      </button>
-                    )}
+                    <button onClick={() => downloadPDF(p)} className="text-[#999] hover:text-[#1ab394] flex items-center gap-1 text-xs">
+                      <Download size={13}/> PDF
+                    </button>
                   </td>
                 </tr>
               ))}
