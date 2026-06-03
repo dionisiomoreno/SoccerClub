@@ -191,26 +191,20 @@ function GenerateModal({ onClose, onSaved }) {
 
 export default function Payslips() {
   const { profile, isAdmin, isMister } = useAuth()
-  const [tab, setTab] = useState('players')
   const [payslips, setPayslips] = useState([])
   const [teamSettings, setTeamSettings] = useState(null)
   const [modal, setModal] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { load() }, [tab])
+  useEffect(() => { load() }, [])
   useEffect(() => { supabase.from('team_settings').select('*').single().then(({ data }) => setTeamSettings(data)) }, [])
 
   async function load() {
     setLoading(true)
-    if (tab === 'players') {
-      let q = supabase.from('payslips').select('*, profiles(nome,cognome)').order('year', { ascending: false }).order('month', { ascending: false })
-      if (!isAdmin && !isMister) q = q.eq('player_id', profile.id)
-      const { data } = await q
-      setPayslips(data || [])
-    } else {
-      const { data } = await supabase.from('coach_payslips').select('*, profiles(nome,cognome)').order('year', { ascending: false }).order('month', { ascending: false })
-      setPayslips(data || [])
-    }
+    let q = supabase.from('payslips').select('*, profiles(nome,cognome)').order('year', { ascending: false }).order('month', { ascending: false })
+    if (!isAdmin && !isMister) q = q.eq('player_id', profile.id)
+    const { data } = await q
+    setPayslips(data || [])
     setLoading(false)
   }
 
@@ -236,19 +230,6 @@ export default function Payslips() {
             <Plus size={16}/> Genera
           </button>
         )}
-      </div>
-
-      {(isAdmin || isMister) && (
-        <div className="flex gap-1 border-b border-[#e7eaec]">
-          {[['players','Calciatori'],['mister','Mister']].map(([v, l]) => (
-            <button key={v} onClick={() => setTab(v)}
-              className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
-                tab === v ? 'border-[#1ab394] text-[#1ab394]' : 'border-transparent text-[#999] hover:text-[#676a6c]')}>
-              {l}
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
         {loading ? (
@@ -261,11 +242,9 @@ export default function Payslips() {
               <tr className="border-b border-[#e7eaec] bg-gray-50">
                 {(isAdmin || isMister) && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Calciatore</th>}
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Periodo</th>
-                {tab === 'players' && <>
-                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Presenze</th>
-                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Carb.</th>
-                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Sanzioni</th>
-                </>}
+                <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Presenze</th>
+                <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Carb.</th>
+                <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Sanzioni</th>
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Netto</th>
                 <th className="px-4 py-3"/>
               </tr>
@@ -275,15 +254,13 @@ export default function Payslips() {
                 <tr key={p.id} className="border-b border-[#e7eaec] hover:bg-gray-50">
                   {(isAdmin || isMister) && <td className="px-4 py-3 text-[#2f4050] font-medium">{p.profiles?.cognome} {p.profiles?.nome}</td>}
                   <td className="px-4 py-3 text-[#999]">{MONTHS[p.month - 1]} {p.year}</td>
-                  {tab === 'players' && <>
-                    <td className="px-4 py-3 text-[#676a6c]">€{(p.lordo || 0) - (p.carburante || 0)}</td>
-                    <td className="px-4 py-3">
-                      {p.carburante > 0
-                        ? <span className="text-blue-500 flex items-center gap-1"><Fuel size={11}/>€{p.carburante}</span>
-                        : <span className="text-[#999]">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-red-500">-€{p.sanzioni}</td>
-                  </>}
+                  <td className="px-4 py-3 text-[#676a6c]">€{(p.lordo || 0) - (p.carburante || 0)}</td>
+                  <td className="px-4 py-3">
+                    {p.carburante > 0
+                      ? <span className="text-blue-500 flex items-center gap-1"><Fuel size={11}/>€{p.carburante}</span>
+                      : <span className="text-[#999]">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-red-500">-€{p.sanzioni}</td>
                   <td className="px-4 py-3 text-[#1ab394] font-bold">€{p.netto ?? p.compenso}</td>
                   <td className="px-4 py-3">
                     {tab === 'players' && (
