@@ -30,7 +30,6 @@ body {
 /* Testi chiari → scuri */
 [class*="text-\[#F5F5F5\]"] { color: #676a6c !important; }
 [class*="text-\[#f5f5f5\]"] { color: #676a6c !important; }
-[class*="text-white"]       { color: #2f4050 !important; }
 [class*="text-\[#6B7280\]"] { color: #999999 !important; }
 [class*="text-\[#6b7280\]"] { color: #999999 !important; }
 
