@@ -14,6 +14,7 @@ import Payslips from './pages/Payslips'
 import Sanctions from './pages/Sanctions'
 import MatchReport from './pages/MatchReport'
 import Settings from './pages/Settings'
+import Mister from './pages/Mister'
 import NotFound from './pages/NotFound'
 
 function PrivateRoute({ children, roles }) {
@@ -38,6 +39,7 @@ function AppRoutes() {
         <Route path="documenti" element={<Documents />} />
         <Route path="cedolini" element={<PrivateRoute roles={['admin','mister','player_paid']}><Payslips /></PrivateRoute>} />
         <Route path="sanzioni" element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
+        <Route path="mister" element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
         <Route path="distinta" element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
         <Route path="impostazioni" element={<Settings />} />
       </Route>
