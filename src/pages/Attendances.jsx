@@ -7,7 +7,6 @@ import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { it } from 'date-fns/locale'
 import clsx from 'clsx'
 
-// Calcola distanza in metri tra due coordinate (formula Haversine)
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -16,6 +15,13 @@ function getDistance(lat1, lon1, lat2, lon2) {
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon/2) * Math.sin(dLon/2)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
+async function geocodeAddress(address) {
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`)
+  const data = await res.json()
+  if (data && data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+  return null
 }
 
 export default function Attendances() {
@@ -28,15 +34,22 @@ export default function Attendances() {
   const [loading, setLoading] = useState(true)
   const [geoLoading, setGeoLoading] = useState(false)
   const [teamSettings, setTeamSettings] = useState(null)
-  const [userPosition, setUserPosition] = useState(null)
+  const [todayMatch, setTodayMatch] = useState(null)
   const [distance, setDistance] = useState(null)
+  const [geoTarget, setGeoTarget] = useState(null)
 
   useEffect(() => { load() }, [filterMonth, filterPlayer])
-  useEffect(() => { loadTeamSettings() }, [])
+  useEffect(() => { loadTeamSettings(); loadTodayMatch() }, [])
 
   async function loadTeamSettings() {
     const { data } = await supabase.from('team_settings').select('*').single()
     if (data) setTeamSettings(data)
+  }
+
+  async function loadTodayMatch() {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const { data } = await supabase.from('matches').select('*').eq('date', today).single()
+    if (data) setTodayMatch(data)
   }
 
   async function load() {
@@ -68,69 +81,103 @@ export default function Attendances() {
     setLoading(false)
   }
 
-  async function checkGeolocation() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error('Geolocalizzazione non supportata dal browser'))
-        return
+  async function getTargetLocation(type) {
+    // Per gli allenamenti → struttura di casa
+    if (type === 'training') {
+      if (!teamSettings?.lat || !teamSettings?.lng) return null
+      return { lat: teamSettings.lat, lng: teamSettings.lng, label: 'struttura di casa', raggio: teamSettings.raggio_timbratura }
+    }
+
+    // Per le partite → controlla se oggi c'è una partita
+    if (type === 'match' && todayMatch) {
+      if (todayMatch.casa) {
+        // Partita in casa → struttura di casa
+        if (!teamSettings?.lat || !teamSettings?.lng) return null
+        return { lat: teamSettings.lat, lng: teamSettings.lng, label: 'struttura di casa', raggio: teamSettings.raggio_timbratura }
+      } else {
+        // Trasferta → geocodifica il campo avversario
+        if (!todayMatch.indirizzo && !todayMatch.campo) return null
+        const address = todayMatch.indirizzo || todayMatch.campo
+        toast.loading('Rilevando posizione campo avversario...')
+        const coords = await geocodeAddress(address)
+        toast.dismiss()
+        if (!coords) {
+          toast.error('Impossibile trovare il campo avversario. Timbratura libera.')
+          return null
+        }
+        return { lat: coords.lat, lng: coords.lng, label: `campo avversario (${todayMatch.avversario})`, raggio: teamSettings?.raggio_timbratura || 200 }
       }
-      navigator.geolocation.getCurrentPosition(
-        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        err => reject(new Error('Impossibile rilevare la posizione. Controlla i permessi.'))
-      )
-    })
+    }
+
+    // Nessuna partita oggi o nessuna configurazione → timbratura libera
+    return null
   }
 
   async function register(type) {
     const today = format(new Date(), 'yyyy-MM-dd')
     if (todayAtt.includes(type)) return
 
-    // Se la struttura non ha coordinate configurate, registra senza geo
-    if (!teamSettings?.lat || !teamSettings?.lng) {
-      const { error } = await supabase.from('attendances').insert([{
-        player_id: profile.id, type, date: today,
-        amount: type === 'training' ? 20 : 30
-      }])
-      if (error) toast.error(error.message)
-      else { toast.success(`${type === 'training' ? 'Allenamento' : 'Partita'} registrata!`); load() }
-      return
-    }
-
-    // Geolocalizzazione attiva
     setGeoLoading(true)
+
     try {
-      const pos = await checkGeolocation()
-      setUserPosition(pos)
+      const target = await getTargetLocation(type)
+      setGeoTarget(target)
 
-      const dist = getDistance(pos.lat, pos.lng, teamSettings.lat, teamSettings.lng)
-      setDistance(Math.round(dist))
-
-      if (dist > teamSettings.raggio_timbratura) {
-        toast.error(`Sei troppo lontano dalla struttura! (${Math.round(dist)}m — max ${teamSettings.raggio_timbratura}m)`)
+      if (!target) {
+        // Timbratura libera senza GPS
+        const { error } = await supabase.from('attendances').insert([{
+          player_id: profile.id, type, date: today,
+          amount: type === 'training' ? 20 : 30
+        }])
+        if (error) toast.error(error.message)
+        else { toast.success(`${type === 'training' ? 'Allenamento' : 'Partita'} registrata!`); load() }
         setGeoLoading(false)
         return
       }
 
-      const { error } = await supabase.from('attendances').insert([{
-        player_id: profile.id, type, date: today,
-        amount: type === 'training' ? 20 : 30,
-        lat: pos.lat, lng: pos.lng, distance_meters: Math.round(dist)
-      }])
-      if (error) toast.error(error.message)
-      else {
-        toast.success(`✅ ${type === 'training' ? 'Allenamento' : 'Partita'} registrata! Sei a ${Math.round(dist)}m dalla struttura.`)
-        load()
+      // Verifica GPS
+      if (!navigator.geolocation) {
+        toast.error('Geolocalizzazione non supportata')
+        setGeoLoading(false)
+        return
       }
+
+      navigator.geolocation.getCurrentPosition(
+        async pos => {
+          const dist = getDistance(pos.coords.latitude, pos.coords.longitude, target.lat, target.lng)
+          setDistance(Math.round(dist))
+
+          if (dist > target.raggio) {
+            toast.error(`Sei troppo lontano dalla ${target.label}! (${Math.round(dist)}m — max ${target.raggio}m)`)
+            setGeoLoading(false)
+            return
+          }
+
+          const { error } = await supabase.from('attendances').insert([{
+            player_id: profile.id, type, date: today,
+            amount: type === 'training' ? 20 : 30,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            distance_meters: Math.round(dist)
+          }])
+          if (error) toast.error(error.message)
+          else {
+            toast.success(`✅ ${type === 'training' ? 'Allenamento' : 'Partita'} registrata! Sei a ${Math.round(dist)}m dalla ${target.label}.`)
+            load()
+          }
+          setGeoLoading(false)
+        },
+        () => { toast.error('Impossibile rilevare la posizione. Controlla i permessi GPS.'); setGeoLoading(false) }
+      )
     } catch(e) {
       toast.error(e.message)
+      setGeoLoading(false)
     }
-    setGeoLoading(false)
   }
 
   const trainings = attendances.filter(a => a.type === 'training').length
   const matches = attendances.filter(a => a.type === 'match').length
   const total = trainings * 20 + matches * 30
-
   const geoActive = !!(teamSettings?.lat && teamSettings?.lng)
 
   return (
@@ -140,26 +187,38 @@ export default function Attendances() {
         <p className="text-sm text-[#999] mt-1">Registro presenze allenamenti e partite</p>
       </div>
 
+      {/* Info partita oggi */}
+      {!isAdmin && !isMister && todayMatch && (
+        <div className={clsx('flex items-center gap-2 rounded p-3 text-sm border',
+          todayMatch.casa ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700')}>
+          <Trophy size={15}/>
+          {todayMatch.casa
+            ? `Partita in casa oggi vs ${todayMatch.avversario} — timbratura sulla struttura di casa`
+            : `Trasferta oggi vs ${todayMatch.avversario} — timbratura sul campo avversario${todayMatch.indirizzo ? ` (${todayMatch.indirizzo})` : ''}`
+          }
+        </div>
+      )}
+
       {/* Info geolocalizzazione */}
       {!isAdmin && !isMister && (
         <div className={clsx('flex items-center gap-2 rounded p-3 text-sm border',
           geoActive ? 'bg-green-50 border-green-200 text-green-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700')}>
           <MapPin size={15}/>
           {geoActive
-            ? `Timbratura geolocalizzata attiva — raggio ${teamSettings.raggio_timbratura}m dalla struttura`
-            : 'Timbratura libera — geolocalizzazione non configurata dall\'admin'}
+            ? `Timbratura geolocalizzata attiva — raggio ${teamSettings.raggio_timbratura}m`
+            : 'Timbratura libera — geolocalizzazione non configurata'}
         </div>
       )}
 
       {/* Distanza rilevata */}
       {distance !== null && !isAdmin && !isMister && (
         <div className={clsx('flex items-center gap-2 rounded p-3 text-sm border',
-          distance <= (teamSettings?.raggio_timbratura || 200)
+          distance <= (geoTarget?.raggio || 200)
             ? 'bg-green-50 border-green-200 text-green-700'
             : 'bg-red-50 border-red-200 text-red-600')}>
           <MapPin size={15}/>
-          Sei a <strong>{distance}m</strong> dalla struttura
-          {distance <= (teamSettings?.raggio_timbratura || 200) ? ' ✅ Puoi timbrare' : ' ❌ Troppo lontano'}
+          Sei a <strong className="mx-1">{distance}m</strong> dalla {geoTarget?.label || 'struttura'}
+          {distance <= (geoTarget?.raggio || 200) ? ' ✅ Puoi timbrare' : ' ❌ Troppo lontano'}
         </div>
       )}
 
@@ -186,7 +245,8 @@ export default function Attendances() {
                 </span>
                 {geoActive && !done && (
                   <span className="text-xs text-[#999] flex items-center gap-1">
-                    <MapPin size={10}/> Richiede GPS
+                    <MapPin size={10}/>
+                    {type === 'match' && todayMatch && !todayMatch.casa ? 'GPS campo avversario' : 'GPS struttura'}
                   </span>
                 )}
               </button>
