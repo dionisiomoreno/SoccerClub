@@ -38,7 +38,7 @@ export default function Layout() {
   }
 
   const Sidebar = () => (
-    <div className="flex flex-col h-full bg-[#2f4050]">
+    <div className="flex flex-col h-full" style={{background:'#2f4050'}}>
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-4 bg-[#1ab394]">
         <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">SC</div>
