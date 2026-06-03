@@ -189,14 +189,15 @@ export default function Settings() {
       </div>
 
       {/* Impostazioni Squadra - solo admin */}
-      {isAdmin && teamSettings && (
+      {isAdmin && (
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-5 space-y-4">
           <div className="flex items-center gap-2 border-b border-[#e7eaec] pb-3">
             <Shield size={16} className="text-[#1ab394]"/>
             <h2 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Impostazioni Squadra</h2>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          {!teamSettings ? (
+            <div className="flex items-center justify-center h-24"><div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
+          ) : (
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome squadra</label>
               <input value={teamSettings.nome_squadra || ''} onChange={e => setTeam('nome_squadra', e.target.value)}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
