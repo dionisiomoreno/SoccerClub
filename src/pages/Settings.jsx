@@ -30,9 +30,21 @@ export default function Settings() {
   useEffect(() => { if (isAdmin) loadTeamSettings() }, [isAdmin])
 
   async function loadTeamSettings() {
-    const { data } = await supabase.from('team_settings').select('*').single()
-    if (data) setTeamSettings(data)
-  }
+  const { data, error } = await supabase.from('team_settings').select('*').single()
+  if (data) setTeamSettings(data)
+  else setTeamSettings({
+    nome_squadra: 'ASD Castelmauro Calcio 1986',
+    indirizzo: '',
+    citta: '',
+    telefono: '',
+    email: '',
+    sito_web: '',
+    anno_fondazione: 1986,
+    lat: null,
+    lng: null,
+    raggio_timbratura: 200
+  })
+}
 
   function setTeam(k, v) { setTeamSettings(t => ({ ...t, [k]: v })) }
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
