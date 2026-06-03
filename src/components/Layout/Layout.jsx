@@ -20,7 +20,7 @@ const navItems = [
   { to: '/materiale',   label: 'Materiale',     icon: Package,         roles: null },
   { to: '/documenti',   label: 'Documenti',     icon: FileText,        roles: null },
   { to: '/cedolini',    label: 'Cedolini',      icon: CreditCard,      roles: ['admin','mister','player_paid'] },
-  { to: '/sanzioni',    label: 'Sanzioni',      icon: AlertTriangle,   roles: ['admin'] },
+  { to: '/mister', label: 'Mister', icon: Users, roles: ['admin'] },
   { to: '/distinta',    label: 'Distinta Gara', icon: ClipboardCheck,  roles: ['admin'] },
   { to: '/impostazioni',label: 'Impostazioni',  icon: Settings,        roles: null },
 ]
