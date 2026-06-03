@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import { Download, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
-import { it } from 'date-fns/locale'
 import clsx from 'clsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -14,7 +13,7 @@ const YEARS = [2024, 2025, 2026]
 
 function generatePDF(payslip, player, attendances, sanctions) {
   const doc = new jsPDF()
-  doc.setFillColor(192, 0, 0)
+  doc.setFillColor(26, 179, 148)
   doc.rect(0, 0, 210, 30, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(18)
@@ -31,15 +30,13 @@ function generatePDF(payslip, player, attendances, sanctions) {
   doc.setFont('helvetica', 'normal')
   doc.text(`Calciatore: ${player?.cognome} ${player?.nome}`, 14, 55)
   doc.text(`Generato il: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 62)
-
   autoTable(doc, {
     startY: 72,
     head: [['Tipo', 'Data', 'Importo']],
     body: attendances.map(a => [a.type === 'training' ? 'Allenamento' : 'Partita', format(new Date(a.date), 'dd/MM/yyyy'), `€${a.amount}`]),
-    headStyles: { fillColor: [192, 0, 0] },
+    headStyles: { fillColor: [26, 179, 148] },
     styles: { fontSize: 9 }
   })
-
   if (sanctions.length > 0) {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 10,
@@ -49,15 +46,14 @@ function generatePDF(payslip, player, attendances, sanctions) {
       styles: { fontSize: 9 }
     })
   }
-
   const y = doc.lastAutoTable.finalY + 15
   doc.setFillColor(245, 245, 245)
   doc.rect(14, y, 182, 30, 'F')
   doc.setFontSize(10)
   doc.text(`Lordo: €${payslip.lordo}`, 20, y + 10)
-  doc.setTextColor(192, 0, 0)
+  doc.setTextColor(200, 0, 0)
   doc.text(`Sanzioni: -€${payslip.sanzioni}`, 20, y + 18)
-  doc.setTextColor(0, 150, 0)
+  doc.setTextColor(26, 179, 148)
   doc.setFont('helvetica', 'bold')
   doc.text(`Netto: €${payslip.netto}`, 20, y + 26)
   doc.setTextColor(0, 0, 0)
@@ -106,51 +102,53 @@ function GenerateModal({ onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b border-[#2A2A2A]">
-          <h2 className="text-white font-semibold">Genera Cedolino</h2>
-          <button onClick={onClose} className="text-[#6B7280] hover:text-white">✕</button>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
+          <h2 className="text-[#2f4050] font-bold">Genera Cedolino</h2>
+          <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]">✕</button>
         </div>
         <div className="p-4 space-y-3">
           <div>
-            <label className="block text-xs text-[#6B7280] mb-1">Calciatore</label>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Calciatore</label>
             <select value={form.player_id} onChange={e => setForm(f => ({ ...f, player_id: e.target.value }))}
-              className="w-full bg-[#121212] border border-[#2A2A2A] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#C00000]">
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
               <option value="">Seleziona...</option>
               {players.map(p => <option key={p.id} value={p.id}>{p.cognome} {p.nome}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Mese</label>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Mese</label>
               <select value={form.month} onChange={e => setForm(f => ({ ...f, month: +e.target.value }))}
-                className="w-full bg-[#121212] border border-[#2A2A2A] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#C00000]">
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
                 {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-[#6B7280] mb-1">Anno</label>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Anno</label>
               <select value={form.year} onChange={e => setForm(f => ({ ...f, year: +e.target.value }))}
-                className="w-full bg-[#121212] border border-[#2A2A2A] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#C00000]">
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
                 {YEARS.map(y => <option key={y}>{y}</option>)}
               </select>
             </div>
           </div>
-          <button onClick={calcola} disabled={loading} className="w-full bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white py-2 rounded-lg text-sm">Calcola anteprima</button>
+          <button onClick={calcola} disabled={loading} className="w-full border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">
+            Calcola anteprima
+          </button>
           {preview && (
-            <div className="bg-[#121212] border border-[#2A2A2A] rounded-lg p-3 space-y-1 text-sm">
-              <div className="flex justify-between text-white"><span>Allenamenti</span><span>{preview.att.filter(a => a.type === 'training').length}</span></div>
-              <div className="flex justify-between text-white"><span>Partite</span><span>{preview.att.filter(a => a.type === 'match').length}</span></div>
-              <div className="flex justify-between text-white"><span>Lordo</span><span>€{preview.lordo}</span></div>
-              <div className="flex justify-between text-red-400"><span>Sanzioni</span><span>-€{preview.sanzioni}</span></div>
-              <div className="flex justify-between text-green-400 font-bold border-t border-[#2A2A2A] pt-1"><span>Netto</span><span>€{preview.netto}</span></div>
+            <div className="bg-gray-50 border border-[#e7eaec] rounded p-3 space-y-1 text-sm">
+              <div className="flex justify-between text-[#676a6c]"><span>Allenamenti</span><span>{preview.att.filter(a => a.type === 'training').length}</span></div>
+              <div className="flex justify-between text-[#676a6c]"><span>Partite</span><span>{preview.att.filter(a => a.type === 'match').length}</span></div>
+              <div className="flex justify-between text-[#676a6c]"><span>Lordo</span><span>€{preview.lordo}</span></div>
+              <div className="flex justify-between text-red-500"><span>Sanzioni</span><span>-€{preview.sanzioni}</span></div>
+              <div className="flex justify-between text-[#1ab394] font-bold border-t border-[#e7eaec] pt-1"><span>Netto</span><span>€{preview.netto}</span></div>
             </div>
           )}
         </div>
-        <div className="flex gap-2 p-4 border-t border-[#2A2A2A]">
-          <button onClick={onClose} className="flex-1 bg-[#2A2A2A] text-white py-2 rounded-lg text-sm">Annulla</button>
-          <button onClick={save} disabled={loading || !preview} className="flex-1 bg-[#C00000] hover:bg-[#A00000] disabled:opacity-50 text-white py-2 rounded-lg text-sm font-semibold">
+        <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
+          <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
+          <button onClick={save} disabled={loading || !preview} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
             Genera PDF
           </button>
         </div>
@@ -193,56 +191,63 @@ export default function Payslips() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Cedolini</h1>
+    <div className="space-y-5">
+      <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#2f4050]">Cedolini</h1>
+          <p className="text-sm text-[#999] mt-1">Rimborsi mensili calciatori e staff</p>
+        </div>
         {(isAdmin || isMister) && (
-          <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#C00000] hover:bg-[#A00000] text-white px-3 py-2 rounded-lg text-sm font-semibold">
+          <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
             <Plus size={16}/> Genera
           </button>
         )}
       </div>
 
       {(isAdmin || isMister) && (
-        <div className="flex gap-1 bg-[#1E1E1E] border border-[#2A2A2A] rounded-lg p-1 w-fit">
+        <div className="flex gap-1 border-b border-[#e7eaec]">
           {[['players','Calciatori'],['mister','Mister']].map(([v, l]) => (
-            <button key={v} onClick={() => setTab(v)} className={clsx('px-4 py-1.5 rounded-md text-sm font-medium transition-colors', tab === v ? 'bg-[#C00000] text-white' : 'text-[#6B7280] hover:text-white')}>{l}</button>
+            <button key={v} onClick={() => setTab(v)}
+              className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+                tab === v ? 'border-[#1ab394] text-[#1ab394]' : 'border-transparent text-[#999] hover:text-[#676a6c]')}>
+              {l}
+            </button>
           ))}
         </div>
       )}
 
-      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-24"><div className="w-6 h-6 border-2 border-[#C00000] border-t-transparent rounded-full animate-spin"/></div>
+          <div className="flex items-center justify-center h-24"><div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
         ) : payslips.length === 0 ? (
-          <div className="text-center text-[#6B7280] py-10 text-sm">Nessun cedolino</div>
+          <div className="text-center text-[#999] py-10 text-sm">Nessun cedolino</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#2A2A2A]">
-                {(isAdmin || isMister) && <th className="text-left text-xs text-[#6B7280] px-4 py-3 font-medium">Calciatore</th>}
-                <th className="text-left text-xs text-[#6B7280] px-4 py-3 font-medium">Periodo</th>
+              <tr className="border-b border-[#e7eaec] bg-gray-50">
+                {(isAdmin || isMister) && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Calciatore</th>}
+                <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Periodo</th>
                 {tab === 'players' && <>
-                  <th className="text-left text-xs text-[#6B7280] px-4 py-3 font-medium">Lordo</th>
-                  <th className="text-left text-xs text-[#6B7280] px-4 py-3 font-medium">Sanzioni</th>
+                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Lordo</th>
+                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Sanzioni</th>
                 </>}
-                <th className="text-left text-xs text-[#6B7280] px-4 py-3 font-medium">Netto</th>
+                <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Netto</th>
                 <th className="px-4 py-3"/>
               </tr>
             </thead>
             <tbody>
               {payslips.map(p => (
-                <tr key={p.id} className="border-b border-[#2A2A2A] hover:bg-[#2A2A2A]/30">
-                  {(isAdmin || isMister) && <td className="px-4 py-3 text-white">{p.profiles?.cognome} {p.profiles?.nome}</td>}
-                  <td className="px-4 py-3 text-[#6B7280]">{MONTHS[p.month - 1]} {p.year}</td>
+                <tr key={p.id} className="border-b border-[#e7eaec] hover:bg-gray-50">
+                  {(isAdmin || isMister) && <td className="px-4 py-3 text-[#2f4050] font-medium">{p.profiles?.cognome} {p.profiles?.nome}</td>}
+                  <td className="px-4 py-3 text-[#999]">{MONTHS[p.month - 1]} {p.year}</td>
                   {tab === 'players' && <>
-                    <td className="px-4 py-3 text-white">€{p.lordo}</td>
-                    <td className="px-4 py-3 text-red-400">-€{p.sanzioni}</td>
+                    <td className="px-4 py-3 text-[#676a6c]">€{p.lordo}</td>
+                    <td className="px-4 py-3 text-red-500">-€{p.sanzioni}</td>
                   </>}
-                  <td className="px-4 py-3 text-green-400 font-bold">€{p.netto ?? p.compenso}</td>
+                  <td className="px-4 py-3 text-[#1ab394] font-bold">€{p.netto ?? p.compenso}</td>
                   <td className="px-4 py-3">
                     {tab === 'players' && (
-                      <button onClick={() => downloadPDF(p)} className="text-[#6B7280] hover:text-white flex items-center gap-1 text-xs">
+                      <button onClick={() => downloadPDF(p)} className="text-[#999] hover:text-[#1ab394] flex items-center gap-1 text-xs">
                         <Download size={13}/> PDF
                       </button>
                     )}
