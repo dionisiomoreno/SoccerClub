@@ -1,0 +1,187 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
+import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { format } from 'date-fns'
+import { it } from 'date-fns/locale'
+import clsx from 'clsx'
+
+function CallupsModal({ onClose, onSaved }) {
+  const [matches, setMatches] = useState([])
+  const [players, setPlayers] = useState([])
+  const [form, setForm] = useState({ match_id: '', ora_ritrovo: '', luogo_ritrovo: '', note: '' })
+  const [selected, setSelected] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    supabase.from('matches').select('*').gte('date', new Date().toISOString().split('T')[0]).order('date').then(({ data }) => setMatches(data || []))
+    supabase.from('profiles').select('id,nome,cognome').eq('active', true).order('cognome').then(({ data }) => setPlayers(data || []))
+  }, [])
+
+  function togglePlayer(id) {
+    setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+  }
+
+  async function save() {
+    if (!form.match_id) return toast.error('Seleziona una partita')
+    setLoading(true)
+    const { data: callup, error } = await supabase.from('callups').insert([{ ...form }]).select().single()
+    if (error) { toast.error(error.message); setLoading(false); return }
+    if (selected.length > 0) {
+      await supabase.from('callup_players').insert(selected.map(pid => ({ callup_id: callup.id, player_id: pid })))
+      await supabase.from('notifications').insert(selected.map(pid => ({
+        user_id: pid, type: 'callup_published', message: 'Sei stato convocato per la prossima partita!', read: false
+      })))
+    }
+    toast.success('Convocazione creata')
+    onSaved()
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-[#2A2A2A]">
+          <h2 className="text-white font-semibold">Nuova Convocazione</h2>
+          <button onClick={onClose} className="text-[#6B7280] hover:text-white">✕</button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="block text-xs text-[#6B7280] mb-1">Partita</label>
+            <select value={form.match_id} onChange={e => setForm(f => ({ ...f, match_id: e.target.value }))}
+              className="w-full bg-[#121212] border border-[#2A2A2A] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#C00000]">
+              <option value="">Seleziona partita...</option>
+              {matches.map(m => <option key={m.id} value={m.id}>vs {m.avversario} — {format(new Date(m.date), 'dd/MM/yyyy')}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-[#6B7280] mb-1">Ora ritrovo</label>
+              <input type="time" value={form.ora_ritrovo} onChange={e => setForm(f => ({ ...f, ora_ritrovo: e.target.value }))}
+                className="w-full bg-[#121212] border border-[#2A2A2A] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#C00000]"/>
+            </div>
+            <div>
+              <label className="block text-xs text-[#6B7280] mb-1">Luogo ritrovo</label>
+              <input value={form.luogo_ritrovo} onChange={e => setForm(f => ({ ...f, luogo_ritrovo: e.target.value }))}
+                className="w-full bg-[#121212] border border-[#2A2A2A] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#C00000]"/>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-[#6B7280] mb-1">Note</label>
+            <textarea value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} rows={2}
+              className="w-full bg-[#121212] border border-[#2A2A2A] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-[#C00000] resize-none"/>
+          </div>
+          <div>
+            <label className="block text-xs text-[#6B7280] mb-2">Calciatori ({selected.length} selezionati)</label>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {players.map(p => (
+                <label key={p.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#2A2A2A] cursor-pointer">
+                  <input type="checkbox" checked={selected.includes(p.id)} onChange={() => togglePlayer(p.id)} className="accent-[#C00000]"/>
+                  <div className="w-6 h-6 rounded-full bg-[#C00000]/20 text-[#C00000] flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {(p.nome?.[0]||'')+(p.cognome?.[0]||'')}
+                  </div>
+                  <span className="text-white text-sm">{p.cognome} {p.nome}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 p-4 border-t border-[#2A2A2A]">
+          <button onClick={onClose} className="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white py-2 rounded-lg text-sm">Annulla</button>
+          <button onClick={save} disabled={loading} className="flex-1 bg-[#C00000] hover:bg-[#A00000] disabled:opacity-50 text-white py-2 rounded-lg text-sm font-semibold">
+            {loading ? 'Salvataggio...' : 'Crea'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function Callups() {
+  const { profile, isAdmin, isMister } = useAuth()
+  const [callups, setCallups] = useState([])
+  const [expanded, setExpanded] = useState(null)
+  const [modal, setModal] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    let q = supabase.from('callups').select('*, matches(avversario,date,time,campo), callup_players(player_id, profiles(nome,cognome))').order('created_at', { ascending: false })
+    if (!isAdmin && !isMister) {
+      const { data: myCallups } = await supabase.from('callup_players').select('callup_id').eq('player_id', profile.id)
+      const ids = (myCallups || []).map(c => c.callup_id)
+      if (ids.length === 0) { setCallups([]); setLoading(false); return }
+      q = q.in('id', ids)
+    }
+    const { data } = await q
+    setCallups(data || [])
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-white">Convocazioni</h1>
+        {(isAdmin || isMister) && (
+          <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#C00000] hover:bg-[#A00000] text-white px-3 py-2 rounded-lg text-sm font-semibold">
+            <Plus size={16}/> Nuova
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#C00000] border-t-transparent rounded-full animate-spin"/></div>
+      ) : callups.length === 0 ? (
+        <div className="text-center text-[#6B7280] py-12 text-sm">Nessuna convocazione trovata</div>
+      ) : (
+        <div className="space-y-3">
+          {callups.map(c => {
+            const players = c.callup_players || []
+            const isExpanded = expanded === c.id
+            const isConvocato = !isAdmin && !isMister && players.some(p => p.player_id === profile?.id)
+            return (
+              <div key={c.id} className="bg-[#1E1E1E] border border-[#2A2A2A] rounded-xl overflow-hidden">
+                <button className="w-full p-4 flex items-center justify-between text-left hover:bg-[#2A2A2A]/30 transition-colors"
+                  onClick={() => setExpanded(isExpanded ? null : c.id)}>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-white font-semibold">vs {c.matches?.avversario}</span>
+                      {isConvocato && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#C00000]/20 text-[#C00000]">Convocato ✓</span>}
+                    </div>
+                    <div className="text-[#6B7280] text-xs">
+                      {c.matches?.date && format(new Date(c.matches.date), 'dd MMM yyyy', { locale: it })}
+                      {c.ora_ritrovo && ` • Ritrovo: ${c.ora_ritrovo}`}
+                      {c.luogo_ritrovo && ` @ ${c.luogo_ritrovo}`}
+                    </div>
+                    {c.note && <div className="text-[#6B7280] text-xs italic">{c.note}</div>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-[#6B7280]">{players.length} conv.</span>
+                    {isExpanded ? <ChevronUp size={16} className="text-[#6B7280]"/> : <ChevronDown size={16} className="text-[#6B7280]"/>}
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="px-4 pb-4 flex flex-wrap gap-2 border-t border-[#2A2A2A] pt-3">
+                    {players.map(p => (
+                      <div key={p.player_id} className="flex items-center gap-1.5 bg-[#2A2A2A] rounded-full px-3 py-1">
+                        <div className="w-5 h-5 rounded-full bg-[#C00000]/20 text-[#C00000] flex items-center justify-center text-xs font-bold">
+                          {(p.profiles?.nome?.[0]||'')+(p.profiles?.cognome?.[0]||'')}
+                        </div>
+                        <span className="text-white text-xs">{p.profiles?.cognome} {p.profiles?.nome}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {modal && <CallupsModal onClose={() => setModal(false)} onSaved={() => { setModal(false); load() }}/>}
+    </div>
+  )
+}
