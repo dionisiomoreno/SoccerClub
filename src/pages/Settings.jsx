@@ -21,17 +21,13 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
-
-  // Team settings
   const [teamSettings, setTeamSettings] = useState(null)
   const [savingTeam, setSavingTeam] = useState(false)
   const [geoLoading, setGeoLoading] = useState(false)
 
   const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
 
-  useEffect(() => {
-    if (isAdmin) loadTeamSettings()
-  }, [isAdmin])
+  useEffect(() => { if (isAdmin) loadTeamSettings() }, [isAdmin])
 
   async function loadTeamSettings() {
     const { data } = await supabase.from('team_settings').select('*').single()
@@ -61,21 +57,19 @@ export default function Settings() {
 
   async function saveTeamSettings() {
     setSavingTeam(true)
-    const { error } = await supabase.from('team_settings')
-      .update({
-        nome_squadra: teamSettings.nome_squadra,
-        indirizzo: teamSettings.indirizzo,
-        citta: teamSettings.citta,
-        telefono: teamSettings.telefono,
-        email: teamSettings.email,
-        sito_web: teamSettings.sito_web,
-        anno_fondazione: teamSettings.anno_fondazione,
-        lat: teamSettings.lat,
-        lng: teamSettings.lng,
-        raggio_timbratura: teamSettings.raggio_timbratura,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', teamSettings.id)
+    const { error } = await supabase.from('team_settings').update({
+      nome_squadra: teamSettings.nome_squadra,
+      indirizzo: teamSettings.indirizzo,
+      citta: teamSettings.citta,
+      telefono: teamSettings.telefono,
+      email: teamSettings.email,
+      sito_web: teamSettings.sito_web,
+      anno_fondazione: teamSettings.anno_fondazione,
+      lat: teamSettings.lat,
+      lng: teamSettings.lng,
+      raggio_timbratura: teamSettings.raggio_timbratura,
+      updated_at: new Date().toISOString()
+    }).eq('id', teamSettings.id)
     if (error) toast.error(error.message)
     else toast.success('Impostazioni squadra salvate')
     setSavingTeam(false)
@@ -92,7 +86,7 @@ export default function Settings() {
         setTeamSettings(t => ({ ...t, lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }))
         toast.success('Coordinate GPS rilevate!')
       } else {
-        toast.error('Indirizzo non trovato. Prova a essere più specifico.')
+        toast.error('Indirizzo non trovato')
       }
     } catch(e) {
       toast.error('Errore nel rilevamento coordinate')
@@ -195,103 +189,114 @@ export default function Settings() {
             <Shield size={16} className="text-[#1ab394]"/>
             <h2 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Impostazioni Squadra</h2>
           </div>
+
           {!teamSettings ? (
-            <div className="flex items-center justify-center h-24"><div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
+            <div className="flex items-center justify-center h-24">
+              <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+            </div>
           ) : (
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome squadra</label>
-              <input value={teamSettings.nome_squadra || ''} onChange={e => setTeam('nome_squadra', e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Anno fondazione</label>
-              <input type="number" value={teamSettings.anno_fondazione || ''} onChange={e => setTeam('anno_fondazione', +e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Città</label>
-              <input value={teamSettings.citta || ''} onChange={e => setTeam('citta', e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Telefono</label>
-              <input value={teamSettings.telefono || ''} onChange={e => setTeam('telefono', e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email</label>
-              <input value={teamSettings.email || ''} onChange={e => setTeam('email', e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Sito web</label>
-              <input value={teamSettings.sito_web || ''} onChange={e => setTeam('sito_web', e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-            </div>
-          </div>
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome squadra</label>
+                  <input value={teamSettings.nome_squadra || ''} onChange={e => setTeam('nome_squadra', e.target.value)}
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Anno fondazione</label>
+                  <input type="number" value={teamSettings.anno_fondazione || ''} onChange={e => setTeam('anno_fondazione', +e.target.value)}
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Città</label>
+                  <input value={teamSettings.citta || ''} onChange={e => setTeam('citta', e.target.value)}
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Telefono</label>
+                  <input value={teamSettings.telefono || ''} onChange={e => setTeam('telefono', e.target.value)}
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email</label>
+                  <input value={teamSettings.email || ''} onChange={e => setTeam('email', e.target.value)}
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Sito web</label>
+                  <input value={teamSettings.sito_web || ''} onChange={e => setTeam('sito_web', e.target.value)}
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+              </div>
 
-          {/* Geolocalizzazione struttura */}
-          <div className="border-t border-[#e7eaec] pt-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <MapPin size={16} className="text-[#1ab394]"/>
-              <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Struttura sportiva</h3>
-            </div>
-            <p className="text-xs text-[#999]">Imposta la posizione della struttura per la timbratura geolocalizzata dei calciatori.</p>
+              {/* Geolocalizzazione */}
+              <div className="border-t border-[#e7eaec] pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <MapPin size={16} className="text-[#1ab394]"/>
+                  <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Struttura sportiva</h3>
+                </div>
+                <p className="text-xs text-[#999]">Imposta la posizione della struttura per la timbratura geolocalizzata.</p>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Indirizzo struttura</label>
-              <div className="flex gap-2">
-                <input value={teamSettings.indirizzo || ''} onChange={e => setTeam('indirizzo', e.target.value)}
-                  placeholder="Es. Via dello Sport 1, Castelmauro"
-                  className="flex-1 border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-                <button onClick={geocodeAddress} disabled={geoLoading}
-                  className="bg-[#1c84c6] hover:bg-[#1a75b0] disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-semibold flex items-center gap-1">
+                <div>
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Indirizzo struttura</label>
+                  <div className="flex gap-2">
+                    <input value={teamSettings.indirizzo || ''} onChange={e => setTeam('indirizzo', e.target.value)}
+                      placeholder="Es. Via dello Sport 1, Castelmauro"
+                      className="flex-1 border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                    <button onClick={geocodeAddress} disabled={geoLoading}
+                      className="bg-[#1c84c6] hover:bg-[#1a75b0] disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-semibold flex items-center gap-1">
+                      {geoLoading ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>}
+                      Rileva
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Raggio timbratura (metri)</label>
+                  <input type="number" min="50" max="2000" value={teamSettings.raggio_timbratura || 200}
+                    onChange={e => setTeam('raggio_timbratura', +e.target.value)}
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Latitudine</label>
+                    <input type="number" step="0.0000001" value={teamSettings.lat || ''}
+                      onChange={e => setTeam('lat', parseFloat(e.target.value))}
+                      placeholder="41.7654321"
+                      className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Longitudine</label>
+                    <input type="number" step="0.0000001" value={teamSettings.lng || ''}
+                      onChange={e => setTeam('lng', parseFloat(e.target.value))}
+                      placeholder="14.7654321"
+                      className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                  </div>
+                </div>
+
+                {teamSettings.lat && teamSettings.lng && (
+                  <div className="bg-green-50 border border-green-200 rounded p-3 flex items-center gap-2">
+                    <MapPin size={14} className="text-green-600"/>
+                    <span className="text-green-700 text-sm">
+                      Struttura configurata: {Number(teamSettings.lat).toFixed(5)}, {Number(teamSettings.lng).toFixed(5)} — raggio {teamSettings.raggio_timbratura}m
+                    </span>
+                  </div>
+                )}
+
+                <button onClick={useCurrentPosition} disabled={geoLoading}
+                  className="w-full border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm flex items-center justify-center gap-2">
                   {geoLoading ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>}
-                  Rileva
+                  Usa posizione attuale del dispositivo
                 </button>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Raggio timbratura (metri)</label>
-              <input type="number" min="50" max="2000" value={teamSettings.raggio_timbratura || 200} onChange={e => setTeam('raggio_timbratura', +e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Latitudine</label>
-                <input type="number" step="0.0000001" value={teamSettings.lat || ''} onChange={e => setTeam('lat', parseFloat(e.target.value))}
-                  placeholder="41.7654321"
-                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Longitudine</label>
-                <input type="number" step="0.0000001" value={teamSettings.lng || ''} onChange={e => setTeam('lng', parseFloat(e.target.value))}
-                  placeholder="14.7654321"
-                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-              </div>
-            </div>
-
-            {teamSettings.lat && teamSettings.lng && (
-              <div className="bg-green-50 border border-green-200 rounded p-3 flex items-center gap-2">
-                <MapPin size={14} className="text-green-600"/>
-                <span className="text-green-700 text-sm">
-                  Struttura configurata: {teamSettings.lat.toFixed(5)}, {teamSettings.lng.toFixed(5)} — raggio {teamSettings.raggio_timbratura}m
-                </span>
-              </div>
-            )}
-
-            <button onClick={useCurrentPosition} disabled={geoLoading}
-              className="w-full border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm flex items-center justify-center gap-2">
-              {geoLoading ? <Loader size={14} className="animate-spin"/> : <MapPin size={14}/>}
-              Usa posizione attuale del dispositivo
-            </button>
-          </div>
-
-          <button onClick={saveTeamSettings} disabled={savingTeam}
-            className="w-full bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
-            {savingTeam ? 'Salvataggio...' : 'Salva impostazioni squadra'}
-          </button>
+              <button onClick={saveTeamSettings} disabled={savingTeam}
+                className="w-full bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
+                {savingTeam ? 'Salvataggio...' : 'Salva impostazioni squadra'}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
