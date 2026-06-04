@@ -52,6 +52,7 @@ function AppRoutes() {
         <Route path="sanzioni" element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
         <Route path="mister" element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
         <Route path="distinta" element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
+        <Route path="chat" element={<SCChat />} />
         {/* Scuola Calcio */}
         <Route path="sc/atleti" element={<PrivateRoute roles={['admin','segreteria']}><YouthPlayers /></PrivateRoute>} />
         <Route path="sc/pagamenti" element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
