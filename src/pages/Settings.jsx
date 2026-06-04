@@ -82,7 +82,9 @@ export default function Settings() {
         lat: teamSettings.lat,
         lng: teamSettings.lng,
         raggio_timbratura: teamSettings.raggio_timbratura,
-        updated_at: new Date().toISOString()
+        modulo_prima_squadra: teamSettings.modulo_prima_squadra ?? true,
+modulo_scuola_calcio: teamSettings.modulo_scuola_calcio ?? false,
+updated_at: new Date().toISOString()
       }).eq('id', teamSettings.id))
     } else {
       ;({ error } = await supabase.from('team_settings').insert([{
