@@ -16,6 +16,7 @@ import Mister from './pages/Mister'
 import MatchReport from './pages/MatchReport'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
+import ChatPS from './pages/ChatPS'
 // Scuola Calcio
 import YouthPlayers from './pages/sc/YouthPlayers'
 import SCPayments from './pages/sc/SCPayments'
@@ -52,7 +53,7 @@ function AppRoutes() {
         <Route path="sanzioni" element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
         <Route path="mister" element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
         <Route path="distinta" element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
-        <Route path="chat" element={<SCChat />} />
+        <Route path="chat" element={<ChatPS />} />
         {/* Scuola Calcio */}
         <Route path="sc/atleti" element={<PrivateRoute roles={['admin','segreteria']}><YouthPlayers /></PrivateRoute>} />
         <Route path="sc/pagamenti" element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
