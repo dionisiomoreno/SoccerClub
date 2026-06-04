@@ -34,7 +34,6 @@ const NAV_SCUOLA_CALCIO = [
   { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'] },
   { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
   { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
-  { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: null },
 ]
 
 const TYPE_ICONS = {
