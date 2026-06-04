@@ -25,7 +25,7 @@ const NAV_PRIMA_SQUADRA = [
   { to: '/mister',       label: 'Mister',         icon: UserCog,         roles: ['admin'] },
   { to: '/distinta',     label: 'Distinta Gara',  icon: ClipboardCheck,  roles: ['admin'] },
   { to: '/chat',         label: 'Chat Squadra',   icon: MessageCircle,   roles: null },
-  { to: '/impostazioni',    label: 'Impostazioni',   icon: Settings,        roles: null },
+  { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: null },
 ]
 
 const NAV_SCUOLA_CALCIO = [
@@ -141,10 +141,27 @@ export default function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [open, setOpen] = useState(false)
+  const [modules, setModules] = useState({ modulo_prima_squadra: true, modulo_scuola_calcio: false })
+  const [mode, setMode] = useState(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
 
-  // Determina modalità attiva in base alla URL
-  const isScuolaCalcio = location.pathname.startsWith('/sc/')
-  const [mode, setMode] = useState(isScuolaCalcio ? 'sc' : 'ps')
+  useEffect(() => {
+    supabase.from('team_settings').select('modulo_prima_squadra, modulo_scuola_calcio').single()
+      .then(({ data }) => {
+        if (data) {
+          setModules(data)
+          // Se solo scuola calcio abilitata → forza modalità sc
+          if (!data.modulo_prima_squadra && data.modulo_scuola_calcio) {
+            setMode('sc')
+            if (!location.pathname.startsWith('/sc/')) navigate('/sc/atleti')
+          }
+          // Se solo prima squadra abilitata → forza modalità ps
+          if (data.modulo_prima_squadra && !data.modulo_scuola_calcio) {
+            setMode('ps')
+            if (location.pathname.startsWith('/sc/')) navigate('/')
+          }
+        }
+      })
+  }, [])
 
   useEffect(() => {
     setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
@@ -152,7 +169,6 @@ export default function Layout() {
 
   const role = profile?.role
   const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
-
   const navItems = mode === 'sc' ? NAV_SCUOLA_CALCIO : NAV_PRIMA_SQUADRA
   const filtered = navItems.filter(item => !item.roles || item.roles.includes(role))
 
@@ -164,6 +180,8 @@ export default function Layout() {
     if (newMode === 'sc') navigate('/sc/atleti')
     else navigate('/')
   }
+
+  const bothEnabled = modules.modulo_prima_squadra && modules.modulo_scuola_calcio
 
   const Sidebar = () => (
     <div className="flex flex-col h-full" style={{ background: mode === 'sc' ? '#2c3e50' : '#2f4050' }}>
@@ -180,21 +198,23 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Selettore modalità */}
-      <div className="p-2 bg-black/20">
-        <div className="flex rounded-lg overflow-hidden">
-          <button onClick={() => switchMode('ps')}
-            className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
-              mode === 'ps' ? 'bg-[#1ab394] text-white' : 'text-white/50 hover:text-white/80')}>
-            ⚽ Prima Squadra
-          </button>
-          <button onClick={() => switchMode('sc')}
-            className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
-              mode === 'sc' ? 'bg-[#27ae60] text-white' : 'text-white/50 hover:text-white/80')}>
-            🏫 Scuola Calcio
-          </button>
+      {/* Selettore modalità — solo se entrambi i moduli sono abilitati */}
+      {bothEnabled && (
+        <div className="p-2 bg-black/20">
+          <div className="flex rounded-lg overflow-hidden">
+            <button onClick={() => switchMode('ps')}
+              className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
+                mode === 'ps' ? 'bg-[#1ab394] text-white' : 'text-white/50 hover:text-white/80')}>
+              ⚽ Prima Squadra
+            </button>
+            <button onClick={() => switchMode('sc')}
+              className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
+                mode === 'sc' ? 'bg-[#27ae60] text-white' : 'text-white/50 hover:text-white/80')}>
+              🏫 Scuola Calcio
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* User */}
       <div className="px-4 py-3 bg-black/20 flex items-center gap-3">
