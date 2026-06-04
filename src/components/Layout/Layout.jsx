@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import clsx from 'clsx'
@@ -12,27 +12,28 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
 
-const navItems = [
-  // Prima Squadra
-  { to: '/',             label: 'Dashboard',      icon: LayoutDashboard, roles: null,                          section: 'Prima Squadra' },
-  { to: '/calciatori',   label: 'Calciatori',     icon: Users,           roles: ['admin'],                     section: null },
-  { to: '/presenze',     label: 'Presenze',        icon: ClipboardList,   roles: null,                          section: null },
-  { to: '/calendario',   label: 'Calendario',     icon: Calendar,        roles: null,                          section: null },
-  { to: '/convocazioni', label: 'Convocazioni',   icon: Bell,            roles: null,                          section: null },
-  { to: '/materiale',    label: 'Materiale',      icon: Package,         roles: null,                          section: null },
-  { to: '/documenti',    label: 'Documenti',      icon: FileText,        roles: null,                          section: null },
-  { to: '/cedolini',     label: 'Cedolini',       icon: CreditCard,      roles: ['admin','mister','player_paid'], section: null },
-  { to: '/sanzioni',     label: 'Sanzioni',       icon: AlertTriangle,   roles: ['admin'],                     section: null },
-  { to: '/mister',       label: 'Mister',         icon: UserCog,         roles: ['admin'],                     section: null },
-  { to: '/distinta',     label: 'Distinta Gara',  icon: ClipboardCheck,  roles: ['admin'],                     section: null },
-  // Scuola Calcio
-  { to: '/sc/atleti',    label: 'Atleti',         icon: Baby,            roles: ['admin','segreteria'],        section: 'Scuola Calcio' },
-  { to: '/sc/pagamenti', label: 'Pagamenti',      icon: Wallet,          roles: ['admin','segreteria'],        section: null },
-  { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'],        section: null },
-  { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'], section: null },
-  { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null,                          section: null },
-  // Comune
-  { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: null,                          section: 'Generale' },
+const NAV_PRIMA_SQUADRA = [
+  { to: '/',             label: 'Dashboard',      icon: LayoutDashboard, roles: null },
+  { to: '/calciatori',   label: 'Calciatori',     icon: Users,           roles: ['admin'] },
+  { to: '/presenze',     label: 'Presenze',       icon: ClipboardList,   roles: null },
+  { to: '/calendario',   label: 'Calendario',     icon: Calendar,        roles: null },
+  { to: '/convocazioni', label: 'Convocazioni',   icon: Bell,            roles: null },
+  { to: '/materiale',    label: 'Materiale',      icon: Package,         roles: null },
+  { to: '/documenti',    label: 'Documenti',      icon: FileText,        roles: null },
+  { to: '/cedolini',     label: 'Cedolini',       icon: CreditCard,      roles: ['admin','mister','player_paid'] },
+  { to: '/sanzioni',     label: 'Sanzioni',       icon: AlertTriangle,   roles: ['admin'] },
+  { to: '/mister',       label: 'Mister',         icon: UserCog,         roles: ['admin'] },
+  { to: '/distinta',     label: 'Distinta Gara',  icon: ClipboardCheck,  roles: ['admin'] },
+  { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: null },
+]
+
+const NAV_SCUOLA_CALCIO = [
+  { to: '/sc/atleti',    label: 'Atleti',         icon: Baby,            roles: ['admin','segreteria'] },
+  { to: '/sc/pagamenti', label: 'Pagamenti',      icon: Wallet,          roles: ['admin','segreteria'] },
+  { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'] },
+  { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
+  { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
+  { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: null },
 ]
 
 const TYPE_ICONS = {
@@ -41,6 +42,7 @@ const TYPE_ICONS = {
   request_rejected: '❌',
   match_time_changed: '🕐',
   callup_published: '📋',
+  new_announcement: '📢',
 }
 
 function NotificationBell({ userId }) {
@@ -137,77 +139,107 @@ function NotificationBell({ userId }) {
 export default function Layout() {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
+
+  // Determina modalità attiva in base alla URL
+  const isScuolaCalcio = location.pathname.startsWith('/sc/')
+  const [mode, setMode] = useState(isScuolaCalcio ? 'sc' : 'ps')
+
+  useEffect(() => {
+    setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
+  }, [location.pathname])
 
   const role = profile?.role
   const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
+
+  const navItems = mode === 'sc' ? NAV_SCUOLA_CALCIO : NAV_PRIMA_SQUADRA
   const filtered = navItems.filter(item => !item.roles || item.roles.includes(role))
 
   async function handleLogout() { await signOut(); navigate('/login') }
 
-  const Sidebar = () => {
-    let lastSection = null
-    return (
-      <div className="flex flex-col h-full" style={{ background: '#2f4050' }}>
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-4 bg-[#1ab394]">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">SC</div>
-          <div>
-            <div className="text-white font-bold text-sm leading-tight">SoccerClub</div>
-            <div className="text-white/70 text-xs leading-tight">ASD Castelmauro 1986</div>
+  function switchMode(newMode) {
+    setMode(newMode)
+    setOpen(false)
+    if (newMode === 'sc') navigate('/sc/atleti')
+    else navigate('/')
+  }
+
+  const Sidebar = () => (
+    <div className="flex flex-col h-full" style={{ background: mode === 'sc' ? '#2c3e50' : '#2f4050' }}>
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-4 py-4" style={{ background: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
+        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+          {mode === 'sc' ? '🏫' : 'SC'}
+        </div>
+        <div>
+          <div className="text-white font-bold text-sm leading-tight">SoccerClub</div>
+          <div className="text-white/70 text-xs leading-tight">
+            {mode === 'sc' ? 'Scuola Calcio' : 'Prima Squadra'}
           </div>
         </div>
+      </div>
 
-        {/* User */}
-        <div className="px-4 py-3 bg-[#293846] flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#1ab394] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-            {initials || '?'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-white text-xs font-medium truncate">{profile?.nome} {profile?.cognome}</div>
-            <div className="text-white/50 text-xs truncate">{profile?.role}</div>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-2">
-          {filtered.map(({ to, label, icon: Icon, section }) => {
-            const showSection = section && section !== lastSection
-            if (showSection) lastSection = section
-            return (
-              <div key={to}>
-                {showSection && (
-                  <div className="px-4 pt-4 pb-1">
-                    <span className="text-white/30 text-xs uppercase tracking-wider font-semibold">{section}</span>
-                  </div>
-                )}
-                <NavLink to={to} end={to === '/'}
-                  onClick={() => setOpen(false)}
-                  className={({ isActive }) => clsx(
-                    'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative',
-                    isActive
-                      ? 'bg-[#293846] text-white border-l-4 border-[#1ab394]'
-                      : 'text-white/60 hover:text-white hover:bg-[#293846]/50 border-l-4 border-transparent'
-                  )}>
-                  <Icon size={16}/>
-                  <span>{label}</span>
-                  <ChevronRight size={12} className="ml-auto opacity-40"/>
-                </NavLink>
-              </div>
-            )
-          })}
-        </nav>
-
-        {/* Logout */}
-        <div className="p-3 border-t border-white/10">
-          <button onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-3 py-2 text-white/60 hover:text-white hover:bg-[#293846]/50 rounded text-sm transition-colors">
-            <LogOut size={15}/><span>Disconnetti</span>
+      {/* Selettore modalità */}
+      <div className="p-2 bg-black/20">
+        <div className="flex rounded-lg overflow-hidden">
+          <button onClick={() => switchMode('ps')}
+            className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
+              mode === 'ps' ? 'bg-[#1ab394] text-white' : 'text-white/50 hover:text-white/80')}>
+            ⚽ Prima Squadra
+          </button>
+          <button onClick={() => switchMode('sc')}
+            className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
+              mode === 'sc' ? 'bg-[#27ae60] text-white' : 'text-white/50 hover:text-white/80')}>
+            🏫 Scuola Calcio
           </button>
         </div>
       </div>
-    )
-  }
+
+      {/* User */}
+      <div className="px-4 py-3 bg-black/20 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+          style={{ background: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
+          {initials || '?'}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-white text-xs font-medium truncate">{profile?.nome} {profile?.cognome}</div>
+          <div className="text-white/50 text-xs truncate">{profile?.role}</div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-2">
+        <div className="px-4 py-2">
+          <span className="text-white/30 text-xs uppercase tracking-wider font-semibold">
+            {mode === 'sc' ? 'Scuola Calcio' : 'Prima Squadra'}
+          </span>
+        </div>
+        {filtered.map(({ to, label, icon: Icon }) => (
+          <NavLink key={to} to={to} end={to === '/'}
+            onClick={() => setOpen(false)}
+            className={({ isActive }) => clsx(
+              'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative',
+              isActive
+                ? clsx('bg-black/20 text-white border-l-4', mode === 'sc' ? 'border-[#27ae60]' : 'border-[#1ab394]')
+                : 'text-white/60 hover:text-white hover:bg-black/10 border-l-4 border-transparent'
+            )}>
+            <Icon size={16}/>
+            <span>{label}</span>
+            <ChevronRight size={12} className="ml-auto opacity-40"/>
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Logout */}
+      <div className="p-3 border-t border-white/10">
+        <button onClick={handleLogout}
+          className="flex items-center gap-2 w-full px-3 py-2 text-white/60 hover:text-white hover:bg-black/20 rounded text-sm transition-colors">
+          <LogOut size={15}/><span>Disconnetti</span>
+        </button>
+      </div>
+    </div>
+  )
 
   return (
     <div className="flex h-screen bg-[#f3f3f4] overflow-hidden">
@@ -223,13 +255,17 @@ export default function Layout() {
           <button className="md:hidden text-[#999] hover:text-[#676a6c]" onClick={() => setOpen(!open)}>
             {open ? <X size={20}/> : <Menu size={20}/>}
           </button>
-          <div className="flex-1">
-            <span className="text-sm text-[#999]">Benvenuto in <strong className="text-[#676a6c]">SoccerClub</strong></span>
+          <div className="flex-1 flex items-center gap-2">
+            <span className="text-xs font-semibold px-2 py-1 rounded"
+              style={{ background: mode === 'sc' ? '#27ae6015' : '#1ab39415', color: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
+              {mode === 'sc' ? '🏫 Scuola Calcio' : '⚽ Prima Squadra'}
+            </span>
           </div>
           {profile?.id && <NotificationBell userId={profile.id}/>}
           <div className="flex items-center gap-2">
             <span className="text-sm text-[#676a6c] hidden sm:block">{profile?.nome} {profile?.cognome}</span>
-            <div className="w-8 h-8 rounded-full bg-[#1ab394] flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+              style={{ background: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
               {initials || '?'}
             </div>
           </div>
