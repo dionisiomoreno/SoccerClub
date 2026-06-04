@@ -99,7 +99,7 @@ export default function Settings() {
       }]))
     }
     if (error) toast.error(error.message)
-    else { toast.success('Impostazioni squadra salvate'); loadTeamSettings() }
+    else { toast.success('Impostazioni salvate! Ricarico...'); loadTeamSettings(); setTimeout(() => window.location.reload(), 1000) }
     setSavingTeam(false)
   }
 
