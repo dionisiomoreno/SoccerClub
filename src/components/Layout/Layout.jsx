@@ -34,6 +34,7 @@ const NAV_SCUOLA_CALCIO = [
   { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'] },
   { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
   { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
+  { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: ['admin'] },
 ]
 
 const TYPE_ICONS = {
@@ -164,6 +165,8 @@ export default function Layout() {
   }, [])
 
   useEffect(() => {
+    // Non cambiare modalità se si va su impostazioni
+    if (location.pathname === '/impostazioni') return
     setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
   }, [location.pathname])
 
