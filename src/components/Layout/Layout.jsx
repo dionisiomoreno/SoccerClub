@@ -24,8 +24,8 @@ const NAV_PRIMA_SQUADRA = [
   { to: '/sanzioni',     label: 'Sanzioni',       icon: AlertTriangle,   roles: ['admin'] },
   { to: '/mister',       label: 'Mister',         icon: UserCog,         roles: ['admin'] },
   { to: '/distinta',     label: 'Distinta Gara',  icon: ClipboardCheck,  roles: ['admin'] },
-  { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
-  { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: null },
+  { to: '/sc/chat?mode=ps', label: 'Chat Squadra',   icon: MessageCircle,   roles: null },
+  { to: '/impostazioni',    label: 'Impostazioni',   icon: Settings,        roles: null },
 ]
 
 const NAV_SCUOLA_CALCIO = [
