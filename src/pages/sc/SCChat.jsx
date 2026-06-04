@@ -1,276 +1,226 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
+import { Send, MessageCircle, Users } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import clsx from 'clsx'
-import {
-  LayoutDashboard, Users, ClipboardList, Calendar, Bell,
-  Package, FileText, CreditCard, AlertTriangle, ClipboardCheck,
-  Settings, Menu, X, LogOut, ChevronRight, Check, Trash2,
-  Baby, Wallet, ShoppingBag, Megaphone, MessageCircle, UserCog
-} from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 
-const NAV_PRIMA_SQUADRA = [
-  { to: '/',             label: 'Dashboard',      icon: LayoutDashboard, roles: null },
-  { to: '/calciatori',   label: 'Calciatori',     icon: Users,           roles: ['admin'] },
-  { to: '/presenze',     label: 'Presenze',       icon: ClipboardList,   roles: null },
-  { to: '/calendario',   label: 'Calendario',     icon: Calendar,        roles: null },
-  { to: '/convocazioni', label: 'Convocazioni',   icon: Bell,            roles: null },
-  { to: '/materiale',    label: 'Materiale',      icon: Package,         roles: null },
-  { to: '/documenti',    label: 'Documenti',      icon: FileText,        roles: null },
-  { to: '/cedolini',     label: 'Cedolini',       icon: CreditCard,      roles: ['admin','mister','player_paid'] },
-  { to: '/sanzioni',     label: 'Sanzioni',       icon: AlertTriangle,   roles: ['admin'] },
-  { to: '/mister',       label: 'Mister',         icon: UserCog,         roles: ['admin'] },
-  { to: '/distinta',     label: 'Distinta Gara',  icon: ClipboardCheck,  roles: ['admin'] },
-  { to: '/sc/chat?mode=ps', label: 'Chat Squadra',   icon: MessageCircle,   roles: null },
-  { to: '/impostazioni',    label: 'Impostazioni',   icon: Settings,        roles: null },
-]
-
-const NAV_SCUOLA_CALCIO = [
-  { to: '/sc/atleti',    label: 'Atleti',         icon: Baby,            roles: ['admin','segreteria'] },
-  { to: '/sc/pagamenti', label: 'Pagamenti',      icon: Wallet,          roles: ['admin','segreteria'] },
-  { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'] },
-  { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
-  { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
-]
-
-const TYPE_ICONS = {
-  payslip_generated: '💰',
-  request_approved: '✅',
-  request_rejected: '❌',
-  match_time_changed: '🕐',
-  callup_published: '📋',
-  new_announcement: '📢',
+const ROLE_COLORS = {
+  admin: 'text-red-500',
+  mister: 'text-blue-500',
+  segreteria: 'text-purple-500',
+  player_paid: 'text-[#1ab394]',
+  player_volunteer: 'text-yellow-500'
 }
 
-function NotificationBell({ userId }) {
-  const [notifications, setNotifications] = useState([])
-  const [open, setOpen] = useState(false)
-  const ref = useRef()
+export default function SCChat() {
+  const { profile } = useAuth()
+  const [searchParams] = useSearchParams()
+  const isPSMode = searchParams.get('mode') === 'ps'
+
+  const [chats, setChats] = useState([])
+  const [activeChat, setActiveChat] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [text, setText] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const bottomRef = useRef()
+
+  useEffect(() => { initChats() }, [])
 
   useEffect(() => {
-    loadNotifications()
-    const channel = supabase.channel('notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        payload => setNotifications(prev => [payload.new, ...prev]))
+    if (!activeChat) return
+    loadMessages(activeChat.id)
+    const channel = supabase.channel(`chat-${activeChat.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: `chat_id=eq.${activeChat.id}`
+      }, payload => {
+        setMessages(prev => [...prev, payload.new])
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      })
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [userId])
+  }, [activeChat])
 
-  useEffect(() => {
-    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+  async function initChats() {
+    setLoading(true)
+    const { data: cats } = await supabase.from('categories').select('*').order('ordine')
 
-  async function loadNotifications() {
-    const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20)
-    setNotifications(data || [])
+    // Prima Squadra mode → solo chat PS + Generale
+    // Scuola Calcio mode → tutte le chat categorie + Generale
+    let chatDefs
+    if (isPSMode) {
+      chatDefs = [
+        { nome: '⚽ Prima Squadra', key: 'prima_squadra', colore: '#1ab394' },
+        { nome: '🌐 Generale',      key: 'generale',      colore: '#6c757d' },
+      ]
+    } else {
+      chatDefs = [
+        { nome: '🌐 Generale',      key: 'generale',      colore: '#6c757d' },
+        ...((cats || [])
+          .filter(c => c.nome !== 'Prima Squadra')
+          .map(c => ({ nome: c.nome, key: `cat_${c.id}`, colore: c.colore })))
+      ]
+    }
+
+    const result = []
+    for (const def of chatDefs) {
+      let { data: existing } = await supabase.from('chats').select('*').eq('nome', def.nome).maybeSingle()
+      if (!existing) {
+        const { data: created } = await supabase.from('chats').insert([{ tipo: 'gruppo', nome: def.nome }]).select().single()
+        existing = created
+      }
+      if (existing) {
+        const { data: part } = await supabase.from('chat_participants').select('id')
+          .eq('chat_id', existing.id).eq('user_id', profile.id).maybeSingle()
+        if (!part) {
+          await supabase.from('chat_participants').insert([{ chat_id: existing.id, user_id: profile.id }])
+        }
+        const { count } = await supabase.from('messages').select('id', { count: 'exact' })
+          .eq('chat_id', existing.id).eq('letto', false).neq('sender_id', profile.id)
+        result.push({ ...existing, colore: def.colore, unread: count || 0 })
+      }
+    }
+    setChats(result)
+    if (result.length > 0) setActiveChat(result[0])
+    setLoading(false)
   }
 
-  async function markRead(id) {
-    await supabase.from('notifications').update({ read: true }).eq('id', id)
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+  async function loadMessages(chatId) {
+    const { data } = await supabase.from('messages')
+      .select('*, profiles(nome,cognome,role)')
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: true })
+      .limit(100)
+    setMessages(data || [])
+    await supabase.from('messages').update({ letto: true })
+      .eq('chat_id', chatId).neq('sender_id', profile.id)
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+    setChats(prev => prev.map(c => c.id === chatId ? { ...c, unread: 0 } : c))
   }
 
-  async function markAllRead() {
-    await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  async function sendMessage() {
+    if (!text.trim() || !activeChat) return
+    setSending(true)
+    await supabase.from('messages').insert([{
+      chat_id: activeChat.id,
+      sender_id: profile.id,
+      contenuto: text.trim()
+    }])
+    setText('')
+    setSending(false)
   }
 
-  async function deleteNotification(id) {
-    await supabase.from('notifications').delete().eq('id', id)
-    setNotifications(prev => prev.filter(n => n.id !== id))
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  const unread = notifications.filter(n => !n.read).length
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+    </div>
+  )
 
   return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} className="relative p-2 text-[#999] hover:text-[#676a6c] transition-colors">
-        <Bell size={18}/>
-        {unread > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-[#ed5565] text-white text-xs rounded-full flex items-center justify-center font-bold">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
-      </button>
-      {open && (
-        <div className="absolute right-0 top-10 w-80 bg-white border border-[#e7eaec] rounded shadow-lg z-50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#e7eaec]">
-            <h3 className="text-sm font-bold text-[#2f4050]">Notifiche</h3>
-            {unread > 0 && (
-              <button onClick={markAllRead} className="text-xs text-[#1ab394] hover:underline flex items-center gap-1">
-                <Check size={12}/> Tutte lette
-              </button>
-            )}
+    <div className="flex h-[calc(100vh-8rem)] bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
+
+      {/* Sidebar chat */}
+      <div className="w-64 flex-shrink-0 border-r border-[#e7eaec] flex flex-col">
+        <div className="p-4 border-b border-[#e7eaec]">
+          <h2 className="text-[#2f4050] font-bold text-sm">
+            {isPSMode ? '⚽ Chat Prima Squadra' : '🏫 Chat Scuola Calcio'}
+          </h2>
+          <p className="text-xs text-[#999] mt-0.5">Seleziona una chat</p>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {chats.map(chat => (
+            <button key={chat.id} onClick={() => setActiveChat(chat)}
+              className={clsx('w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-[#e7eaec]',
+                activeChat?.id === chat.id && 'bg-[#1ab394]/5 border-l-4 border-l-[#1ab394]')}>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                style={{ background: chat.colore || '#1ab394' }}>
+                {chat.nome.includes('⚽') ? '⚽' : chat.nome.includes('🌐') ? '🌐' : chat.nome[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[#2f4050] text-sm font-medium truncate">{chat.nome}</div>
+              </div>
+              {chat.unread > 0 && (
+                <span className="w-5 h-5 bg-[#ed5565] text-white text-xs rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                  {chat.unread}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Area messaggi */}
+      <div className="flex-1 flex flex-col">
+        <div className="p-4 border-b border-[#e7eaec] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+            style={{ background: activeChat?.colore || '#1ab394' }}>
+            <MessageCircle size={16}/>
           </div>
-          <div className="max-h-80 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="text-center text-[#999] py-8 text-sm">Nessuna notifica</div>
-            ) : notifications.map(n => (
-              <div key={n.id} className={clsx('flex items-start gap-3 px-4 py-3 border-b border-[#e7eaec] hover:bg-gray-50', !n.read && 'bg-[#1ab394]/5')}>
-                <span className="text-lg flex-shrink-0">{TYPE_ICONS[n.type] || '🔔'}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={clsx('text-sm', !n.read ? 'text-[#2f4050] font-medium' : 'text-[#676a6c]')}>{n.message}</p>
-                  <p className="text-xs text-[#999] mt-0.5">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: it })}</p>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {!n.read && <button onClick={() => markRead(n.id)} className="text-[#999] hover:text-[#1ab394]"><Check size={13}/></button>}
-                  <button onClick={() => deleteNotification(n.id)} className="text-[#999] hover:text-red-500"><Trash2 size={13}/></button>
+          <div>
+            <div className="text-[#2f4050] font-bold text-sm">{activeChat?.nome}</div>
+            <div className="text-xs text-[#999]">Chat di gruppo</div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <MessageCircle size={32} className="text-[#999] mb-2"/>
+              <p className="text-[#999] text-sm">Nessun messaggio ancora.</p>
+              <p className="text-xs text-[#999]">Sii il primo a scrivere!</p>
+            </div>
+          ) : messages.map((msg, idx) => {
+            const isMe = msg.sender_id === profile.id
+            const showName = idx === 0 || messages[idx-1]?.sender_id !== msg.sender_id
+            return (
+              <div key={msg.id} className={clsx('flex gap-2', isMe ? 'flex-row-reverse' : 'flex-row')}>
+                {!isMe && showName && (
+                  <div className="w-7 h-7 rounded-full bg-[#1ab394]/20 text-[#1ab394] flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
+                    {(msg.profiles?.nome?.[0]||'')+(msg.profiles?.cognome?.[0]||'')}
+                  </div>
+                )}
+                {!isMe && !showName && <div className="w-7 flex-shrink-0"/>}
+                <div className={clsx('max-w-xs lg:max-w-md', isMe ? 'items-end' : 'items-start', 'flex flex-col')}>
+                  {showName && !isMe && (
+                    <span className={clsx('text-xs font-semibold mb-0.5', ROLE_COLORS[msg.profiles?.role] || 'text-[#999]')}>
+                      {msg.profiles?.nome} {msg.profiles?.cognome}
+                    </span>
+                  )}
+                  <div className={clsx('px-3 py-2 rounded-2xl text-sm',
+                    isMe ? 'bg-[#1ab394] text-white rounded-tr-sm' : 'bg-gray-100 text-[#2f4050] rounded-tl-sm')}>
+                    {msg.contenuto}
+                  </div>
+                  <span className="text-xs text-[#999] mt-0.5 px-1">
+                    {format(new Date(msg.created_at), 'HH:mm', { locale: it })}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-          {notifications.length > 0 && (
-            <div className="px-4 py-2 border-t border-[#e7eaec]">
-              <button onClick={() => { setNotifications([]); supabase.from('notifications').delete().eq('user_id', userId) }}
-                className="text-xs text-[#999] hover:text-red-500 w-full text-center">Elimina tutte</button>
-            </div>
-          )}
+            )
+          })}
+          <div ref={bottomRef}/>
         </div>
-      )}
-    </div>
-  )
-}
 
-export default function Layout() {
-  const { profile, signOut } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [open, setOpen] = useState(false)
-
-  // Determina modalità attiva in base alla URL
-  const isScuolaCalcio = location.pathname.startsWith('/sc/')
-  const [mode, setMode] = useState(isScuolaCalcio ? 'sc' : 'ps')
-
-  useEffect(() => {
-    setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
-  }, [location.pathname])
-
-  const role = profile?.role
-  const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
-
-  const navItems = mode === 'sc' ? NAV_SCUOLA_CALCIO : NAV_PRIMA_SQUADRA
-  const filtered = navItems.filter(item => !item.roles || item.roles.includes(role))
-
-  async function handleLogout() { await signOut(); navigate('/login') }
-
-  function switchMode(newMode) {
-    setMode(newMode)
-    setOpen(false)
-    if (newMode === 'sc') navigate('/sc/atleti')
-    else navigate('/')
-  }
-
-  const Sidebar = () => (
-    <div className="flex flex-col h-full" style={{ background: mode === 'sc' ? '#2c3e50' : '#2f4050' }}>
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-4" style={{ background: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
-        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-          {mode === 'sc' ? '🏫' : 'SC'}
-        </div>
-        <div>
-          <div className="text-white font-bold text-sm leading-tight">SoccerClub</div>
-          <div className="text-white/70 text-xs leading-tight">
-            {mode === 'sc' ? 'Scuola Calcio' : 'Prima Squadra'}
+        <div className="p-4 border-t border-[#e7eaec]">
+          <div className="flex gap-2 items-end">
+            <textarea value={text} onChange={e => setText(e.target.value)} onKeyDown={handleKey}
+              placeholder="Scrivi un messaggio... (Invio per inviare)"
+              rows={1}
+              className="flex-1 border border-[#e7eaec] rounded-xl px-4 py-2.5 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] resize-none"
+              style={{ maxHeight: '120px' }}/>
+            <button onClick={sendMessage} disabled={!text.trim() || sending}
+              className="w-10 h-10 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white rounded-full flex items-center justify-center flex-shrink-0 transition-colors">
+              <Send size={16}/>
+            </button>
           </div>
         </div>
-      </div>
-
-      {/* Selettore modalità */}
-      <div className="p-2 bg-black/20">
-        <div className="flex rounded-lg overflow-hidden">
-          <button onClick={() => switchMode('ps')}
-            className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
-              mode === 'ps' ? 'bg-[#1ab394] text-white' : 'text-white/50 hover:text-white/80')}>
-            ⚽ Prima Squadra
-          </button>
-          <button onClick={() => switchMode('sc')}
-            className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
-              mode === 'sc' ? 'bg-[#27ae60] text-white' : 'text-white/50 hover:text-white/80')}>
-            🏫 Scuola Calcio
-          </button>
-        </div>
-      </div>
-
-      {/* User */}
-      <div className="px-4 py-3 bg-black/20 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-          style={{ background: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
-          {initials || '?'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-white text-xs font-medium truncate">{profile?.nome} {profile?.cognome}</div>
-          <div className="text-white/50 text-xs truncate">{profile?.role}</div>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2">
-        <div className="px-4 py-2">
-          <span className="text-white/30 text-xs uppercase tracking-wider font-semibold">
-            {mode === 'sc' ? 'Scuola Calcio' : 'Prima Squadra'}
-          </span>
-        </div>
-        {filtered.map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} end={to === '/'}
-            onClick={() => setOpen(false)}
-            className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative',
-              isActive
-                ? clsx('bg-black/20 text-white border-l-4', mode === 'sc' ? 'border-[#27ae60]' : 'border-[#1ab394]')
-                : 'text-white/60 hover:text-white hover:bg-black/10 border-l-4 border-transparent'
-            )}>
-            <Icon size={16}/>
-            <span>{label}</span>
-            <ChevronRight size={12} className="ml-auto opacity-40"/>
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* Logout */}
-      <div className="p-3 border-t border-white/10">
-        <button onClick={handleLogout}
-          className="flex items-center gap-2 w-full px-3 py-2 text-white/60 hover:text-white hover:bg-black/20 rounded text-sm transition-colors">
-          <LogOut size={15}/><span>Disconnetti</span>
-        </button>
-      </div>
-    </div>
-  )
-
-  return (
-    <div className="flex h-screen bg-[#f3f3f4] overflow-hidden">
-      <div className="hidden md:block w-56 flex-shrink-0 shadow-nav"><Sidebar/></div>
-      {open && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)}/>
-          <div className="absolute left-0 top-0 bottom-0 w-56 z-50"><Sidebar/></div>
-        </div>
-      )}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 bg-white border-b border-[#e7eaec] flex items-center px-4 gap-3 flex-shrink-0">
-          <button className="md:hidden text-[#999] hover:text-[#676a6c]" onClick={() => setOpen(!open)}>
-            {open ? <X size={20}/> : <Menu size={20}/>}
-          </button>
-          <div className="flex-1 flex items-center gap-2">
-            <span className="text-xs font-semibold px-2 py-1 rounded"
-              style={{ background: mode === 'sc' ? '#27ae6015' : '#1ab39415', color: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
-              {mode === 'sc' ? '🏫 Scuola Calcio' : '⚽ Prima Squadra'}
-            </span>
-          </div>
-          {profile?.id && <NotificationBell userId={profile.id}/>}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[#676a6c] hidden sm:block">{profile?.nome} {profile?.cognome}</span>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-              style={{ background: mode === 'sc' ? '#27ae60' : '#1ab394' }}>
-              {initials || '?'}
-            </div>
-          </div>
-        </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6"><Outlet/></main>
       </div>
     </div>
   )
