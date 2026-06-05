@@ -9,11 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
     setProfile(data)
   }
 
@@ -23,19 +19,15 @@ export function AuthProvider({ children }) {
       if (session?.user) fetchProfile(session.user.id)
       setLoading(false)
     })
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) fetchProfile(session.user.id)
       else setProfile(null)
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = (email, password) =>
-    supabase.auth.signInWithPassword({ email, password })
-
+  const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password })
   const signOut = () => supabase.auth.signOut()
 
   const isAdmin      = profile?.role === 'admin'
@@ -47,12 +39,7 @@ export function AuthProvider({ children }) {
   const isParent     = profile?.role === 'parent'
 
   return (
-    <AuthContext.Provider value={{
-      user, profile, loading,
-      signIn, signOut,
-      isAdmin, isMister, isSegreteria,
-      isPaid, isVolunteer, isPlayer, isParent
-    }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isAdmin, isMister, isSegreteria, isPaid, isVolunteer, isPlayer, isParent }}>
       {children}
     </AuthContext.Provider>
   )
