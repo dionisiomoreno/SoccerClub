@@ -9,6 +9,7 @@ const DEMO = [
   { label: 'Mister',     email: 'mister@soccer.com',    password: 'password123' },
   { label: 'Calciatore', email: 'player@soccer.com',    password: 'password123' },
   { label: 'Volontario', email: 'volunteer@soccer.com', password: 'password123' },
+  { label: 'Genitore',   email: 'genitore@soccer.com',  password: 'password123' },
 ]
 
 export default function Login() {
@@ -22,11 +23,12 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await signIn(email, password)
+    const { data, error } = await signIn(email, password)
     if (error) {
       toast.error('Credenziali non valide')
       setLoading(false)
     } else {
+      // Il redirect viene gestito da App.jsx in base al ruolo
       navigate('/')
     }
   }
@@ -50,10 +52,7 @@ export default function Login() {
             <div>
               <label className="block text-xs font-semibold text-[#676a6c] mb-1 uppercase tracking-wide">Email</label>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
+                type="email" value={email} onChange={e => setEmail(e.target.value)} required
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] focus:ring-1 focus:ring-[#1ab394] transition-colors"
                 placeholder="email@esempio.it"
               />
@@ -62,10 +61,7 @@ export default function Login() {
               <label className="block text-xs font-semibold text-[#676a6c] mb-1 uppercase tracking-wide">Password</label>
               <div className="relative">
                 <input
-                  type={show ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
+                  type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
                   className="w-full border border-[#e7eaec] rounded px-3 py-2 pr-10 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] focus:ring-1 focus:ring-[#1ab394] transition-colors"
                   placeholder="••••••••"
                 />
@@ -75,9 +71,7 @@ export default function Login() {
                 </button>
               </div>
             </div>
-            <button
-              type="submit"
-              disabled={loading}
+            <button type="submit" disabled={loading}
               className="w-full bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white font-semibold py-2 rounded text-sm transition-colors">
               {loading ? 'Accesso in corso...' : 'Accedi'}
             </button>
