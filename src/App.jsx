@@ -34,28 +34,47 @@ import ParentKit from './pages/parent/ParentKit'
 
 function PrivateRoute({ children, roles }) {
   const { user, profile, loading } = useAuth()
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-[#f3f3f4]">
       <div className="w-8 h-8 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
     </div>
   )
+
   if (!user) return <Navigate to="/login" replace />
-  if (roles && !roles.includes(profile?.role)) return <Navigate to="/" replace />
+
+  // Genitore → sempre su /genitore
+  if (profile?.role === 'parent' && !roles?.includes('parent')) {
+    return <Navigate to="/genitore" replace />
+  }
+
+  if (roles && !roles.includes(profile?.role)) {
+    return <Navigate to="/" replace />
+  }
+
   return children
 }
 
 function AppRoutes() {
+  const { profile, loading } = useAuth()
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen bg-[#f3f3f4]">
+      <div className="w-8 h-8 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+    </div>
+  )
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
 
-      {/* ── Area Genitori (layout separato) ── */}
+      {/* ── Area Genitori ── */}
       <Route path="/genitore" element={
         <PrivateRoute roles={['parent']}>
           <ParentLayout />
         </PrivateRoute>
       }>
-        <Route index element={<ParentDashboard />} />
+        <Route index          element={<ParentDashboard />} />
         <Route path="figlio"    element={<ParentChild />} />
         <Route path="pagamenti" element={<ParentPayments />} />
         <Route path="documenti" element={<ParentDocuments />} />
@@ -65,26 +84,23 @@ function AppRoutes() {
 
       {/* ── App principale ── */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-        {/* Prima Squadra */}
         <Route index element={<Dashboard />} />
-        <Route path="calciatori"  element={<PrivateRoute roles={['admin']}><Players /></PrivateRoute>} />
-        <Route path="presenze"    element={<Attendances />} />
-        <Route path="calendario"  element={<Calendar />} />
+        <Route path="calciatori"   element={<PrivateRoute roles={['admin']}><Players /></PrivateRoute>} />
+        <Route path="presenze"     element={<Attendances />} />
+        <Route path="calendario"   element={<Calendar />} />
         <Route path="convocazioni" element={<Callups />} />
-        <Route path="materiale"   element={<Materials />} />
-        <Route path="documenti"   element={<Documents />} />
-        <Route path="cedolini"    element={<PrivateRoute roles={['admin','mister','player_paid']}><Payslips /></PrivateRoute>} />
-        <Route path="sanzioni"    element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
-        <Route path="mister"      element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
-        <Route path="distinta"    element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
-        <Route path="chat"        element={<ChatPS />} />
-        {/* Scuola Calcio */}
+        <Route path="materiale"    element={<Materials />} />
+        <Route path="documenti"    element={<Documents />} />
+        <Route path="cedolini"     element={<PrivateRoute roles={['admin','mister','player_paid']}><Payslips /></PrivateRoute>} />
+        <Route path="sanzioni"     element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
+        <Route path="mister"       element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
+        <Route path="distinta"     element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
+        <Route path="chat"         element={<ChatPS />} />
         <Route path="sc/atleti"    element={<PrivateRoute roles={['admin','segreteria']}><YouthPlayers /></PrivateRoute>} />
         <Route path="sc/pagamenti" element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
         <Route path="sc/magazzino" element={<PrivateRoute roles={['admin','segreteria']}><SCWarehouse /></PrivateRoute>} />
         <Route path="sc/bacheca"   element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
         <Route path="sc/chat"      element={<SCChat />} />
-        {/* Comune */}
         <Route path="impostazioni" element={<Settings />} />
       </Route>
 
