@@ -38,14 +38,21 @@ export function AuthProvider({ children }) {
 
   const signOut = () => supabase.auth.signOut()
 
-  const isAdmin = profile?.role === 'admin'
-  const isMister = profile?.role === 'mister'
-  const isPaid = profile?.role === 'player_paid'
-  const isVolunteer = profile?.role === 'player_volunteer'
-  const isPlayer = isPaid || isVolunteer
+  const isAdmin      = profile?.role === 'admin'
+  const isMister     = profile?.role === 'mister'
+  const isSegreteria = profile?.role === 'segreteria'
+  const isPaid       = profile?.role === 'player_paid'
+  const isVolunteer  = profile?.role === 'player_volunteer'
+  const isPlayer     = isPaid || isVolunteer
+  const isParent     = profile?.role === 'parent'
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isAdmin, isMister, isPaid, isVolunteer, isPlayer }}>
+    <AuthContext.Provider value={{
+      user, profile, loading,
+      signIn, signOut,
+      isAdmin, isMister, isSegreteria,
+      isPaid, isVolunteer, isPlayer, isParent
+    }}>
       {children}
     </AuthContext.Provider>
   )
