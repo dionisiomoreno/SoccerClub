@@ -3,6 +3,8 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout/Layout'
 import Login from './pages/Login'
+import Register from './pages/Register' 
+import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Players from './pages/Players'
 import Attendances from './pages/Attendances'
@@ -156,6 +158,8 @@ function AppRoutes() {
         <Route path="sc/bacheca"   element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
         <Route path="sc/chat"      element={<SCChat />} />
         <Route path="impostazioni" element={<Settings />} />
+        <Route path="/registrati" element={<Register />} />
+        <Route path="/onboarding" element={<Onboarding />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
