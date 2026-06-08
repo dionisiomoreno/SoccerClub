@@ -10,6 +10,7 @@ const DEMO = [
   { label: 'Calciatore', email: 'player@soccer.com',    password: 'password123' },
   { label: 'Volontario', email: 'volunteer@soccer.com', password: 'password123' },
   { label: 'Genitore',   email: 'genitore@soccer.com',  password: 'password123' },
+  { label: 'Super Admin', email: 'superadmin@soccerclub.it', password: 'SuperAdmin2024!' }
 ]
 
 export default function Login() {
