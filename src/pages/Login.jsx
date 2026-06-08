@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 
 const DEMO = [
-  { label: 'Admin',      email: 'admin@soccer.com',     password: 'password123' },
-  { label: 'Mister',     email: 'mister@soccer.com',    password: 'password123' },
-  { label: 'Calciatore', email: 'player@soccer.com',    password: 'password123' },
-  { label: 'Volontario', email: 'volunteer@soccer.com', password: 'password123' },
-  { label: 'Genitore',   email: 'genitore@soccer.com',  password: 'password123' },
-  { label: 'Super Admin', email: 'superadmin@soccerclub.it', password: 'SuperAdmin2024!' }
+  { label: 'Admin',       email: 'admin@soccer.com',          password: 'password123' },
+  { label: 'Mister',      email: 'mister@soccer.com',         password: 'password123' },
+  { label: 'Calciatore',  email: 'player@soccer.com',         password: 'password123' },
+  { label: 'Volontario',  email: 'volunteer@soccer.com',      password: 'password123' },
+  { label: 'Genitore',    email: 'genitore@soccer.com',       password: 'password123' },
+  { label: 'Super Admin', email: 'superadmin@soccerclub.it',  password: 'SuperAdmin2024!' },
 ]
 
 export default function Login() {
@@ -24,12 +24,11 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    const { data, error } = await signIn(email, password)
+    const { error } = await signIn(email, password)
     if (error) {
       toast.error('Credenziali non valide')
       setLoading(false)
     } else {
-      // Il redirect viene gestito da App.jsx in base al ruolo
       navigate('/')
     }
   }
@@ -37,13 +36,14 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[#f3f3f4] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
+
         {/* Logo */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#1ab394] text-white text-xl font-bold mb-3">
             SC
           </div>
           <h1 className="text-2xl font-bold text-[#2f4050]">SoccerClub</h1>
-          <p className="text-[#999] text-sm mt-1">ASD Castelmauro Calcio 1986</p>
+          <p className="text-[#999] text-sm mt-1">La piattaforma per la tua squadra</p>
         </div>
 
         {/* Form */}
@@ -77,6 +77,14 @@ export default function Login() {
               {loading ? 'Accesso in corso...' : 'Accedi'}
             </button>
           </form>
+
+          {/* Link registrazione */}
+          <div className="text-center pt-1">
+            <span className="text-xs text-[#999]">Non hai un account? </span>
+            <Link to="/registrati" className="text-xs text-[#1ab394] hover:underline font-semibold">
+              Registra la tua squadra →
+            </Link>
+          </div>
         </div>
 
         {/* Demo buttons */}
@@ -92,6 +100,7 @@ export default function Login() {
             ))}
           </div>
         </div>
+
       </div>
     </div>
   )
