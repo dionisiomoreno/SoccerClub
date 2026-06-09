@@ -227,8 +227,8 @@ export default function Layout() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-white text-xs font-medium truncate">{profile?.nome} {profile?.cognome}</div>
-          <<div className="text-white/50 text-xs truncate">
-  {{ admin:'Società', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario', segreteria:'Segreteria' }[profile?.role] || profile?.role}
+          <div className="text-white/50 text-xs truncate">
+  {({ admin:'Società', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario', segreteria:'Segreteria' })[profile?.role] || profile?.role}
 </div>
       </div>
 
