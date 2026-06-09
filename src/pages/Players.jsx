@@ -534,7 +534,7 @@ export default function Players() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#e7eaec] bg-gray-50">
-                  {['Calciatore','Email','N° Tessera',...(isAdmin ? ['Ruolo','Rimborsi'] : []),'Visita Medica','Stato','Azioni'].map(h=>(
+                  {['Calciatore','Email','N° Tessera',...(isAdmin ? ['Ruolo','Rimborsi'] : []),'Visita Medica',...(isAdmin ? ['Stato'] : []),'Azioni'].map(h=>(
                     <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
