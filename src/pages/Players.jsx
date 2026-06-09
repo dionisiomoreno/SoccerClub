@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { UserPlus, Search, Edit2, Trash2, ToggleLeft, ToggleRight, Download, Eye, X, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
@@ -112,7 +113,6 @@ function PlayerModal({ player, onClose, onSaved }) {
           <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
         </div>
         <div className="p-4 space-y-3">
-
           <div className="grid grid-cols-2 gap-3">
             {[['nome','Nome *'],['cognome','Cognome *']].map(([k,l]) => (
               <div key={k}>
@@ -122,14 +122,12 @@ function PlayerModal({ player, onClose, onSaved }) {
               </div>
             ))}
           </div>
-
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email *</label>
             <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)}
               disabled={isEdit}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] disabled:opacity-50 disabled:bg-gray-50"/>
           </div>
-
           {!isEdit && (
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Password *</label>
@@ -142,7 +140,6 @@ function PlayerModal({ player, onClose, onSaved }) {
               <p className="text-xs text-[#999] mt-1">Il calciatore userà queste credenziali per accedere all'app.</p>
             </div>
           )}
-
           {[
             ['telefono','Telefono'],
             ['data_nascita','Data nascita','date'],
@@ -156,7 +153,6 @@ function PlayerModal({ player, onClose, onSaved }) {
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           ))}
-
           <div className="border-t border-[#e7eaec] pt-3">
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-2">Visita medica</label>
             <div className="grid grid-cols-2 gap-2">
@@ -172,7 +168,6 @@ function PlayerModal({ player, onClose, onSaved }) {
               </div>
             </div>
           </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ruolo</label>
@@ -189,57 +184,47 @@ function PlayerModal({ player, onClose, onSaved }) {
               </select>
             </div>
           </div>
-
           {(form.role === 'player_paid' || form.role === 'player_volunteer') && (
             <div className="border-t border-[#e7eaec] pt-3">
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
                 Rimborsi personalizzati
               </label>
-              <p className="text-xs text-[#999] mb-3">
-                Inserisci i valori di rimborso per questo calciatore.
-              </p>
+              <p className="text-xs text-[#999] mb-3">Inserisci i valori di rimborso per questo calciatore.</p>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Allenamento (€)</label>
                   <input type="number" min="0" value={form.importo_allenamento ?? ''}
-                    onChange={e=>set('importo_allenamento', e.target.value)}
-                    placeholder="es. 20"
+                    onChange={e=>set('importo_allenamento', e.target.value)} placeholder="es. 20"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Partita (€)</label>
                   <input type="number" min="0" value={form.importo_partita ?? ''}
-                    onChange={e=>set('importo_partita', e.target.value)}
-                    placeholder="es. 30"
+                    onChange={e=>set('importo_partita', e.target.value)} placeholder="es. 30"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Carburante (€)</label>
                   <input type="number" min="0" value={form.importo_carburante ?? ''}
-                    onChange={e=>set('importo_carburante', e.target.value)}
-                    placeholder="es. 5"
+                    onChange={e=>set('importo_carburante', e.target.value)} placeholder="es. 5"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
               </div>
             </div>
           )}
-
           {form.role === 'mister' && (
             <div className="border-t border-[#e7eaec] pt-3">
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Compenso fisso mensile (€)</label>
               <input type="number" min="0" value={form.compenso_fisso ?? ''}
-                onChange={e=>set('compenso_fisso', e.target.value)}
-                placeholder="Es. 500"
+                onChange={e=>set('compenso_fisso', e.target.value)} placeholder="Es. 500"
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           )}
-
           <label className="flex items-center gap-2 cursor-pointer pt-1">
             <input type="checkbox" checked={form.active} onChange={e=>set('active',e.target.checked)} className="accent-[#1ab394]"/>
             <span className="text-sm text-[#676a6c]">Attivo</span>
           </label>
         </div>
-
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
           <button onClick={save} disabled={loading}
@@ -289,7 +274,6 @@ function PlayerDetailModal({ player, onClose }) {
               <span className={clsx('mt-1 inline-block px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[player.role])}>{ROLE_LABELS[player.role]}</span>
             </div>
           </div>
-
           {(player.role === 'player_paid' || player.role === 'player_volunteer') && (
             <div className="bg-gray-50 rounded p-4">
               <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Rimborsi</h3>
@@ -309,7 +293,6 @@ function PlayerDetailModal({ player, onClose }) {
               </div>
             </div>
           )}
-
           <div className="bg-gray-50 rounded p-4">
             <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Dati anagrafici</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -329,7 +312,6 @@ function PlayerDetailModal({ player, onClose }) {
               ))}
             </div>
           </div>
-
           <div className="bg-gray-50 rounded p-4">
             <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Visita medica</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -356,7 +338,6 @@ function PlayerDetailModal({ player, onClose }) {
               </div>
             )}
           </div>
-
           {!stats ? (
             <div className="flex items-center justify-center h-16"><div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
           ) : (
@@ -436,6 +417,7 @@ function exportPDF(players) {
 }
 
 export default function Players() {
+  const { profile, isAdmin, isMister } = useAuth()
   const [players, setPlayers] = useState([])
   const [teamSettings, setTeamSettings] = useState(null)
   const [search, setSearch] = useState('')
@@ -502,10 +484,12 @@ export default function Players() {
           <button onClick={() => exportPDF(filtered)} className="flex items-center gap-2 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
             <Download size={15}/> PDF
           </button>
-          <button onClick={() => setModal({ club_id: players[0]?.club_id })}
-            className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
-            <UserPlus size={16}/> Nuovo
-          </button>
+          {isAdmin && (
+            <button onClick={() => setModal({ club_id: players[0]?.club_id })}
+              className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
+              <UserPlus size={16}/> Nuovo
+            </button>
+          )}
         </div>
       </div>
 
@@ -611,11 +595,13 @@ export default function Players() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button onClick={()=>setDetailPlayer(p)} className="text-[#999] hover:text-[#1c84c6]" title="Scheda"><Eye size={15}/></button>
-                        <button onClick={()=>toggleActive(p)} className="text-[#999] hover:text-[#1ab394]">
-                          {p.active ? <ToggleRight size={18} className="text-[#1ab394]"/> : <ToggleLeft size={18}/>}
-                        </button>
-                        <button onClick={()=>setModal(p)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={15}/></button>
-                        <button onClick={()=>deletePlayer(p)} className="text-[#999] hover:text-red-500"><Trash2 size={15}/></button>
+                        {isAdmin && <>
+                          <button onClick={()=>toggleActive(p)} className="text-[#999] hover:text-[#1ab394]">
+                            {p.active ? <ToggleRight size={18} className="text-[#1ab394]"/> : <ToggleLeft size={18}/>}
+                          </button>
+                          <button onClick={()=>setModal(p)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={15}/></button>
+                          <button onClick={()=>deletePlayer(p)} className="text-[#999] hover:text-red-500"><Trash2 size={15}/></button>
+                        </>}
                       </div>
                     </td>
                   </tr>
