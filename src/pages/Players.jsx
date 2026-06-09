@@ -49,18 +49,12 @@ function PlayerModal({ player, onClose, onSaved }) {
     try {
       if (isEdit) {
         const { error } = await supabase.from('profiles').update({
-          nome: form.nome,
-          cognome: form.cognome,
-          telefono: form.telefono,
-          data_nascita: form.data_nascita || null,
-          codice_fiscale: form.codice_fiscale,
-          numero_patente: form.numero_patente,
-          numero_tessera: form.numero_tessera,
+          nome: form.nome, cognome: form.cognome, telefono: form.telefono,
+          data_nascita: form.data_nascita || null, codice_fiscale: form.codice_fiscale,
+          numero_patente: form.numero_patente, numero_tessera: form.numero_tessera,
           data_visita_medica: form.data_visita_medica || null,
           scadenza_visita_medica: form.scadenza_visita_medica || null,
-          taglia: form.taglia,
-          role: form.role,
-          active: form.active,
+          taglia: form.taglia, role: form.role, active: form.active,
           importo_allenamento: form.importo_allenamento !== '' ? +form.importo_allenamento : null,
           importo_partita: form.importo_partita !== '' ? +form.importo_partita : null,
           importo_carburante: form.importo_carburante !== '' ? +form.importo_carburante : null,
@@ -73,23 +67,14 @@ function PlayerModal({ player, onClose, onSaved }) {
         if (authError) throw new Error('Errore creazione account: ' + authError.message)
         const userId = authData.user?.id
         if (!userId) throw new Error('ID utente non disponibile')
-
         const { error: profileError } = await supabase.from('profiles').upsert([{
-          id: userId,
-          club_id: player?.club_id,
-          nome: form.nome,
-          cognome: form.cognome,
-          email: form.email,
-          telefono: form.telefono,
-          data_nascita: form.data_nascita || null,
-          codice_fiscale: form.codice_fiscale,
-          numero_patente: form.numero_patente,
-          numero_tessera: form.numero_tessera,
+          id: userId, club_id: player?.club_id,
+          nome: form.nome, cognome: form.cognome, email: form.email, telefono: form.telefono,
+          data_nascita: form.data_nascita || null, codice_fiscale: form.codice_fiscale,
+          numero_patente: form.numero_patente, numero_tessera: form.numero_tessera,
           data_visita_medica: form.data_visita_medica || null,
           scadenza_visita_medica: form.scadenza_visita_medica || null,
-          taglia: form.taglia,
-          role: form.role,
-          active: form.active,
+          taglia: form.taglia, role: form.role, active: form.active,
           importo_allenamento: form.importo_allenamento !== '' ? +form.importo_allenamento : null,
           importo_partita: form.importo_partita !== '' ? +form.importo_partita : null,
           importo_carburante: form.importo_carburante !== '' ? +form.importo_carburante : null,
@@ -99,9 +84,7 @@ function PlayerModal({ player, onClose, onSaved }) {
         toast.success('Calciatore aggiunto! Può accedere con email e password impostate.')
       }
       onSaved()
-    } catch(e) {
-      toast.error(e.message)
-    }
+    } catch(e) { toast.error(e.message) }
     setLoading(false)
   }
 
@@ -124,29 +107,19 @@ function PlayerModal({ player, onClose, onSaved }) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email *</label>
-            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)}
-              disabled={isEdit}
+            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)} disabled={isEdit}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] disabled:opacity-50 disabled:bg-gray-50"/>
           </div>
           {!isEdit && (
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Password *</label>
-              <input type="password" value={password} onChange={e=>setPassword(e.target.value)}
-                placeholder="Minimo 8 caratteri"
+              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Minimo 8 caratteri"
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-              {password && password.length < 8 && (
-                <p className="text-xs text-red-400 mt-1">Minimo 8 caratteri</p>
-              )}
+              {password && password.length < 8 && <p className="text-xs text-red-400 mt-1">Minimo 8 caratteri</p>}
               <p className="text-xs text-[#999] mt-1">Il calciatore userà queste credenziali per accedere all'app.</p>
             </div>
           )}
-          {[
-            ['telefono','Telefono'],
-            ['data_nascita','Data nascita','date'],
-            ['codice_fiscale','Codice fiscale'],
-            ['numero_patente','N° patente'],
-            ['numero_tessera','N° tessera FIGC']
-          ].map(([k,l,t='text']) => (
+          {[['telefono','Telefono'],['data_nascita','Data nascita','date'],['codice_fiscale','Codice fiscale'],['numero_patente','N° patente'],['numero_tessera','N° tessera FIGC']].map(([k,l,t='text']) => (
             <div key={k}>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
               <input type={t} value={form[k]||''} onChange={e=>set(k,e.target.value)}
@@ -186,27 +159,22 @@ function PlayerModal({ player, onClose, onSaved }) {
           </div>
           {(form.role === 'player_paid' || form.role === 'player_volunteer') && (
             <div className="border-t border-[#e7eaec] pt-3">
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
-                Rimborsi personalizzati
-              </label>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Rimborsi personalizzati</label>
               <p className="text-xs text-[#999] mb-3">Inserisci i valori di rimborso per questo calciatore.</p>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Allenamento (€)</label>
-                  <input type="number" min="0" value={form.importo_allenamento ?? ''}
-                    onChange={e=>set('importo_allenamento', e.target.value)} placeholder="es. 20"
+                  <input type="number" min="0" value={form.importo_allenamento ?? ''} onChange={e=>set('importo_allenamento',e.target.value)} placeholder="es. 20"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Partita (€)</label>
-                  <input type="number" min="0" value={form.importo_partita ?? ''}
-                    onChange={e=>set('importo_partita', e.target.value)} placeholder="es. 30"
+                  <input type="number" min="0" value={form.importo_partita ?? ''} onChange={e=>set('importo_partita',e.target.value)} placeholder="es. 30"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Carburante (€)</label>
-                  <input type="number" min="0" value={form.importo_carburante ?? ''}
-                    onChange={e=>set('importo_carburante', e.target.value)} placeholder="es. 5"
+                  <input type="number" min="0" value={form.importo_carburante ?? ''} onChange={e=>set('importo_carburante',e.target.value)} placeholder="es. 5"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
               </div>
@@ -215,8 +183,7 @@ function PlayerModal({ player, onClose, onSaved }) {
           {form.role === 'mister' && (
             <div className="border-t border-[#e7eaec] pt-3">
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Compenso fisso mensile (€)</label>
-              <input type="number" min="0" value={form.compenso_fisso ?? ''}
-                onChange={e=>set('compenso_fisso', e.target.value)} placeholder="Es. 500"
+              <input type="number" min="0" value={form.compenso_fisso ?? ''} onChange={e=>set('compenso_fisso',e.target.value)} placeholder="Es. 500"
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           )}
@@ -238,6 +205,7 @@ function PlayerModal({ player, onClose, onSaved }) {
 }
 
 function PlayerDetailModal({ player, onClose }) {
+  const { isAdmin } = useAuth()
   const [stats, setStats] = useState(null)
 
   useEffect(() => { loadStats() }, [])
@@ -271,10 +239,16 @@ function PlayerDetailModal({ player, onClose }) {
             <div>
               <div className="text-[#2f4050] font-bold text-lg">{player.nome} {player.cognome}</div>
               <div className="text-[#999] text-sm">{player.email}</div>
-              <span className={clsx('mt-1 inline-block px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[player.role])}>{ROLE_LABELS[player.role]}</span>
+              {isAdmin && (
+                <span className={clsx('mt-1 inline-block px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[player.role])}>
+                  {ROLE_LABELS[player.role]}
+                </span>
+              )}
             </div>
           </div>
-          {(player.role === 'player_paid' || player.role === 'player_volunteer') && (
+
+          {/* Rimborsi — solo admin */}
+          {isAdmin && (player.role === 'player_paid' || player.role === 'player_volunteer') && (
             <div className="bg-gray-50 rounded p-4">
               <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Rimborsi</h3>
               <div className="grid grid-cols-3 gap-3 text-sm">
@@ -293,6 +267,7 @@ function PlayerDetailModal({ player, onClose }) {
               </div>
             </div>
           )}
+
           <div className="bg-gray-50 rounded p-4">
             <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Dati anagrafici</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -312,6 +287,7 @@ function PlayerDetailModal({ player, onClose }) {
               ))}
             </div>
           </div>
+
           <div className="bg-gray-50 rounded p-4">
             <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Visita medica</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -338,7 +314,9 @@ function PlayerDetailModal({ player, onClose }) {
               </div>
             )}
           </div>
-          {!stats ? (
+
+          {/* Statistiche presenze — solo admin */}
+          {isAdmin && (!stats ? (
             <div className="flex items-center justify-center h-16"><div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
           ) : (
             <div className="space-y-3">
@@ -377,7 +355,7 @@ function PlayerDetailModal({ player, onClose }) {
                 </div>
               )}
             </div>
-          )}
+          ))}
         </div>
       </div>
     </div>
@@ -389,28 +367,22 @@ function exportPDF(players) {
   doc.setFillColor(26, 179, 148)
   doc.rect(0, 0, 210, 28, 'F')
   doc.setTextColor(255, 255, 255)
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold')
   doc.text('Lista Calciatori Tesserati', 14, 13)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
   doc.text(`ASD Castelmauro Calcio 1986 — ${new Date().toLocaleDateString('it-IT')}`, 14, 22)
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Cognome e Nome', 'N° Tessera', 'Ruolo', 'Visita Medica', 'Stato']],
+    head: [['#', 'Cognome e Nome', 'N° Tessera', 'Visita Medica', 'Stato']],
     body: players.map((p, i) => [
-      i + 1,
-      `${p.cognome} ${p.nome}`,
-      p.numero_tessera || '—',
-      ROLE_LABELS[p.role] || p.role,
+      i + 1, `${p.cognome} ${p.nome}`, p.numero_tessera || '—',
       p.scadenza_visita_medica ? format(new Date(p.scadenza_visita_medica), 'dd/MM/yyyy') : '—',
       p.active ? 'Attivo' : 'Non attivo'
     ]),
     headStyles: { fillColor: [26, 179, 148], fontSize: 9 },
     styles: { fontSize: 8 }
   })
-  doc.setFontSize(8)
-  doc.setTextColor(150)
+  doc.setFontSize(8); doc.setTextColor(150)
   doc.text(`Totale: ${players.length} calciatori`, 14, doc.lastAutoTable.finalY + 8)
   doc.save('rosa_calciatori.pdf')
   toast.success('PDF esportato!')
@@ -493,21 +465,24 @@ export default function Players() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-  <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
-    <div className="text-xl font-bold text-[#1ab394]">{active}</div>
-    <div className="text-xs text-[#999] uppercase tracking-wide">Attivi</div>
-  </div>
-  {isAdmin && <>
-    <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
-      <div className="text-xl font-bold text-green-600">{paid}</div>
-      <div className="text-xs text-[#999] uppercase tracking-wide">Con rimborso</div>
-    </div>
-    <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
-      <div className="text-xl font-bold text-yellow-600">{volunteers}</div>
-      <div className="text-xs text-[#999] uppercase tracking-wide">Volontari</div>
-    </div>
-  </>}
+      {/* KPI */}
+      <div className={clsx('grid gap-3', isAdmin ? 'grid-cols-2 md:grid-cols-5' : 'grid-cols-2 md:grid-cols-3')}>
+        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+          <div className="text-xl font-bold text-[#1ab394]">{active}</div>
+          <div className="text-xs text-[#999] uppercase tracking-wide">Attivi</div>
+        </div>
+        {isAdmin && (
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+            <div className="text-xl font-bold text-green-600">{paid}</div>
+            <div className="text-xs text-[#999] uppercase tracking-wide">Con rimborso</div>
+          </div>
+        )}
+        {isAdmin && (
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+            <div className="text-xl font-bold text-yellow-600">{volunteers}</div>
+            <div className="text-xs text-[#999] uppercase tracking-wide">Volontari</div>
+          </div>
+        )}
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
           <div className="text-xl font-bold text-yellow-500">{medicalExpiring}</div>
           <div className="text-xs text-[#999] uppercase tracking-wide">Visite in scadenza</div>
@@ -532,13 +507,13 @@ export default function Players() {
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca calciatore..."
             className="w-full border border-[#e7eaec] rounded pl-8 pr-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
         </div>
-       {isAdmin && (
-  <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
-    className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-    <option value="">Tutti i ruoli</option>
-    {ROLES.map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-  </select>
-)}
+        {isAdmin && (
+          <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
+            className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+            <option value="">Tutti i ruoli</option>
+            {ROLES.map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          </select>
+        )}
         <select value={filterActive} onChange={e=>setFilterActive(e.target.value)}
           className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
           <option value="">Tutti</option>
@@ -577,19 +552,23 @@ export default function Players() {
                     </td>
                     <td className="px-4 py-3 text-[#999]">{p.email}</td>
                     <td className="px-4 py-3 text-[#676a6c] font-mono text-xs">{p.numero_tessera || '—'}</td>
-                    <td className="px-4 py-3">
-                      <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[p.role])}>
-                        {ROLE_LABELS[p.role]}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-[#999]">
-                      {(p.role === 'player_paid' || p.role === 'player_volunteer') ? (
-                        <div className="space-y-0.5">
-                          <div>All: <span className="text-[#1ab394] font-medium">{p.importo_allenamento != null ? `€${p.importo_allenamento}` : '—'}</span></div>
-                          <div>Par: <span className="text-[#1ab394] font-medium">{p.importo_partita != null ? `€${p.importo_partita}` : '—'}</span></div>
-                        </div>
-                      ) : '—'}
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3">
+                        <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[p.role])}>
+                          {ROLE_LABELS[p.role]}
+                        </span>
+                      </td>
+                    )}
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-xs text-[#999]">
+                        {(p.role === 'player_paid' || p.role === 'player_volunteer') ? (
+                          <div className="space-y-0.5">
+                            <div>All: <span className="text-[#1ab394] font-medium">{p.importo_allenamento != null ? `€${p.importo_allenamento}` : '—'}</span></div>
+                            <div>Par: <span className="text-[#1ab394] font-medium">{p.importo_partita != null ? `€${p.importo_partita}` : '—'}</span></div>
+                          </div>
+                        ) : '—'}
+                      </td>
+                    )}
                     <td className="px-4 py-3"><MedicalBadge date={p.scadenza_visita_medica}/></td>
                     <td className="px-4 py-3">
                       <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', p.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
@@ -617,12 +596,8 @@ export default function Players() {
       </div>
 
       {modal !== null && (
-        <PlayerModal
-          player={modal}
-          teamSettings={teamSettings}
-          onClose={()=>setModal(null)}
-          onSaved={()=>{setModal(null);load()}}
-        />
+        <PlayerModal player={modal} teamSettings={teamSettings}
+          onClose={()=>setModal(null)} onSaved={()=>{setModal(null);load()}}/>
       )}
       {detailPlayer && <PlayerDetailModal player={detailPlayer} onClose={()=>setDetailPlayer(null)}/>}
     </div>
