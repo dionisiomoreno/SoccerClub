@@ -192,10 +192,12 @@ export default function Layout() {
     })
 }, [profile])
 
-  useEffect(() => {
-    if (location.pathname === '/impostazioni') return
-    setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
-  }, [location.pathname])
+useEffect(() => {
+  if (location.pathname === '/impostazioni') return
+  // Mister SC e calciatori non cambiano mai modalità
+  if (isPlayer || (isMister && profile?.category_id)) return
+  setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
+}, [location.pathname])
 
   const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
   const navItems = mode === 'sc' ? NAV_SCUOLA_CALCIO : NAV_PRIMA_SQUADRA
