@@ -42,11 +42,13 @@ const PIANI = [
 ]
 
 function generateSlug(nome) {
-  return nome.toLowerCase()
+  const base = nome.toLowerCase()
     .replace(/[àáâãäå]/g, 'a').replace(/[èéêë]/g, 'e')
     .replace(/[ìíîï]/g, 'i').replace(/[òóôõö]/g, 'o')
     .replace(/[ùúûü]/g, 'u').replace(/[^a-z0-9]/g, '-')
     .replace(/-+/g, '-').replace(/^-|-$/g, '')
+  const suffix = Math.random().toString(36).substring(2, 6)
+  return `${base}-${suffix}`
 }
 
 export default function Register() {
