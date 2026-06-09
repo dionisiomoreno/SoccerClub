@@ -115,16 +115,15 @@ export default function Register() {
 
       // 3. Crea il profilo admin collegato al club
       const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert([{
-          id: userId,
-          club_id: clubData.id,
-          role: 'admin',
-          nome: admin.nome,
-          cognome: admin.cognome,
-          email: admin.email,
-          updated_at: new Date().toISOString(),
-        }])
+  .from('profiles')
+  .upsert([{
+    id: userId,
+    club_id: clubData.id,
+    role: 'admin',
+    nome: admin.nome,
+    cognome: admin.cognome,
+    email: admin.email,
+  }])
       if (profileError) throw new Error('Errore creazione profilo: ' + profileError.message)
 
       // 4. Crea team_settings base
