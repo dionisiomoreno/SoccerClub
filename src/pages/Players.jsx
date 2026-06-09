@@ -358,7 +358,7 @@ function PlayerDetailModal({ player, onClose }) {
       </div>
     )}
   </div>
-))}
+)}
             <div className="flex items-center justify-center h-16"><div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
           ) : (
             <div className="space-y-3">
