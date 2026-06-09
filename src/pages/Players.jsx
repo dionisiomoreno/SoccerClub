@@ -9,7 +9,7 @@ import { format, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 
 const ROLES = ['admin','mister','player_paid','player_volunteer']
-const ROLE_LABELS = { admin:'Admin', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario' }
+const ROLE_LABELS = { admin:'Società', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario' }
 const ROLE_COLORS = {
   admin: 'bg-red-100 text-red-600',
   mister: 'bg-blue-100 text-blue-600',
@@ -26,7 +26,7 @@ function MedicalBadge({ date }) {
   return <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-600">Valida</span>
 }
 
-function PlayerModal({ player, onClose, onSaved, teamSettings }) {
+function PlayerModal({ player, onClose, onSaved }) {
   const isEdit = !!player?.id
   const [form, setForm] = useState({
     nome: '', cognome: '', email: '', telefono: '', data_nascita: '',
@@ -48,7 +48,6 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
     setLoading(true)
     try {
       if (isEdit) {
-        // Modifica profilo esistente
         const { error } = await supabase.from('profiles').update({
           nome: form.nome,
           cognome: form.cognome,
@@ -70,16 +69,11 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
         if (error) throw new Error(error.message)
         toast.success('Calciatore aggiornato')
       } else {
-        // Crea nuovo utente Auth
-        const { data: authData, error: authError } = await supabase.auth.admin
-          ? await supabase.auth.signUp({ email: form.email, password })
-          : await supabase.auth.signUp({ email: form.email, password })
-
+        const { data: authData, error: authError } = await supabase.auth.signUp({ email: form.email, password })
         if (authError) throw new Error('Errore creazione account: ' + authError.message)
         const userId = authData.user?.id
         if (!userId) throw new Error('ID utente non disponibile')
 
-        // Crea profilo
         const { error: profileError } = await supabase.from('profiles').upsert([{
           id: userId,
           club_id: player?.club_id,
@@ -120,7 +114,6 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
         </div>
         <div className="p-4 space-y-3">
 
-          {/* Dati base */}
           <div className="grid grid-cols-2 gap-3">
             {[['nome','Nome *'],['cognome','Cognome *']].map(([k,l]) => (
               <div key={k}>
@@ -131,7 +124,6 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
             ))}
           </div>
 
-          {/* Email — sempre visibile ma disabilitata in modifica */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email *</label>
             <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)}
@@ -139,7 +131,6 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] disabled:opacity-50 disabled:bg-gray-50"/>
           </div>
 
-          {/* Password — solo in creazione */}
           {!isEdit && (
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Password *</label>
@@ -153,7 +144,6 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
             </div>
           )}
 
-          {/* Altri campi anagrafici */}
           {[
             ['telefono','Telefono'],
             ['data_nascita','Data nascita','date'],
@@ -168,7 +158,6 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
             </div>
           ))}
 
-          {/* Visita medica */}
           <div className="border-t border-[#e7eaec] pt-3">
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-2">Visita medica</label>
             <div className="grid grid-cols-2 gap-2">
@@ -185,7 +174,6 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
             </div>
           </div>
 
-          {/* Ruolo e taglia */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ruolo</label>
@@ -203,49 +191,40 @@ function PlayerModal({ player, onClose, onSaved, teamSettings }) {
             </div>
           </div>
 
-          {/* Rimborsi personalizzati — solo per player_paid e player_volunteer */}
           {(form.role === 'player_paid' || form.role === 'player_volunteer') && (
             <div className="border-t border-[#e7eaec] pt-3">
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
                 Rimborsi personalizzati
               </label>
               <p className="text-xs text-[#999] mb-3">
-                Lascia vuoto per usare i valori globali della squadra
-                {teamSettings && (
-                  <span className="ml-1">
-                    (allenamento: €{teamSettings.importo_allenamento ?? 20},
-                    partita: €{teamSettings.importo_partita ?? 30},
-                    carburante: €{teamSettings.importo_carburante ?? 0})
-                  </span>
-                )}
+                Inserisci i valori di rimborso per questo calciatore.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Allenamento (€)</label>
                   <input type="number" min="0" value={form.importo_allenamento ?? ''}
                     onChange={e=>set('importo_allenamento', e.target.value)}
-                    placeholder={`${teamSettings?.importo_allenamento ?? 20}`}
+                    placeholder="es. 20"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Partita (€)</label>
                   <input type="number" min="0" value={form.importo_partita ?? ''}
                     onChange={e=>set('importo_partita', e.target.value)}
-                    placeholder={`${teamSettings?.importo_partita ?? 30}`}
+                    placeholder="es. 30"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Carburante (€)</label>
                   <input type="number" min="0" value={form.importo_carburante ?? ''}
                     onChange={e=>set('importo_carburante', e.target.value)}
-                    placeholder={`${teamSettings?.importo_carburante ?? 0}`}
+                    placeholder="es. 5"
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Compenso fisso — solo mister */}
           {form.role === 'mister' && (
             <div className="border-t border-[#e7eaec] pt-3">
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Compenso fisso mensile (€)</label>
@@ -312,31 +291,26 @@ function PlayerDetailModal({ player, onClose }) {
             </div>
           </div>
 
-          {/* Rimborsi personalizzati */}
           {(player.role === 'player_paid' || player.role === 'player_volunteer') && (
             <div className="bg-gray-50 rounded p-4">
               <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Rimborsi</h3>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <div className="text-xs text-[#999]">Allenamento</div>
-                  <div className="text-[#1ab394] font-bold">€{player.importo_allenamento ?? '—'}</div>
-                  {!player.importo_allenamento && <div className="text-xs text-[#999]">(globale)</div>}
+                  <div className="text-[#1ab394] font-bold">{player.importo_allenamento != null ? `€${player.importo_allenamento}` : '—'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-[#999]">Partita</div>
-                  <div className="text-[#1ab394] font-bold">€{player.importo_partita ?? '—'}</div>
-                  {!player.importo_partita && <div className="text-xs text-[#999]">(globale)</div>}
+                  <div className="text-[#1ab394] font-bold">{player.importo_partita != null ? `€${player.importo_partita}` : '—'}</div>
                 </div>
                 <div>
                   <div className="text-xs text-[#999]">Carburante</div>
-                  <div className="text-[#1ab394] font-bold">€{player.importo_carburante ?? '—'}</div>
-                  {!player.importo_carburante && <div className="text-xs text-[#999]">(globale)</div>}
+                  <div className="text-[#1ab394] font-bold">{player.importo_carburante != null ? `€${player.importo_carburante}` : '—'}</div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Dati anagrafici */}
           <div className="bg-gray-50 rounded p-4">
             <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Dati anagrafici</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -357,7 +331,6 @@ function PlayerDetailModal({ player, onClose }) {
             </div>
           </div>
 
-          {/* Visita medica */}
           <div className="bg-gray-50 rounded p-4">
             <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Visita medica</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -385,7 +358,6 @@ function PlayerDetailModal({ player, onClose }) {
             )}
           </div>
 
-          {/* Statistiche */}
           {!stats ? (
             <div className="flex items-center justify-center h-16"><div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
           ) : (
@@ -538,7 +510,6 @@ export default function Players() {
         </div>
       </div>
 
-      {/* KPI */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
           <div className="text-xl font-bold text-[#1ab394]">{active}</div>
@@ -562,7 +533,6 @@ export default function Players() {
         </div>
       </div>
 
-      {/* Alert visite */}
       {(medicalExpired > 0 || medicalExpiring > 0) && (
         <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">
           <AlertTriangle size={16}/>
@@ -571,7 +541,6 @@ export default function Players() {
         </div>
       )}
 
-      {/* Filtri */}
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-48">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]"/>
@@ -629,8 +598,8 @@ export default function Players() {
                     <td className="px-4 py-3 text-xs text-[#999]">
                       {(p.role === 'player_paid' || p.role === 'player_volunteer') ? (
                         <div className="space-y-0.5">
-                          <div>All: <span className="text-[#1ab394] font-medium">€{p.importo_allenamento ?? '—'}</span></div>
-                          <div>Par: <span className="text-[#1ab394] font-medium">€{p.importo_partita ?? '—'}</span></div>
+                          <div>All: <span className="text-[#1ab394] font-medium">{p.importo_allenamento != null ? `€${p.importo_allenamento}` : '—'}</span></div>
+                          <div>Par: <span className="text-[#1ab394] font-medium">{p.importo_partita != null ? `€${p.importo_partita}` : '—'}</span></div>
                         </div>
                       ) : '—'}
                     </td>
