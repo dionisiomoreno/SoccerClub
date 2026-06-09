@@ -532,11 +532,13 @@ export default function Players() {
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca calciatore..."
             className="w-full border border-[#e7eaec] rounded pl-8 pr-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
         </div>
-        <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
-          className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-          <option value="">Tutti i ruoli</option>
-          {ROLES.map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-        </select>
+       {isAdmin && (
+  <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
+    className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+    <option value="">Tutti i ruoli</option>
+    {ROLES.map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+  </select>
+)}
         <select value={filterActive} onChange={e=>setFilterActive(e.target.value)}
           className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
           <option value="">Tutti</option>
