@@ -356,11 +356,16 @@ export default function YouthPlayers() {
   }
 
   async function loadPlayers() {
-    setLoading(true)
-    const { data } = await supabase.from('youth_players').select('*, categories(nome,colore)').order('cognome')
-    setPlayers(data || [])
-    setLoading(false)
+  setLoading(true)
+  let q = supabase.from('youth_players').select('*, categories(nome,colore)').order('cognome')
+  // Mister SC vede solo gli atleti della sua categoria
+  if (isMister && profile?.category_id) {
+    q = q.eq('category_id', profile.category_id)
   }
+  const { data } = await q
+  setPlayers(data || [])
+  setLoading(false)
+}
 
   async function deletePlayer(p) {
     if (!confirm(`Eliminare ${p.nome} ${p.cognome}?`)) return
