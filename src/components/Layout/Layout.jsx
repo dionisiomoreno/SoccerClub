@@ -164,35 +164,33 @@ export default function Layout() {
   // Calciatori e mister non possono cambiare modalità manualmente
   const canSwitchMode = !isPlayer && !isMister
 
-  useEffect(() => {
-    supabase.from('team_settings').select('modulo_prima_squadra, modulo_scuola_calcio').single()
-      .then(({ data }) => {
-        if (data) {
-          setModules(data)
-          // Per calciatori e mister: forza la modalità in base al profilo
-          if (isPlayer || isMister) {
-            // Se il mister ha category_id → è SC, altrimenti PS
-            if (profile?.category_id) {
-              setMode('sc')
-              if (!location.pathname.startsWith('/sc/')) navigate('/sc/chat')
-            } else {
-              setMode('ps')
-              if (location.pathname.startsWith('/sc/')) navigate('/')
-            }
-            return
-          }
-          // Per admin/segreteria: logica normale
-          if (!data.modulo_prima_squadra && data.modulo_scuola_calcio) {
+ useEffect(() => {
+  if (!profile) return
+  supabase.from('team_settings').select('modulo_prima_squadra, modulo_scuola_calcio').single()
+    .then(({ data }) => {
+      if (data) {
+        setModules(data)
+        if (isPlayer || isMister) {
+          if (profile?.category_id) {
             setMode('sc')
-            if (!location.pathname.startsWith('/sc/')) navigate('/sc/atleti')
-          }
-          if (data.modulo_prima_squadra && !data.modulo_scuola_calcio) {
+            if (!location.pathname.startsWith('/sc/')) navigate('/sc/chat')
+          } else {
             setMode('ps')
             if (location.pathname.startsWith('/sc/')) navigate('/')
           }
+          return
         }
-      })
-  }, [])
+        if (!data.modulo_prima_squadra && data.modulo_scuola_calcio) {
+          setMode('sc')
+          if (!location.pathname.startsWith('/sc/')) navigate('/sc/atleti')
+        }
+        if (data.modulo_prima_squadra && !data.modulo_scuola_calcio) {
+          setMode('ps')
+          if (location.pathname.startsWith('/sc/')) navigate('/')
+        }
+      }
+    })
+}, [profile])
 
   useEffect(() => {
     if (location.pathname === '/impostazioni') return
