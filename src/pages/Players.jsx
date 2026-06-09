@@ -6,8 +6,6 @@ import clsx from 'clsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format, differenceInDays } from 'date-fns'
-import { it } from 'date-fns/locale'
-
 const ROLES = ['admin','mister','player_paid','player_volunteer']
 const ROLE_LABELS = { admin:'Società', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario' }
 const ROLE_COLORS = {
