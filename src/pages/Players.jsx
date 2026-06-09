@@ -315,8 +315,50 @@ function PlayerDetailModal({ player, onClose }) {
             )}
           </div>
 
-          {/* Statistiche presenze — solo admin */}
-          {isAdmin && (!stats ? (
+          {/* Statistiche presenze — admin vede tutto, mister vede solo presenze */}
+{(!stats ? (
+  <div className="flex items-center justify-center h-16"><div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
+) : (
+  <div className="space-y-3">
+    <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide">Statistiche presenze</h3>
+    <div className="grid grid-cols-3 gap-3">
+      <div className="bg-blue-50 border border-blue-100 rounded p-3 text-center">
+        <div className="text-xl font-bold text-blue-600">{stats.trainings}</div>
+        <div className="text-xs text-[#999] mt-1">Allenamenti</div>
+      </div>
+      <div className="bg-yellow-50 border border-yellow-100 rounded p-3 text-center">
+        <div className="text-xl font-bold text-yellow-600">{stats.matches}</div>
+        <div className="text-xs text-[#999] mt-1">Partite</div>
+      </div>
+      <div className="bg-green-50 border border-green-100 rounded p-3 text-center">
+        <div className="text-xl font-bold text-green-600">{stats.total}</div>
+        <div className="text-xs text-[#999] mt-1">Totale</div>
+      </div>
+    </div>
+    {/* Importi solo per admin */}
+    {isAdmin && (
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-gray-50 border border-[#e7eaec] rounded p-3 text-center">
+          <div className="text-xl font-bold text-[#2f4050]">€{stats.lordo}</div>
+          <div className="text-xs text-[#999] mt-1">Lordo</div>
+        </div>
+        <div className="bg-red-50 border border-red-100 rounded p-3 text-center">
+          <div className="text-xl font-bold text-red-500">-€{stats.sanzioni}</div>
+          <div className="text-xs text-[#999] mt-1">Sanzioni</div>
+        </div>
+        <div className="bg-green-50 border border-green-100 rounded p-3 text-center">
+          <div className="text-xl font-bold text-green-600">€{stats.netto}</div>
+          <div className="text-xs text-[#999] mt-1">Netto</div>
+        </div>
+      </div>
+    )}
+    {isAdmin && stats.lastPayslip && (
+      <div className="bg-[#1ab394]/5 border border-[#1ab394]/20 rounded p-3 text-sm text-[#676a6c]">
+        Ultimo cedolino: <strong>€{stats.lastPayslip.netto}</strong> — {['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'][stats.lastPayslip.month-1]} {stats.lastPayslip.year}
+      </div>
+    )}
+  </div>
+))}
             <div className="flex items-center justify-center h-16"><div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
           ) : (
             <div className="space-y-3">
