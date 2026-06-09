@@ -37,10 +37,14 @@ const NAV_PRIMA_SQUADRA = [
 ]
 
 const NAV_SCUOLA_CALCIO = [
+  { to: '/',             label: 'Dashboard',      icon: LayoutDashboard, roles: null },
   { to: '/sc/atleti',    label: 'Atleti',         icon: Baby,            roles: ['admin','segreteria'] },
   { to: '/sc/pagamenti', label: 'Pagamenti',      icon: Wallet,          roles: ['admin','segreteria'] },
   { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'] },
   { to: '/sc/mister',    label: 'Mister SC',      icon: UserCog,         roles: ['admin','segreteria'] },
+  { to: '/calendario',   label: 'Calendario',     icon: Calendar,        roles: null },
+  { to: '/materiale',    label: 'Materiale',      icon: Package,         roles: null },
+  { to: '/documenti',    label: 'Documenti',      icon: FileText,        roles: null },
   { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
   { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
   { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: ['admin'] },
