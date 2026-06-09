@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 
 const DEMO = [
-  { label: 'Admin',       email: 'admin@soccer.com',          password: 'password123' },
+  { label: 'Società',       email: 'admin@soccer.com',          password: 'password123' },
   { label: 'Mister',      email: 'mister@soccer.com',         password: 'password123' },
   { label: 'Calciatore',  email: 'player@soccer.com',         password: 'password123' },
   { label: 'Volontario',  email: 'volunteer@soccer.com',      password: 'password123' },
