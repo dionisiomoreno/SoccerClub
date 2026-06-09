@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, ClipboardList, Calendar, Bell,
   Package, FileText, CreditCard, AlertTriangle, ClipboardCheck,
   Settings, Menu, X, LogOut, ChevronRight, Check, Trash2,
-  Baby, Wallet, ShoppingBag, Megaphone, MessageCircle, UserCog
+  Baby, Wallet, ShoppingBag, Megaphone, MessageCircle, UserCog, Dumbbell
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
