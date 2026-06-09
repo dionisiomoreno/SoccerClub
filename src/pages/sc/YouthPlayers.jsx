@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 import { UserPlus, Search, Edit2, Trash2, Eye, Download, X, AlertTriangle, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
@@ -339,6 +340,7 @@ function exportPDF(players, categories) {
 import { FileText } from 'lucide-react'
 
 export default function YouthPlayers() {
+  const { profile, isAdmin, isMister } = useAuth()
   const [players, setPlayers] = useState([])
   const [categories, setCategories] = useState([])
   const [search, setSearch] = useState('')
