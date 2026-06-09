@@ -12,6 +12,14 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
 
+const ROLE_LABELS = {
+  admin: 'Società',
+  mister: 'Mister',
+  player_paid: 'Calciatore',
+  player_volunteer: 'Volontario',
+  segreteria: 'Segreteria'
+}
+
 const NAV_PRIMA_SQUADRA = [
   { to: '/',             label: 'Dashboard',      icon: LayoutDashboard, roles: null },
   { to: '/calciatori',   label: 'Calciatori',     icon: Users,           roles: ['admin'] },
@@ -150,12 +158,10 @@ export default function Layout() {
       .then(({ data }) => {
         if (data) {
           setModules(data)
-          // Se solo scuola calcio abilitata → forza modalità sc
           if (!data.modulo_prima_squadra && data.modulo_scuola_calcio) {
             setMode('sc')
             if (!location.pathname.startsWith('/sc/')) navigate('/sc/atleti')
           }
-          // Se solo prima squadra abilitata → forza modalità ps
           if (data.modulo_prima_squadra && !data.modulo_scuola_calcio) {
             setMode('ps')
             if (location.pathname.startsWith('/sc/')) navigate('/')
@@ -165,7 +171,6 @@ export default function Layout() {
   }, [])
 
   useEffect(() => {
-    // Non cambiare modalità se si va su impostazioni
     if (location.pathname === '/impostazioni') return
     setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
   }, [location.pathname])
@@ -201,7 +206,7 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Selettore modalità — solo se entrambi i moduli sono abilitati */}
+      {/* Selettore modalità */}
       {bothEnabled && (
         <div className="p-2 bg-black/20">
           <div className="flex rounded-lg overflow-hidden">
@@ -228,8 +233,9 @@ export default function Layout() {
         <div className="flex-1 min-w-0">
           <div className="text-white text-xs font-medium truncate">{profile?.nome} {profile?.cognome}</div>
           <div className="text-white/50 text-xs truncate">
-  {({ admin:'Società', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario', segreteria:'Segreteria' })[profile?.role] || profile?.role}
-</div>
+            {ROLE_LABELS[profile?.role] || profile?.role}
+          </div>
+        </div>
       </div>
 
       {/* Nav */}
