@@ -76,18 +76,11 @@ export default function Register() {
     if (!canGoStep4()) return
     setLoading(true)
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: admin.email,
-        password: admin.password,
-        options: { data: { nome: admin.nome, cognome: admin.cognome } }
-      })
-      if (authError) throw authError
-      const userId = authData.user?.id
-      if (!userId) throw new Error('Errore creazione utente')
-
       const trialEnd = new Date()
       trialEnd.setDate(trialEnd.getDate() + 14)
 
+      // 1. Crea il club PRIMA usando service role via signUp metadata
+      //    Usiamo il client anonimo — funziona grazie alla policy "allow_public_insert_clubs"
       const { data: clubData, error: clubError } = await supabase
         .from('clubs')
         .insert([{
@@ -104,8 +97,21 @@ export default function Register() {
         }])
         .select()
         .single()
-      if (clubError) throw clubError
 
+      if (clubError) throw new Error('Errore creazione club: ' + clubError.message)
+
+      // 2. Crea l'utente Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: admin.email,
+        password: admin.password,
+        options: { data: { nome: admin.nome, cognome: admin.cognome } }
+      })
+      if (authError) throw new Error('Errore creazione utente: ' + authError.message)
+
+      const userId = authData.user?.id
+      if (!userId) throw new Error('ID utente non disponibile')
+
+      // 3. Crea il profilo admin collegato al club
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert([{
@@ -117,8 +123,9 @@ export default function Register() {
           email: admin.email,
           updated_at: new Date().toISOString(),
         }])
-      if (profileError) throw profileError
+      if (profileError) throw new Error('Errore creazione profilo: ' + profileError.message)
 
+      // 4. Crea team_settings base
       await supabase.from('team_settings').upsert([{
         club_id: clubData.id,
         nome_squadra: club.nome,
@@ -130,6 +137,7 @@ export default function Register() {
 
       toast.success('Account creato! Benvenuto in SoccerClub 🎉')
       navigate('/onboarding', { state: { clubId: clubData.id, piano } })
+
     } catch (err) {
       toast.error(err.message || 'Errore durante la registrazione')
     } finally {
