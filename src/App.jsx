@@ -146,7 +146,7 @@ function AppRoutes() {
       {/* ── App principale ── */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
-        <Route path="calciatori"   element={<PrivateRoute roles={['admin']}><Players /></PrivateRoute>} />
+        <Route path="calciatori" element={<PrivateRoute roles={['admin','mister']}><Players /></PrivateRoute>} />
         <Route path="presenze"     element={<Attendances />} />
         <Route path="calendario"   element={<Calendar />} />
         <Route path="convocazioni" element={<Callups />} />
