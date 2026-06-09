@@ -97,10 +97,19 @@ export default function SCChat() {
         const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
         if (chat) result.push({ ...chat, colore: cat.colore, label: `🏫 ${cat.nome}` })
       }
-    } else if (isPlayer) {
-      // Calciatore PS → vede chat squadra PS (nessuna categoria SC)
-      // Per ora calciatori PS non hanno category_id → nessuna chat squadra SC
-      // Se in futuro i calciatori SC avranno category_id, aggiungere logica qui
+    } else if (isParent) {
+      // Genitore → vede la chat della categoria del figlio
+      const { data: parent } = await supabase
+        .from('parents')
+        .select('youth_players(category_id, categories(nome, colore))')
+        .eq('user_id', profile.id)
+        .single()
+      const cat = parent?.youth_players?.categories
+      const catId = parent?.youth_players?.category_id
+      if (cat && catId) {
+        const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
+        if (chat) result.push({ ...chat, colore: cat.colore, label: `🏫 ${cat.nome}` })
+      }
     }
 
     setChats(result)
