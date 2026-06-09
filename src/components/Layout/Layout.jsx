@@ -40,6 +40,7 @@ const NAV_SCUOLA_CALCIO = [
   { to: '/sc/atleti',    label: 'Atleti',         icon: Baby,            roles: ['admin','segreteria'] },
   { to: '/sc/pagamenti', label: 'Pagamenti',      icon: Wallet,          roles: ['admin','segreteria'] },
   { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'] },
+  { to: '/sc/mister',    label: 'Mister SC',      icon: UserCog,         roles: ['admin','segreteria'] },
   { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
   { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
   { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: ['admin'] },
@@ -153,11 +154,30 @@ export default function Layout() {
   const [modules, setModules] = useState({ modulo_prima_squadra: true, modulo_scuola_calcio: false })
   const [mode, setMode] = useState(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
 
+  const role = profile?.role
+  const isPlayer = role === 'player_paid' || role === 'player_volunteer'
+  const isMister = role === 'mister'
+  // Calciatori e mister non possono cambiare modalità manualmente
+  const canSwitchMode = !isPlayer && !isMister
+
   useEffect(() => {
     supabase.from('team_settings').select('modulo_prima_squadra, modulo_scuola_calcio').single()
       .then(({ data }) => {
         if (data) {
           setModules(data)
+          // Per calciatori e mister: forza la modalità in base al profilo
+          if (isPlayer || isMister) {
+            // Se il mister ha category_id → è SC, altrimenti PS
+            if (profile?.category_id) {
+              setMode('sc')
+              if (!location.pathname.startsWith('/sc/')) navigate('/sc/chat')
+            } else {
+              setMode('ps')
+              if (location.pathname.startsWith('/sc/')) navigate('/')
+            }
+            return
+          }
+          // Per admin/segreteria: logica normale
           if (!data.modulo_prima_squadra && data.modulo_scuola_calcio) {
             setMode('sc')
             if (!location.pathname.startsWith('/sc/')) navigate('/sc/atleti')
@@ -175,7 +195,6 @@ export default function Layout() {
     setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
   }, [location.pathname])
 
-  const role = profile?.role
   const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
   const navItems = mode === 'sc' ? NAV_SCUOLA_CALCIO : NAV_PRIMA_SQUADRA
   const filtered = navItems.filter(item => !item.roles || item.roles.includes(role))
@@ -206,8 +225,8 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Selettore modalità */}
-      {bothEnabled && (
+      {/* Selettore modalità — solo admin e segreteria */}
+      {bothEnabled && canSwitchMode && (
         <div className="p-2 bg-black/20">
           <div className="flex rounded-lg overflow-hidden">
             <button onClick={() => switchMode('ps')}
