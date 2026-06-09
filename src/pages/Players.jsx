@@ -26,25 +26,88 @@ function MedicalBadge({ date }) {
   return <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-600">Valida</span>
 }
 
-function PlayerModal({ player, onClose, onSaved }) {
+function PlayerModal({ player, onClose, onSaved, teamSettings }) {
   const isEdit = !!player?.id
   const [form, setForm] = useState({
     nome: '', cognome: '', email: '', telefono: '', data_nascita: '',
     codice_fiscale: '', numero_patente: '', numero_tessera: '',
     data_visita_medica: '', scadenza_visita_medica: '',
     taglia: 'M', role: 'player_paid', active: true,
+    importo_allenamento: '', importo_partita: '', importo_carburante: '',
     ...player
   })
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   async function save() {
+    if (!form.nome || !form.cognome) return toast.error('Nome e cognome obbligatori')
+    if (!isEdit && !form.email) return toast.error('Email obbligatoria per nuovo calciatore')
+    if (!isEdit && password.length < 8) return toast.error('Password minimo 8 caratteri')
+
     setLoading(true)
-    const { error } = isEdit
-      ? await supabase.from('profiles').update({ ...form }).eq('id', form.id)
-      : await supabase.from('profiles').insert([{ ...form }])
-    if (error) toast.error(error.message)
-    else { toast.success(isEdit ? 'Aggiornato' : 'Aggiunto'); onSaved() }
+    try {
+      if (isEdit) {
+        // Modifica profilo esistente
+        const { error } = await supabase.from('profiles').update({
+          nome: form.nome,
+          cognome: form.cognome,
+          telefono: form.telefono,
+          data_nascita: form.data_nascita || null,
+          codice_fiscale: form.codice_fiscale,
+          numero_patente: form.numero_patente,
+          numero_tessera: form.numero_tessera,
+          data_visita_medica: form.data_visita_medica || null,
+          scadenza_visita_medica: form.scadenza_visita_medica || null,
+          taglia: form.taglia,
+          role: form.role,
+          active: form.active,
+          importo_allenamento: form.importo_allenamento !== '' ? +form.importo_allenamento : null,
+          importo_partita: form.importo_partita !== '' ? +form.importo_partita : null,
+          importo_carburante: form.importo_carburante !== '' ? +form.importo_carburante : null,
+          compenso_fisso: form.role === 'mister' && form.compenso_fisso !== '' ? +form.compenso_fisso : null,
+        }).eq('id', form.id)
+        if (error) throw new Error(error.message)
+        toast.success('Calciatore aggiornato')
+      } else {
+        // Crea nuovo utente Auth
+        const { data: authData, error: authError } = await supabase.auth.admin
+          ? await supabase.auth.signUp({ email: form.email, password })
+          : await supabase.auth.signUp({ email: form.email, password })
+
+        if (authError) throw new Error('Errore creazione account: ' + authError.message)
+        const userId = authData.user?.id
+        if (!userId) throw new Error('ID utente non disponibile')
+
+        // Crea profilo
+        const { error: profileError } = await supabase.from('profiles').upsert([{
+          id: userId,
+          club_id: player?.club_id,
+          nome: form.nome,
+          cognome: form.cognome,
+          email: form.email,
+          telefono: form.telefono,
+          data_nascita: form.data_nascita || null,
+          codice_fiscale: form.codice_fiscale,
+          numero_patente: form.numero_patente,
+          numero_tessera: form.numero_tessera,
+          data_visita_medica: form.data_visita_medica || null,
+          scadenza_visita_medica: form.scadenza_visita_medica || null,
+          taglia: form.taglia,
+          role: form.role,
+          active: form.active,
+          importo_allenamento: form.importo_allenamento !== '' ? +form.importo_allenamento : null,
+          importo_partita: form.importo_partita !== '' ? +form.importo_partita : null,
+          importo_carburante: form.importo_carburante !== '' ? +form.importo_carburante : null,
+          compenso_fisso: form.role === 'mister' && form.compenso_fisso !== '' ? +form.compenso_fisso : null,
+        }])
+        if (profileError) throw new Error('Errore profilo: ' + profileError.message)
+        toast.success('Calciatore aggiunto! Può accedere con email e password impostate.')
+      }
+      onSaved()
+    } catch(e) {
+      toast.error(e.message)
+    }
     setLoading(false)
   }
 
@@ -56,9 +119,10 @@ function PlayerModal({ player, onClose, onSaved }) {
           <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
         </div>
         <div className="p-4 space-y-3">
+
           {/* Dati base */}
           <div className="grid grid-cols-2 gap-3">
-            {[['nome','Nome'],['cognome','Cognome']].map(([k,l]) => (
+            {[['nome','Nome *'],['cognome','Cognome *']].map(([k,l]) => (
               <div key={k}>
                 <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
                 <input value={form[k]||''} onChange={e=>set(k,e.target.value)}
@@ -66,12 +130,37 @@ function PlayerModal({ player, onClose, onSaved }) {
               </div>
             ))}
           </div>
+
+          {/* Email — sempre visibile ma disabilitata in modifica */}
           <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email</label>
-            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)} disabled={isEdit}
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email *</label>
+            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)}
+              disabled={isEdit}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] disabled:opacity-50 disabled:bg-gray-50"/>
           </div>
-          {[['telefono','Telefono'],['data_nascita','Data nascita','date'],['codice_fiscale','Codice fiscale'],['numero_patente','N° patente'],['numero_tessera','N° tessera FIGC']].map(([k,l,t='text']) => (
+
+          {/* Password — solo in creazione */}
+          {!isEdit && (
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Password *</label>
+              <input type="password" value={password} onChange={e=>setPassword(e.target.value)}
+                placeholder="Minimo 8 caratteri"
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              {password && password.length < 8 && (
+                <p className="text-xs text-red-400 mt-1">Minimo 8 caratteri</p>
+              )}
+              <p className="text-xs text-[#999] mt-1">Il calciatore userà queste credenziali per accedere all'app.</p>
+            </div>
+          )}
+
+          {/* Altri campi anagrafici */}
+          {[
+            ['telefono','Telefono'],
+            ['data_nascita','Data nascita','date'],
+            ['codice_fiscale','Codice fiscale'],
+            ['numero_patente','N° patente'],
+            ['numero_tessera','N° tessera FIGC']
+          ].map(([k,l,t='text']) => (
             <div key={k}>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
               <input type={t} value={form[k]||''} onChange={e=>set(k,e.target.value)}
@@ -96,14 +185,8 @@ function PlayerModal({ player, onClose, onSaved }) {
             </div>
           </div>
 
+          {/* Ruolo e taglia */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Taglia</label>
-              <select value={form.taglia} onChange={e=>set('taglia',e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-                {TAGLIE.map(t=><option key={t}>{t}</option>)}
-              </select>
-            </div>
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ruolo</label>
               <select value={form.role} onChange={e=>set('role',e.target.value)}
@@ -111,51 +194,78 @@ function PlayerModal({ player, onClose, onSaved }) {
                 {ROLES.map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Taglia</label>
+              <select value={form.taglia} onChange={e=>set('taglia',e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+                {TAGLIE.map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
           </div>
-          {/* Valori economici personalizzati */}
-          <div className="border-t border-[#e7eaec] pt-3">
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Valori economici personalizzati</label>
-            <p className="text-xs text-[#999] mb-2">Lascia vuoto per usare i valori globali della squadra.</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(form.role === 'player_paid' || form.role === 'player_volunteer') && <>
+
+          {/* Rimborsi personalizzati — solo per player_paid e player_volunteer */}
+          {(form.role === 'player_paid' || form.role === 'player_volunteer') && (
+            <div className="border-t border-[#e7eaec] pt-3">
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
+                Rimborsi personalizzati
+              </label>
+              <p className="text-xs text-[#999] mb-3">
+                Lascia vuoto per usare i valori globali della squadra
+                {teamSettings && (
+                  <span className="ml-1">
+                    (allenamento: €{teamSettings.importo_allenamento ?? 20},
+                    partita: €{teamSettings.importo_partita ?? 30},
+                    carburante: €{teamSettings.importo_carburante ?? 0})
+                  </span>
+                )}
+              </p>
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Allenamento (€)</label>
-                  <input type="number" min="0" value={form.importo_allenamento ?? ''} onChange={e=>set('importo_allenamento', e.target.value === '' ? null : +e.target.value)}
-                    placeholder="Es. 20"
+                  <input type="number" min="0" value={form.importo_allenamento ?? ''}
+                    onChange={e=>set('importo_allenamento', e.target.value)}
+                    placeholder={`${teamSettings?.importo_allenamento ?? 20}`}
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Partita (€)</label>
-                  <input type="number" min="0" value={form.importo_partita ?? ''} onChange={e=>set('importo_partita', e.target.value === '' ? null : +e.target.value)}
-                    placeholder="Es. 30"
+                  <input type="number" min="0" value={form.importo_partita ?? ''}
+                    onChange={e=>set('importo_partita', e.target.value)}
+                    placeholder={`${teamSettings?.importo_partita ?? 30}`}
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Carburante (€)</label>
-                  <input type="number" min="0" value={form.importo_carburante ?? ''} onChange={e=>set('importo_carburante', e.target.value === '' ? null : +e.target.value)}
-                    placeholder="Es. 5"
+                  <input type="number" min="0" value={form.importo_carburante ?? ''}
+                    onChange={e=>set('importo_carburante', e.target.value)}
+                    placeholder={`${teamSettings?.importo_carburante ?? 0}`}
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
-              </>}
-              {form.role === 'mister' && (
-                <div className="col-span-2">
-                  <label className="block text-xs text-[#999] mb-1">Compenso fisso mensile (€)</label>
-                  <input type="number" min="0" value={form.compenso_fisso ?? ''} onChange={e=>set('compenso_fisso', e.target.value === '' ? null : +e.target.value)}
-                    placeholder="Es. 500"
-                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-                </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
-          <label className="flex items-center gap-2 cursor-pointer">
+          {/* Compenso fisso — solo mister */}
+          {form.role === 'mister' && (
+            <div className="border-t border-[#e7eaec] pt-3">
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Compenso fisso mensile (€)</label>
+              <input type="number" min="0" value={form.compenso_fisso ?? ''}
+                onChange={e=>set('compenso_fisso', e.target.value)}
+                placeholder="Es. 500"
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+            </div>
+          )}
+
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
             <input type="checkbox" checked={form.active} onChange={e=>set('active',e.target.checked)} className="accent-[#1ab394]"/>
             <span className="text-sm text-[#676a6c]">Attivo</span>
           </label>
         </div>
+
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
-          <button onClick={save} disabled={loading} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
+          <button onClick={save} disabled={loading}
+            className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
             {loading ? 'Salvataggio...' : 'Salva'}
           </button>
         </div>
@@ -201,6 +311,30 @@ function PlayerDetailModal({ player, onClose }) {
               <span className={clsx('mt-1 inline-block px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[player.role])}>{ROLE_LABELS[player.role]}</span>
             </div>
           </div>
+
+          {/* Rimborsi personalizzati */}
+          {(player.role === 'player_paid' || player.role === 'player_volunteer') && (
+            <div className="bg-gray-50 rounded p-4">
+              <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">Rimborsi</h3>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-[#999]">Allenamento</div>
+                  <div className="text-[#1ab394] font-bold">€{player.importo_allenamento ?? '—'}</div>
+                  {!player.importo_allenamento && <div className="text-xs text-[#999]">(globale)</div>}
+                </div>
+                <div>
+                  <div className="text-xs text-[#999]">Partita</div>
+                  <div className="text-[#1ab394] font-bold">€{player.importo_partita ?? '—'}</div>
+                  {!player.importo_partita && <div className="text-xs text-[#999]">(globale)</div>}
+                </div>
+                <div>
+                  <div className="text-xs text-[#999]">Carburante</div>
+                  <div className="text-[#1ab394] font-bold">€{player.importo_carburante ?? '—'}</div>
+                  {!player.importo_carburante && <div className="text-xs text-[#999]">(globale)</div>}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Dati anagrafici */}
           <div className="bg-gray-50 rounded p-4">
@@ -332,6 +466,7 @@ function exportPDF(players) {
 
 export default function Players() {
   const [players, setPlayers] = useState([])
+  const [teamSettings, setTeamSettings] = useState(null)
   const [search, setSearch] = useState('')
   const [filterRole, setFilterRole] = useState('')
   const [filterActive, setFilterActive] = useState('1')
@@ -343,8 +478,12 @@ export default function Players() {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('profiles').select('*').order('cognome')
-    setPlayers(data || [])
+    const [{ data: pl }, { data: ts }] = await Promise.all([
+      supabase.from('profiles').select('*').order('cognome'),
+      supabase.from('team_settings').select('*').single()
+    ])
+    setPlayers(pl || [])
+    setTeamSettings(ts)
     setLoading(false)
   }
 
@@ -392,7 +531,8 @@ export default function Players() {
           <button onClick={() => exportPDF(filtered)} className="flex items-center gap-2 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
             <Download size={15}/> PDF
           </button>
-          <button onClick={() => setModal({})} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
+          <button onClick={() => setModal({ club_id: players[0]?.club_id })}
+            className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
             <UserPlus size={16}/> Nuovo
           </button>
         </div>
@@ -463,7 +603,7 @@ export default function Players() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#e7eaec] bg-gray-50">
-                  {['Calciatore','Email','N° Tessera','Ruolo','Visita Medica','Stato','Azioni'].map(h=>(
+                  {['Calciatore','Email','N° Tessera','Ruolo','Rimborsi','Visita Medica','Stato','Azioni'].map(h=>(
                     <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -485,6 +625,14 @@ export default function Players() {
                       <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', ROLE_COLORS[p.role])}>
                         {ROLE_LABELS[p.role]}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#999]">
+                      {(p.role === 'player_paid' || p.role === 'player_volunteer') ? (
+                        <div className="space-y-0.5">
+                          <div>All: <span className="text-[#1ab394] font-medium">€{p.importo_allenamento ?? '—'}</span></div>
+                          <div>Par: <span className="text-[#1ab394] font-medium">€{p.importo_partita ?? '—'}</span></div>
+                        </div>
+                      ) : '—'}
                     </td>
                     <td className="px-4 py-3"><MedicalBadge date={p.scadenza_visita_medica}/></td>
                     <td className="px-4 py-3">
@@ -510,7 +658,14 @@ export default function Players() {
         )}
       </div>
 
-      {modal !== null && <PlayerModal player={modal} onClose={()=>setModal(null)} onSaved={()=>{setModal(null);load()}}/>}
+      {modal !== null && (
+        <PlayerModal
+          player={modal}
+          teamSettings={teamSettings}
+          onClose={()=>setModal(null)}
+          onSaved={()=>{setModal(null);load()}}
+        />
+      )}
       {detailPlayer && <PlayerDetailModal player={detailPlayer} onClose={()=>setDetailPlayer(null)}/>}
     </div>
   )
