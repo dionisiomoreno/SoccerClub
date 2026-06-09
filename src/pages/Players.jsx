@@ -494,18 +494,20 @@ export default function Players() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
-          <div className="text-xl font-bold text-[#1ab394]">{active}</div>
-          <div className="text-xs text-[#999] uppercase tracking-wide">Attivi</div>
-        </div>
-        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
-          <div className="text-xl font-bold text-green-600">{paid}</div>
-          <div className="text-xs text-[#999] uppercase tracking-wide">Con rimborso</div>
-        </div>
-        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
-          <div className="text-xl font-bold text-yellow-600">{volunteers}</div>
-          <div className="text-xs text-[#999] uppercase tracking-wide">Volontari</div>
-        </div>
+  <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+    <div className="text-xl font-bold text-[#1ab394]">{active}</div>
+    <div className="text-xs text-[#999] uppercase tracking-wide">Attivi</div>
+  </div>
+  {isAdmin && <>
+    <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+      <div className="text-xl font-bold text-green-600">{paid}</div>
+      <div className="text-xs text-[#999] uppercase tracking-wide">Con rimborso</div>
+    </div>
+    <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
+      <div className="text-xl font-bold text-yellow-600">{volunteers}</div>
+      <div className="text-xs text-[#999] uppercase tracking-wide">Volontari</div>
+    </div>
+  </>}
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-3 text-center">
           <div className="text-xl font-bold text-yellow-500">{medicalExpiring}</div>
           <div className="text-xs text-[#999] uppercase tracking-wide">Visite in scadenza</div>
