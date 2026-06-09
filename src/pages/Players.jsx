@@ -569,12 +569,13 @@ export default function Players() {
                         ) : '—'}
                       </td>
                     )}
-                    <td className="px-4 py-3"><MedicalBadge date={p.scadenza_visita_medica}/></td>
-                    <td className="px-4 py-3">
-                      <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', p.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
-                        {p.active ? 'Attivo' : 'Non attivo'}
-                      </span>
-                    </td>
+                   {isAdmin && (
+  <td className="px-4 py-3">
+    <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', p.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
+      {p.active ? 'Attivo' : 'Non attivo'}
+    </span>
+  </td>
+)}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button onClick={()=>setDetailPlayer(p)} className="text-[#999] hover:text-[#1c84c6]" title="Scheda"><Eye size={15}/></button>
