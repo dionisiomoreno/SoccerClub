@@ -25,6 +25,7 @@ import SCPayments from './pages/sc/SCPayments'
 import SCWarehouse from './pages/sc/SCWarehouse'
 import SCBacheca from './pages/sc/SCBacheca'
 import SCChat from './pages/sc/SCChat'
+import SCMister from './pages/sc/SCMister'
 // Area Genitori
 import ParentLayout from './pages/parent/ParentLayout'
 import ParentDashboard from './pages/parent/ParentDashboard'
