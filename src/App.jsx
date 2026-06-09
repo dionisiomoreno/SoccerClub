@@ -26,6 +26,8 @@ import SCWarehouse from './pages/sc/SCWarehouse'
 import SCBacheca from './pages/sc/SCBacheca'
 import SCChat from './pages/sc/SCChat'
 import SCMister from './pages/sc/SCMister'
+import SCTrainings from './pages/sc/SCTrainings'
+import Trainings from './pages/Trainings'
 // Area Genitori
 import ParentLayout from './pages/parent/ParentLayout'
 import ParentDashboard from './pages/parent/ParentDashboard'
@@ -157,11 +159,13 @@ function AppRoutes() {
         <Route path="mister"       element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
         <Route path="distinta"     element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
         <Route path="chat"         element={<ChatPS />} />
+        <Route path="allenamenti"  element={<PrivateRoute roles={['admin','mister']}><Trainings /></PrivateRoute>} />
        <Route path="sc/atleti" element={<PrivateRoute roles={['admin','segreteria','mister']}><YouthPlayers /></PrivateRoute>} />
         <Route path="sc/pagamenti" element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
         <Route path="sc/magazzino" element={<PrivateRoute roles={['admin','segreteria']}><SCWarehouse /></PrivateRoute>} />
         <Route path="sc/bacheca"   element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
         <Route path="sc/mister" element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
+        <Route path="sc/allenamenti"  element={<PrivateRoute roles={['admin','segreteria','mister']}><SCTrainings /></PrivateRoute>} />
         <Route path="sc/chat"      element={<SCChat />} />
         <Route path="impostazioni" element={<Settings />} />
       </Route>
