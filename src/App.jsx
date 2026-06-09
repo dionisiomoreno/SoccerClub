@@ -161,6 +161,7 @@ function AppRoutes() {
         <Route path="sc/pagamenti" element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
         <Route path="sc/magazzino" element={<PrivateRoute roles={['admin','segreteria']}><SCWarehouse /></PrivateRoute>} />
         <Route path="sc/bacheca"   element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
+        <Route path="sc/mister" element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
         <Route path="sc/chat"      element={<SCChat />} />
         <Route path="impostazioni" element={<Settings />} />
       </Route>
