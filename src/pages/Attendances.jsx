@@ -26,6 +26,9 @@ async function geocodeAddress(address) {
 
 export default function Attendances() {
   const { profile, isAdmin, isMister } = useAuth()
+  const isVolunteer = profile?.role === 'player_volunteer'
+  const isPaid = profile?.role === 'player_paid'
+
   const [attendances, setAttendances] = useState([])
   const [players, setPlayers] = useState([])
   const [filterPlayer, setFilterPlayer] = useState('')
@@ -111,11 +114,11 @@ export default function Attendances() {
       const target = await getTargetLocation(type)
       setGeoTarget(target)
 
-     // Importi: usa valori calciatore se definiti, altrimenti globali
-const importoBase = type === 'training'
-  ? (profile?.importo_allenamento ?? teamSettings?.importo_allenamento ?? 20)
-  : (profile?.importo_partita ?? teamSettings?.importo_partita ?? 30)
-const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburante ?? 0
+      // Per i volontari importo è 0
+      const importoBase = isVolunteer ? 0 : type === 'training'
+        ? (profile?.importo_allenamento ?? teamSettings?.importo_allenamento ?? 20)
+        : (profile?.importo_partita ?? teamSettings?.importo_partita ?? 30)
+      const carburante = isVolunteer ? 0 : (profile?.importo_carburante ?? teamSettings?.importo_carburante ?? 0)
 
       if (!target) {
         const { error } = await supabase.from('attendances').insert([{
@@ -124,9 +127,9 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
         }])
         if (error) toast.error(error.message)
         else {
-          const msg = carburante > 0
+          const msg = !isVolunteer && carburante > 0
             ? `Registrata! +€${importoBase} + €${carburante} carburante`
-            : `${type === 'training' ? 'Allenamento' : 'Partita'} registrata! +€${importoBase}`
+            : `${type === 'training' ? 'Allenamento' : 'Partita'} registrata!`
           toast.success(msg)
           load()
         }
@@ -155,9 +158,9 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
           }])
           if (error) toast.error(error.message)
           else {
-            const msg = carburante > 0
+            const msg = !isVolunteer && carburante > 0
               ? `✅ Registrata a ${Math.round(dist)}m! +€${importoBase} + €${carburante} carburante`
-              : `✅ Registrata a ${Math.round(dist)}m dalla ${target.label}! +€${importoBase}`
+              : `✅ Registrata a ${Math.round(dist)}m dalla ${target.label}!`
             toast.success(msg)
             load()
           }
@@ -193,8 +196,8 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
         </div>
       )}
 
-      {/* Info carburante */}
-      {!isAdmin && !isMister && teamSettings?.importo_carburante > 0 && (
+      {/* Info carburante — solo player_paid */}
+      {!isAdmin && !isMister && isPaid && teamSettings?.importo_carburante > 0 && (
         <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-700">
           <Fuel size={15}/>
           Rimborso carburante attivo: <strong className="mx-1">€{teamSettings.importo_carburante}</strong> per ogni presenza
@@ -220,16 +223,17 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
         </div>
       )}
 
+      {/* Pulsanti timbratura */}
       {!isAdmin && !isMister && (
         <div className="grid grid-cols-2 gap-4">
           {[
             { type: 'training', label: 'Allenamento', icon: Dumbbell, color: '#1c84c6',
-              importo: teamSettings?.importo_allenamento ?? 20 },
+              importo: isPaid ? (profile?.importo_allenamento ?? teamSettings?.importo_allenamento ?? 20) : null },
             { type: 'match', label: 'Partita', icon: Trophy, color: '#f8ac59',
-              importo: teamSettings?.importo_partita ?? 30 }
+              importo: isPaid ? (profile?.importo_partita ?? teamSettings?.importo_partita ?? 30) : null }
           ].map(({ type, label, icon: Icon, color, importo }) => {
             const done = todayAtt.includes(type)
-            const carb = teamSettings?.importo_carburante ?? 0
+            const carb = isPaid ? (profile?.importo_carburante ?? teamSettings?.importo_carburante ?? 0) : 0
             return (
               <button key={type} onClick={() => register(type)} disabled={done || geoLoading}
                 className={clsx('flex flex-col items-center justify-center gap-2 p-6 rounded border transition-all shadow-sm',
@@ -238,9 +242,15 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
                     : 'bg-white border-[#e7eaec] hover:border-[#1ab394] cursor-pointer hover:shadow-md')}>
                 {geoLoading ? <Loader size={28} className="animate-spin text-[#999]"/> : <Icon size={28} style={{ color: done ? '#1ab394' : color }}/>}
                 <span className="text-[#2f4050] font-semibold">{done ? '✓ ' : ''}{label}</span>
-                <span className="text-xs" style={{ color: done ? '#1ab394' : '#999' }}>
-                  {done ? 'Già registrato oggi' : `+€${importo}${carb > 0 ? ` + €${carb} carb.` : ''}`}
-                </span>
+                {/* Mostra importo solo per player_paid */}
+                {!done && isPaid && importo != null && (
+                  <span className="text-xs text-[#999]">
+                    +€{importo}{carb > 0 ? ` + €${carb} carb.` : ''}
+                  </span>
+                )}
+                {done && (
+                  <span className="text-xs text-[#1ab394]">Già registrato oggi</span>
+                )}
                 {geoActive && !done && (
                   <span className="text-xs text-[#999] flex items-center gap-1">
                     <MapPin size={10}/> Richiede GPS
@@ -253,7 +263,7 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
       )}
 
       {/* KPI mese */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className={clsx('grid gap-3', isPaid ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2')}>
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">{trainings}</div>
           <div className="text-xs text-[#999] mt-1 uppercase tracking-wide">Allenamenti</div>
@@ -262,14 +272,19 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
           <div className="text-2xl font-bold text-yellow-600">{matches}</div>
           <div className="text-xs text-[#999] mt-1 uppercase tracking-wide">Partite</div>
         </div>
-        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-blue-400">€{totalCarburante}</div>
-          <div className="text-xs text-[#999] mt-1 uppercase tracking-wide flex items-center justify-center gap-1"><Fuel size={10}/> Carburante</div>
-        </div>
-        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-[#1ab394]">€{total}</div>
-          <div className="text-xs text-[#999] mt-1 uppercase tracking-wide">Totale mese</div>
-        </div>
+        {/* Importi solo per player_paid e admin/mister */}
+        {(isPaid || isAdmin || isMister) && (
+          <>
+            <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
+              <div className="text-2xl font-bold text-blue-400">€{totalCarburante}</div>
+              <div className="text-xs text-[#999] mt-1 uppercase tracking-wide flex items-center justify-center gap-1"><Fuel size={10}/> Carburante</div>
+            </div>
+            <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
+              <div className="text-2xl font-bold text-[#1ab394]">€{total}</div>
+              <div className="text-xs text-[#999] mt-1 uppercase tracking-wide">Totale mese</div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Filtri */}
@@ -298,8 +313,10 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
                 {(isAdmin || isMister) && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Calciatore</th>}
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Tipo</th>
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Data</th>
-                <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Base</th>
-                <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Carb.</th>
+                {(isPaid || isAdmin || isMister) && <>
+                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Base</th>
+                  <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Carb.</th>
+                </>}
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">GPS</th>
               </tr>
             </thead>
@@ -314,12 +331,14 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[#999]">{format(new Date(a.date), 'dd MMM yyyy', { locale: it })}</td>
-                  <td className="px-4 py-3 text-[#1ab394] font-medium">+€{a.amount}</td>
-                  <td className="px-4 py-3">
-                    {a.rimborso_carburante > 0
-                      ? <span className="text-blue-500 font-medium flex items-center gap-1"><Fuel size={11}/>€{a.rimborso_carburante}</span>
-                      : <span className="text-[#999]">—</span>}
-                  </td>
+                  {(isPaid || isAdmin || isMister) && <>
+                    <td className="px-4 py-3 text-[#1ab394] font-medium">+€{a.amount}</td>
+                    <td className="px-4 py-3">
+                      {a.rimborso_carburante > 0
+                        ? <span className="text-blue-500 font-medium flex items-center gap-1"><Fuel size={11}/>€{a.rimborso_carburante}</span>
+                        : <span className="text-[#999]">—</span>}
+                    </td>
+                  </>}
                   <td className="px-4 py-3">
                     {a.distance_meters
                       ? <span className="flex items-center gap-1 text-xs text-green-600"><MapPin size={11}/>{a.distance_meters}m</span>
@@ -327,12 +346,15 @@ const carburante = profile?.importo_carburante ?? teamSettings?.importo_carburan
                   </td>
                 </tr>
               ))}
-              <tr className="bg-gray-50 font-semibold">
-                <td colSpan={(isAdmin || isMister) ? 3 : 2} className="px-4 py-3 text-[#999] text-xs uppercase tracking-wide">Totale mese</td>
-                <td className="px-4 py-3 text-[#1ab394]">+€{totalBase}</td>
-                <td className="px-4 py-3 text-blue-500">+€{totalCarburante}</td>
-                <td/>
-              </tr>
+              {/* Totale solo per player_paid e admin/mister */}
+              {(isPaid || isAdmin || isMister) && (
+                <tr className="bg-gray-50 font-semibold">
+                  <td colSpan={(isAdmin || isMister) ? 3 : 2} className="px-4 py-3 text-[#999] text-xs uppercase tracking-wide">Totale mese</td>
+                  <td className="px-4 py-3 text-[#1ab394]">+€{totalBase}</td>
+                  <td className="px-4 py-3 text-blue-500">+€{totalCarburante}</td>
+                  <td/>
+                </tr>
+              )}
             </tbody>
           </table>
         )}
