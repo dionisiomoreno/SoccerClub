@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { User, Lock, Shield, MapPin, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const ROLE_LABELS = { admin: 'Admin', mister: 'Mister', player_paid: 'Calciatore', player_volunteer: 'Volontario' }
+const ROLE_LABELS = { admin: 'Società', mister: 'Mister', player_paid: 'Calciatore', player_volunteer: 'Volontario' }
 const TAGLIE = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 export default function Settings() {
