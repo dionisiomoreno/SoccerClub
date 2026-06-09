@@ -22,8 +22,7 @@ const ROLE_LABELS = {
 
 const NAV_PRIMA_SQUADRA = [
   { to: '/',             label: 'Dashboard',      icon: LayoutDashboard, roles: null },
-  { to: '/calciatori',   label: 'Calciatori',     icon: Users,           roles: ['admin'] },
-  { to: '/calciatori',   label: 'Calciatori',     icon: Users,           roles: ['mister'] },
+  { to: '/calciatori', label: 'Calciatori', icon: Users, roles: ['admin', 'mister'] },
   { to: '/presenze',     label: 'Presenze',       icon: ClipboardList,   roles: null },
   { to: '/calendario',   label: 'Calendario',     icon: Calendar,        roles: null },
   { to: '/convocazioni', label: 'Convocazioni',   icon: Bell,            roles: null },
