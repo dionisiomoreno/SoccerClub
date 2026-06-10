@@ -393,31 +393,55 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* Moduli */}
-                <div className="border-t border-[#e7eaec] pt-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Shield size={16} className="text-[#1ab394]"/>
-                    <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Moduli abilitati</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      ['modulo_prima_squadra', '⚽ Prima Squadra', 'Gestione calciatori, presenze, cedolini, convocazioni'],
-                      ['modulo_scuola_calcio', '🏫 Scuola Calcio', 'Gestione atleti, pagamenti, magazzino, bacheca']
-                    ].map(([k, label, desc]) => (
-                      <div key={k} className="flex items-center justify-between p-3 bg-gray-50 border border-[#e7eaec] rounded">
-                        <div>
-                          <div className="text-[#2f4050] font-medium text-sm">{label}</div>
-                          <div className="text-xs text-[#999]">{desc}</div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" checked={teamSettings[k] ?? false}
-                            onChange={e => setTeam(k, e.target.checked)} className="sr-only peer"/>
-                          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1ab394]"></div>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+               // Trova questo blocco in Settings.jsx (sezione "Moduli abilitati")
+// e SOSTITUISCI con quello qui sotto
+
+{/* Moduli */}
+<div className="border-t border-[#e7eaec] pt-4 space-y-3">
+  <div className="flex items-center gap-2">
+    <Shield size={16} className="text-[#1ab394]"/>
+    <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Moduli abilitati</h3>
+  </div>
+  <div className="space-y-3">
+    {[
+      ['modulo_prima_squadra', '⚽ Prima Squadra', 'Gestione calciatori, presenze, cedolini, convocazioni'],
+      ['modulo_scuola_calcio', '🏫 Scuola Calcio', 'Gestione atleti, pagamenti, magazzino, bacheca']
+    ].map(([k, label, desc]) => (
+      <div key={k} className="flex items-center justify-between p-3 bg-gray-50 border border-[#e7eaec] rounded">
+        <div>
+          <div className="text-[#2f4050] font-medium text-sm">{label}</div>
+          <div className="text-xs text-[#999]">{desc}</div>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" checked={teamSettings[k] ?? false}
+            onChange={e => setTeam(k, e.target.checked)} className="sr-only peer"/>
+          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1ab394]"></div>
+        </label>
+      </div>
+    ))}
+
+    {/* Toggle timbratura SC — visibile solo se modulo SC attivo */}
+    {teamSettings.modulo_scuola_calcio && (
+      <div className="flex items-center justify-between p-3 bg-[#27ae60]/5 border border-[#27ae60]/30 rounded">
+        <div>
+          <div className="text-[#2f4050] font-medium text-sm">📍 Timbratura presenze SC</div>
+          <div className="text-xs text-[#999]">
+            Abilita la timbratura GPS per gli atleti della Scuola Calcio
+          </div>
+        </div>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={teamSettings.sc_timbratura_abilitata ?? false}
+            onChange={e => setTeam('sc_timbratura_abilitata', e.target.checked)}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#27ae60]"></div>
+        </label>
+      </div>
+    )}
+  </div>
+</div>
 
                 {/* Geo struttura principale */}
                 <div className="border-t border-[#e7eaec] pt-4 space-y-3">
