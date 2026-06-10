@@ -45,6 +45,7 @@ const NAV_SCUOLA_CALCIO = [
   { to: '/sc/mister',    label: 'Mister SC',      icon: UserCog,         roles: ['admin','segreteria'] },
   { to: '/calendario',   label: 'Calendario',     icon: Calendar,        roles: null },
   { to: '/sc/allenamenti',   label: 'Allenamenti',  icon: Dumbbell,  roles: ['admin','segreteria','mister'] },
+  { to: '/sc/presenze',    label: 'Presenze SC',   icon: ClipboardList, roles: ['admin','segreteria','mister'] },
   { to: '/materiale',    label: 'Materiale',      icon: Package,         roles: null },
   { to: '/documenti',    label: 'Documenti',      icon: FileText,        roles: null },
   { to: '/sc/atleti',  label: 'Atleti',  icon: Baby,      roles: ['admin','segreteria','mister'] },
