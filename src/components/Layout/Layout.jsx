@@ -39,16 +39,15 @@ const NAV_PRIMA_SQUADRA = [
 
 const NAV_SCUOLA_CALCIO = [
   { to: '/',             label: 'Dashboard',      icon: LayoutDashboard, roles: null },
-  { to: '/sc/atleti',    label: 'Atleti',         icon: Baby,            roles: ['admin','segreteria'] },
+  { to: '/sc/atleti',    label: 'Atleti',         icon: Baby,            roles: ['admin','segreteria','mister'] },
   { to: '/sc/pagamenti', label: 'Pagamenti',      icon: Wallet,          roles: ['admin','segreteria'] },
   { to: '/sc/magazzino', label: 'Magazzino',      icon: ShoppingBag,     roles: ['admin','segreteria'] },
   { to: '/sc/mister',    label: 'Mister SC',      icon: UserCog,         roles: ['admin','segreteria'] },
   { to: '/calendario',   label: 'Calendario',     icon: Calendar,        roles: null },
-  { to: '/sc/allenamenti',   label: 'Allenamenti',  icon: Dumbbell,  roles: ['admin','segreteria','mister'] },
-  { to: '/sc/presenze',    label: 'Presenze SC',   icon: ClipboardList, roles: ['admin','segreteria','mister'] },
+  { to: '/sc/allenamenti', label: 'Allenamenti',  icon: Dumbbell,        roles: ['admin','segreteria','mister'] },
+  { to: '/sc/presenze',  label: 'Presenze SC',    icon: ClipboardList,   roles: ['admin','segreteria','mister'] },
   { to: '/materiale',    label: 'Materiale',      icon: Package,         roles: null },
   { to: '/documenti',    label: 'Documenti',      icon: FileText,        roles: null },
-  { to: '/sc/atleti',  label: 'Atleti',  icon: Baby,      roles: ['admin','segreteria','mister'] },
   { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
   { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
   { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: ['admin'] },
@@ -197,8 +196,8 @@ export default function Layout() {
 }, [profile])
 
 useEffect(() => {
-  if (location.pathname === '/impostazioni') return
-  // Mister SC e calciatori non cambiano mai modalità
+  const scOnlyPaths = ['/impostazioni', '/', '/calendario', '/materiale', '/documenti', '/presenze']
+  if (scOnlyPaths.includes(location.pathname)) return
   if (isPlayer || (isMister && profile?.category_id)) return
   setMode(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
 }, [location.pathname])
