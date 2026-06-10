@@ -145,15 +145,49 @@ function ItemModal({ item, onClose, onSaved }) {
   const [loading, setLoading] = useState(false)
   function set(k,v) { setForm(f=>({...f,[k]:v})) }
   async function save() {
-    if (!form.nome) return toast.error('Nome obbligatorio')
-    setLoading(true)
-    const { error } = isEdit
-      ? await supabase.from('warehouse_items').update(form).eq('id', form.id)
-      : await supabase.from('warehouse_items').insert([form])
-    if (error) toast.error(error.message)
-    else { toast.success('Articolo salvato'); onSaved() }
-    setLoading(false)
+  if (!selected.length) return toast.error('Seleziona almeno un atleta')
+  setLoading(true)
+  for (const pid of selected) {
+    const { data: existing } = await supabase
+      .from('sc_kit_assignments')
+      .select('id, stato')
+      .eq('kit_config_id', kit.id)
+      .eq('youth_player_id', pid)
+      .neq('stato', 'consegnato')
+      .maybeSingle()
+
+    if (existing) {
+      await supabase.from('sc_kit_assignment_items').delete().eq('assignment_id', existing.id)
+      const items = (kit.sc_kit_config_items || []).map(item => ({
+        assignment_id: existing.id,
+        kit_config_item_id: item.id,
+        warehouse_item_id: item.warehouse_item_id,
+        taglia: taglie[pid]?.[item.id] || 'M',
+        quantita: item.quantita
+      }))
+      await supabase.from('sc_kit_assignment_items').insert(items)
+      await supabase.from('sc_kit_assignments').update({ stato: 'in_attesa' }).eq('id', existing.id)
+    } else {
+      const { data: ass, error } = await supabase.from('sc_kit_assignments').insert([{
+        kit_config_id: kit.id,
+        youth_player_id: pid,
+        stato: 'in_attesa'
+      }]).select().single()
+      if (error) { toast.error(error.message); setLoading(false); return }
+      const items = (kit.sc_kit_config_items || []).map(item => ({
+        assignment_id: ass.id,
+        kit_config_item_id: item.id,
+        warehouse_item_id: item.warehouse_item_id,
+        taglia: taglie[pid]?.[item.id] || 'M',
+        quantita: item.quantita
+      }))
+      await supabase.from('sc_kit_assignment_items').insert(items)
+    }
   }
+  toast.success(`Kit assegnato a ${selected.length} atleti`)
+  onSaved()
+  setLoading(false)
+}
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
