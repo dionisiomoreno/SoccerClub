@@ -125,12 +125,19 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
                 </select>
               </div>
               {[['squadra','Squadra'],['numero_maglia','N° maglia'],['numero_tessera','N° tessera FIGC']].map(([k,l]) => (
-                <div key={k}>
-                  <label className="block text-xs text-[#999] mb-1">{l}</label>
-                  <input value={form[k]||''} onChange={e=>set(k,e.target.value)}
-                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-                </div>
-              ))}
+  <div key={k}>
+    <label className="block text-xs text-[#999] mb-1">{l}</label>
+    <input value={form[k]||''} onChange={e=>set(k,e.target.value)}
+      className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+  </div>
+))}
+<div>
+  <label className="block text-xs text-[#999] mb-1">Taglia</label>
+  <select value={form.taglia||'M'} onChange={e=>set('taglia',e.target.value)}
+    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+    {['XS','S','M','L','XL','XXL','4','5','6','7','8','9','10','11','12'].map(t=><option key={t}>{t}</option>)}
+  </select>
+</div>
               <div>
                 <label className="block text-xs text-[#999] mb-1">Data iscrizione</label>
                 <input type="date" value={form.data_iscrizione||''} onChange={e=>set('data_iscrizione',e.target.value)}
