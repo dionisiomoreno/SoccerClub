@@ -221,6 +221,7 @@ export default function Settings() {
         raggio_timbratura: teamSettings.raggio_timbratura,
         modulo_prima_squadra: teamSettings.modulo_prima_squadra ?? true,
         modulo_scuola_calcio: teamSettings.modulo_scuola_calcio ?? false,
+        sc_timbratura_abilitata: teamSettings.sc_timbratura_abilitata ?? false,
         updated_at: new Date().toISOString()
       }).eq('id', teamSettings.id))
     } else {
