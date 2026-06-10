@@ -165,10 +165,12 @@ export default function Settings() {
     const { data } = await supabase.from('team_settings').select('*').single()
     if (data) setTeamSettings(data)
     else setTeamSettings({
-      nome_squadra: '', indirizzo: '', citta: '', telefono: '', email: '',
-      sito_web: '', anno_fondazione: new Date().getFullYear(),
-      lat: null, lng: null, raggio_timbratura: 200
-    })
+  nome_squadra: '', indirizzo: '', citta: '', telefono: '', email: '',
+  sito_web: '', anno_fondazione: new Date().getFullYear(),
+  lat: null, lng: null, raggio_timbratura: 200,
+  modulo_prima_squadra: true, modulo_scuola_calcio: false,
+  sc_timbratura_abilitata: false
+})
   }
 
   async function loadVenues() {
