@@ -27,14 +27,62 @@ const STATO_KIT = {
 // ── PDF ordine fornitore ─────────────────────────────────────
 function generateOrderPDF(kit, assignments, ts) {
   const doc = new jsPDF()
-  doc.setFillColor(26,179,148); doc.rect(0,0,210,28,'F')
-  doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont('helvetica','bold')
-  doc.text(ts?.nome_squadra||'SoccerClub', 14, 13)
-  doc.setFontSize(9); doc.setFont('helvetica','normal')
+  doc.setFillColor(26, 179, 148); doc.rect(0, 0, 210, 28, 'F')
+  doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont('helvetica', 'bold')
+  doc.text(ts?.nome_squadra || 'SoccerClub', 14, 13)
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
   doc.text(`Ordine fornitore — ${kit.nome}`, 14, 22)
-  doc.setTextColor(0,0,0); doc.setFontSize(10)
-  doc.text(`Generato il ${format(new Date(),'dd/MM/yyyy')}`, 14, 38)
+  doc.setTextColor(0, 0, 0); doc.setFontSize(10)
+  doc.text(`Generato il ${format(new Date(), 'dd/MM/yyyy')}`, 14, 38)
   doc.text(`Totale atleti: ${assignments.length}`, 14, 46)
+
+  const byItem = {}
+  assignments.forEach(a => {
+    const items = a.sc_kit_assignment_items || []
+    items.forEach(item => {
+      const nome = item.warehouse_items?.nome || '—'
+      const taglia = item.taglia || '—'
+      const key = `${nome}||${taglia}`
+      if (!byItem[key]) byItem[key] = { nome, taglia, qta: 0 }
+      byItem[key].qta += (item.quantita || 1)
+    })
+  })
+
+  autoTable(doc, {
+    startY: 54,
+    head: [['Articolo', 'Taglia', 'Quantità totale']],
+    body: Object.values(byItem).map(r => [r.nome, r.taglia, r.qta]),
+    headStyles: { fillColor: [26, 179, 148] },
+    styles: { fontSize: 9 }
+  })
+
+  const articleNames = [...new Set(
+    assignments.flatMap(a =>
+      (a.sc_kit_assignment_items || []).map(i => i.warehouse_items?.nome || '—')
+    )
+  )]
+
+  if (articleNames.length > 0) {
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 10,
+      head: [['Atleta', ...articleNames]],
+      body: assignments.map(a => {
+        const itemMap = {}
+        ;(a.sc_kit_assignment_items || []).forEach(i => {
+          itemMap[i.warehouse_items?.nome || '—'] = i.taglia || '—'
+        })
+        return [
+          `${a.youth_players?.cognome || ''} ${a.youth_players?.nome || ''}`,
+          ...articleNames.map(n => itemMap[n] || '—')
+        ]
+      }),
+      headStyles: { fillColor: [80, 80, 80] },
+      styles: { fontSize: 8 }
+    })
+  }
+
+  doc.save(`ordine_${kit.nome.replace(/\s+/g, '_')}_${format(new Date(), 'ddMMyyyy')}.pdf`)
+}
 
   // Raggruppa per articolo + taglia
   const byItem = {}
