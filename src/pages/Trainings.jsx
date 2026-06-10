@@ -9,17 +9,24 @@ import clsx from 'clsx'
 
 function TrainingModal({ training, onClose, onSaved, misterId }) {
   const isEdit = !!training?.id
+  const [venues, setVenues] = useState([])
   const [form, setForm] = useState({
     titolo: 'Allenamento',
     data: format(new Date(), 'yyyy-MM-dd'),
     ora_inizio: '18:00',
     ora_fine: '20:00',
-    luogo: '',
+    venue_id: '',
     note: '',
     ...training
   })
   const [loading, setLoading] = useState(false)
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  useEffect(() => {
+    supabase.from('venues').select('*').eq('active', true).order('nome').then(({ data }) => setVenues(data || []))
+  }, [])
+
+  const selectedVenue = venues.find(v => v.id === form.venue_id)
 
   async function save() {
     if (!form.data) return toast.error('Data obbligatoria')
@@ -29,7 +36,7 @@ function TrainingModal({ training, onClose, onSaved, misterId }) {
       data: form.data,
       ora_inizio: form.ora_inizio || null,
       ora_fine: form.ora_fine || null,
-      luogo: form.luogo,
+      venue_id: form.venue_id || null,
       note: form.note,
       creato_da: misterId,
     }
@@ -72,10 +79,25 @@ function TrainingModal({ training, onClose, onSaved, misterId }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Luogo</label>
-            <input value={form.luogo} onChange={e=>set('luogo',e.target.value)}
-              placeholder="Es. Campo Sportivo Comunale"
-              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Struttura</label>
+            <select value={form.venue_id} onChange={e=>set('venue_id',e.target.value)}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+              <option value="">— Seleziona struttura —</option>
+              {venues.map(v => (
+                <option key={v.id} value={v.id}>
+                  {v.nome}{v.citta ? ` — ${v.citta}` : ''}
+                </option>
+              ))}
+            </select>
+            {selectedVenue && (
+              <div className={clsx('mt-1 text-xs flex items-center gap-1',
+                selectedVenue.lat && selectedVenue.lng ? 'text-green-600' : 'text-yellow-600')}>
+                <MapPin size={10}/>
+                {selectedVenue.lat && selectedVenue.lng
+                  ? `GPS attivo — raggio ${selectedVenue.raggio_timbratura}m`
+                  : 'GPS non configurato per questa struttura'}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Note</label>
@@ -109,7 +131,7 @@ export default function Trainings() {
     setLoading(true)
     const start = startOfMonth(currentDate).toISOString().split('T')[0]
     const end = endOfMonth(currentDate).toISOString().split('T')[0]
-    let q = supabase.from('trainings').select('*, profiles(nome,cognome)')
+    let q = supabase.from('trainings').select('*, profiles(nome,cognome), venues(nome,indirizzo,citta,lat,lng,raggio_timbratura)')
       .gte('data', start).lte('data', end).order('data').order('ora_inizio')
 
     // Mister vede solo i propri allenamenti
@@ -246,9 +268,13 @@ export default function Trainings() {
                           {t.ora_inizio?.slice(0,5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0,5)}` : ''}
                         </div>
                       )}
-                      {t.luogo && (
+                      {t.venues && (
                         <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
-                          <MapPin size={11}/> {t.luogo}
+                          <MapPin size={11}/>
+                          {t.venues.nome}{t.venues.citta ? ` — ${t.venues.citta}` : ''}
+                          {t.venues.lat && t.venues.lng
+                            ? <span className="text-green-600 ml-1">✅ GPS</span>
+                            : <span className="text-yellow-600 ml-1">⚠️ No GPS</span>}
                         </div>
                       )}
                       {t.note && <div className="text-xs text-[#999] mt-1 italic">{t.note}</div>}
