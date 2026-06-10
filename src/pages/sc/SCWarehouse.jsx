@@ -642,15 +642,28 @@ export default function SCWarehouse() {
     load()
   }
 
-  async function generateOrderForKit(kit) {
-    const { data: ass } = await supabase.from('sc_kit_assignments')
-      .select('*, youth_players(nome,cognome), sc_kit_assignment_items(*, warehouse_items(nome))')
-      .eq('kit_config_id', kit.id)
-      .eq('stato', 'in_attesa')
-    if (!ass?.length) return toast.error('Nessuna assegnazione in attesa per questo kit')
-    const { data: ts } = await supabase.from('team_settings').select('*').single()
-    generateOrderPDF(kit, ass, ts)
+ async function generateOrderForKit(kit) {
+  const { data: ass, error } = await supabase
+    .from('sc_kit_assignments')
+    .select(`
+      *,
+      youth_players(nome, cognome),
+      sc_kit_assignment_items(
+        *,
+        warehouse_items(nome)
+      )
+    `)
+    .eq('kit_config_id', kit.id)
+    .neq('stato', 'consegnato')
+
+  if (error) { toast.error(error.message); return }
+  if (!ass?.length) {
+    toast.error('Nessuna assegnazione da ordinare per questo kit')
+    return
   }
+  const { data: ts } = await supabase.from('team_settings').select('*').single()
+  generateOrderPDF(kit, ass, ts)
+}
 
   const lowStockItems = items.filter(i => i.quantita_disponibile <= i.quantita_minima)
   const lowStockMats  = materials.filter(m => m.quantita_disponibile <= m.quantita_minima)
