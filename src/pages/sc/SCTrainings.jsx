@@ -9,17 +9,26 @@ import clsx from 'clsx'
 
 function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
   const isEdit = !!training?.id
+  const [venues, setVenues] = useState([])
   const [form, setForm] = useState({
     titolo: 'Allenamento',
     data: format(new Date(), 'yyyy-MM-dd'),
     ora_inizio: '17:00',
     ora_fine: '19:00',
-    luogo: '',
+    venue_id: '',
     note: '',
-    ...training
+    ...training,
+    venue_id: training?.venue_id || '',
   })
   const [loading, setLoading] = useState(false)
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  useEffect(() => {
+    supabase.from('venues').select('*').eq('active', true).order('nome')
+      .then(({ data }) => setVenues(data || []))
+  }, [])
+
+  const selectedVenue = venues.find(v => v.id === form.venue_id)
 
   async function save() {
     if (!form.data) return toast.error('Data obbligatoria')
@@ -29,7 +38,7 @@ function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
       data: form.data,
       ora_inizio: form.ora_inizio || null,
       ora_fine: form.ora_fine || null,
-      luogo: form.luogo,
+      venue_id: form.venue_id || null,
       note: form.note,
       creato_da: misterId,
       category_id: categoryId || null,
@@ -52,35 +61,53 @@ function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
         <div className="p-4 space-y-3">
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Titolo</label>
-            <input value={form.titolo} onChange={e=>set('titolo',e.target.value)}
+            <input value={form.titolo} onChange={e => set('titolo', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Data *</label>
-            <input type="date" value={form.data} onChange={e=>set('data',e.target.value)}
+            <input type="date" value={form.data} onChange={e => set('data', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ora inizio</label>
-              <input type="time" value={form.ora_inizio} onChange={e=>set('ora_inizio',e.target.value)}
+              <input type="time" value={form.ora_inizio} onChange={e => set('ora_inizio', e.target.value)}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ora fine</label>
-              <input type="time" value={form.ora_fine} onChange={e=>set('ora_fine',e.target.value)}
+              <input type="time" value={form.ora_fine} onChange={e => set('ora_fine', e.target.value)}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
             </div>
           </div>
+
+          {/* Struttura */}
           <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Luogo</label>
-            <input value={form.luogo} onChange={e=>set('luogo',e.target.value)}
-              placeholder="Es. Campo Sportivo Comunale"
-              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Struttura</label>
+            <select value={form.venue_id} onChange={e => set('venue_id', e.target.value)}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]">
+              <option value="">— Seleziona struttura —</option>
+              {venues.map(v => (
+                <option key={v.id} value={v.id}>
+                  {v.nome}{v.citta ? ` — ${v.citta}` : ''}
+                </option>
+              ))}
+            </select>
+            {selectedVenue && (
+              <div className={clsx('mt-1 text-xs flex items-center gap-1',
+                selectedVenue.lat && selectedVenue.lng ? 'text-green-600' : 'text-yellow-600')}>
+                <MapPin size={10}/>
+                {selectedVenue.lat && selectedVenue.lng
+                  ? `GPS attivo — raggio ${selectedVenue.raggio_timbratura}m`
+                  : 'GPS non configurato per questa struttura'}
+              </div>
+            )}
           </div>
+
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Note</label>
-            <textarea value={form.note} onChange={e=>set('note',e.target.value)} rows={3}
+            <textarea value={form.note} onChange={e => set('note', e.target.value)} rows={3}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60] resize-none"/>
           </div>
         </div>
@@ -106,13 +133,13 @@ export default function SCTrainings() {
   const [modal, setModal] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Mister SC ha categoria fissa
   const isMisterSC = isMister && !!profile?.category_id
   const effectiveCategoryId = isMisterSC ? profile.category_id : filterCategory
 
   useEffect(() => {
     if (isAdmin || isSegreteria) {
-      supabase.from('categories').select('*').order('ordine').then(({ data }) => setCategories(data || []))
+      supabase.from('categories').select('*').order('ordine')
+        .then(({ data }) => setCategories(data || []))
     }
   }, [])
 
@@ -124,17 +151,15 @@ export default function SCTrainings() {
     const end = endOfMonth(currentDate).toISOString().split('T')[0]
 
     let q = supabase.from('trainings')
-      .select('*, profiles(nome,cognome), categories(nome,colore)')
+      .select('*, profiles(nome,cognome), categories(nome,colore), venues(nome,indirizzo,citta,lat,lng,raggio_timbratura)')
       .gte('data', start).lte('data', end)
       .order('data').order('ora_inizio')
 
-    // Mister SC vede solo la sua categoria
     if (isMisterSC) {
       q = q.eq('creato_da', profile.id)
     } else if (effectiveCategoryId) {
       q = q.eq('category_id', effectiveCategoryId)
     } else {
-      // Admin/segreteria senza filtro → solo allenamenti SC (category_id non null)
       q = q.not('category_id', 'is', null)
     }
 
@@ -164,7 +189,6 @@ export default function SCTrainings() {
 
   const canEdit = isAdmin || isSegreteria || isMister
 
-  // Colore categoria corrente
   const currentCat = categories.find(c => c.id === effectiveCategoryId)
   const catColor = currentCat?.colore || '#27ae60'
 
@@ -180,7 +204,8 @@ export default function SCTrainings() {
           </p>
         </div>
         {canEdit && (
-          <button onClick={() => setModal({ data: selectedDay ? format(selectedDay, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd') })}
+          <button
+            onClick={() => setModal({ data: selectedDay ? format(selectedDay, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd') })}
             className="flex items-center gap-2 text-white px-4 py-2 rounded text-sm font-semibold"
             style={{ background: catColor }}>
             <Plus size={16}/> Nuovo
@@ -193,7 +218,9 @@ export default function SCTrainings() {
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setFilterCategory('')}
             className={clsx('px-3 py-1.5 rounded text-xs font-medium border transition-colors',
-              !effectiveCategoryId ? 'bg-[#27ae60] text-white border-[#27ae60]' : 'border-[#e7eaec] text-[#676a6c] hover:border-[#27ae60]')}>
+              !effectiveCategoryId
+                ? 'bg-[#27ae60] text-white border-[#27ae60]'
+                : 'border-[#e7eaec] text-[#676a6c] hover:border-[#27ae60]')}>
             Tutte
           </button>
           {categories.map(c => (
@@ -254,7 +281,7 @@ export default function SCTrainings() {
                   <div key={t.id}
                     className="text-xs rounded px-1 py-0.5 mb-0.5 truncate font-medium text-white"
                     style={{ background: t.categories?.colore || catColor, opacity: 0.85 }}>
-                    {t.ora_inizio ? t.ora_inizio.slice(0,5) : ''} {t.titolo}
+                    {t.ora_inizio ? t.ora_inizio.slice(0, 5) : ''} {t.titolo}
                   </div>
                 ))}
               </div>
@@ -302,12 +329,17 @@ export default function SCTrainings() {
                       {(t.ora_inizio || t.ora_fine) && (
                         <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
                           <Clock size={11}/>
-                          {t.ora_inizio?.slice(0,5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0,5)}` : ''}
+                          {t.ora_inizio?.slice(0, 5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0, 5)}` : ''}
                         </div>
                       )}
-                      {t.luogo && (
-                        <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
-                          <MapPin size={11}/> {t.luogo}
+                      {/* Struttura */}
+                      {t.venues && (
+                        <div className="flex items-center gap-1 text-xs mt-0.5">
+                          <MapPin size={11} className="text-[#999]"/>
+                          <span className="text-[#999]">{t.venues.nome}{t.venues.citta ? ` — ${t.venues.citta}` : ''}</span>
+                          {t.venues.lat && t.venues.lng
+                            ? <span className="text-green-600 ml-1">✅ GPS attivo</span>
+                            : <span className="text-yellow-600 ml-1">⚠️ No GPS</span>}
                         </div>
                       )}
                       {t.note && <div className="text-xs text-[#999] mt-1 italic">{t.note}</div>}
