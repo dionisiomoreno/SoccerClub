@@ -27,6 +27,7 @@ import SCBacheca from './pages/sc/SCBacheca'
 import SCChat from './pages/sc/SCChat'
 import SCMister from './pages/sc/SCMister'
 import SCTrainings from './pages/sc/SCTrainings'
+import SCAttendances from './pages/sc/SCAttendances'
 import Trainings from './pages/Trainings'
 // Area Genitori
 import ParentLayout from './pages/parent/ParentLayout'
@@ -166,6 +167,7 @@ function AppRoutes() {
         <Route path="sc/bacheca"   element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
         <Route path="sc/mister" element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
         <Route path="sc/allenamenti"  element={<PrivateRoute roles={['admin','segreteria','mister']}><SCTrainings /></PrivateRoute>} />
+        <Route path="sc/presenze"     element={<PrivateRoute roles={['admin','segreteria','mister']}><SCAttendances /></PrivateRoute>} />
         <Route path="sc/chat"      element={<SCChat />} />
         <Route path="impostazioni" element={<Settings />} />
       </Route>
