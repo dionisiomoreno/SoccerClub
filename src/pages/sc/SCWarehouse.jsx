@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import {
-  Plus, Edit2, Trash2, X, ShoppingBag, Package, Truck,
+  Plus, Edit2, Trash2, X, ShoppingBag, Package,
   AlertTriangle, Download, ChevronDown, ChevronUp,
   ArrowUp, ArrowDown, ClipboardList, Check
 } from 'lucide-react'
@@ -27,19 +27,19 @@ const STATO_KIT = {
 // ── PDF ordine fornitore ─────────────────────────────────────
 function generateOrderPDF(kit, assignments, ts) {
   const doc = new jsPDF()
-  doc.setFillColor(26, 179, 148); doc.rect(0, 0, 210, 28, 'F')
-  doc.setTextColor(255, 255, 255); doc.setFontSize(16); doc.setFont('helvetica', 'bold')
-  doc.text(ts?.nome_squadra || 'SoccerClub', 14, 13)
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+  doc.setFillColor(26,179,148); doc.rect(0,0,210,28,'F')
+  doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont('helvetica','bold')
+  doc.text(ts?.nome_squadra||'SoccerClub', 14, 13)
+  doc.setFontSize(9); doc.setFont('helvetica','normal')
   doc.text(`Ordine fornitore — ${kit.nome}`, 14, 22)
-  doc.setTextColor(0, 0, 0); doc.setFontSize(10)
-  doc.text(`Generato il ${format(new Date(), 'dd/MM/yyyy')}`, 14, 38)
+  doc.setTextColor(0,0,0); doc.setFontSize(10)
+  doc.text(`Generato il ${format(new Date(),'dd/MM/yyyy')}`, 14, 38)
   doc.text(`Totale atleti: ${assignments.length}`, 14, 46)
 
+  // Riepilogo per articolo + taglia
   const byItem = {}
   assignments.forEach(a => {
-    const items = a.sc_kit_assignment_items || []
-    items.forEach(item => {
+    ;(a.sc_kit_assignment_items||[]).forEach(item => {
       const nome = item.warehouse_items?.nome || '—'
       const taglia = item.taglia || '—'
       const key = `${nome}||${taglia}`
@@ -50,15 +50,15 @@ function generateOrderPDF(kit, assignments, ts) {
 
   autoTable(doc, {
     startY: 54,
-    head: [['Articolo', 'Taglia', 'Quantità totale']],
+    head: [['Articolo','Taglia','Quantità totale']],
     body: Object.values(byItem).map(r => [r.nome, r.taglia, r.qta]),
-    headStyles: { fillColor: [26, 179, 148] },
-    styles: { fontSize: 9 }
+    headStyles: { fillColor: [26,179,148] }, styles: { fontSize: 9 }
   })
 
+  // Dettaglio per atleta
   const articleNames = [...new Set(
     assignments.flatMap(a =>
-      (a.sc_kit_assignment_items || []).map(i => i.warehouse_items?.nome || '—')
+      (a.sc_kit_assignment_items||[]).map(i => i.warehouse_items?.nome || '—')
     )
   )]
 
@@ -68,50 +68,19 @@ function generateOrderPDF(kit, assignments, ts) {
       head: [['Atleta', ...articleNames]],
       body: assignments.map(a => {
         const itemMap = {}
-        ;(a.sc_kit_assignment_items || []).forEach(i => {
+        ;(a.sc_kit_assignment_items||[]).forEach(i => {
           itemMap[i.warehouse_items?.nome || '—'] = i.taglia || '—'
         })
         return [
-          `${a.youth_players?.cognome || ''} ${a.youth_players?.nome || ''}`,
+          `${a.youth_players?.cognome||''} ${a.youth_players?.nome||''}`,
           ...articleNames.map(n => itemMap[n] || '—')
         ]
       }),
-      headStyles: { fillColor: [80, 80, 80] },
-      styles: { fontSize: 8 }
+      headStyles: { fillColor: [80,80,80] }, styles: { fontSize: 8 }
     })
   }
 
-  doc.save(`ordine_${kit.nome.replace(/\s+/g, '_')}_${format(new Date(), 'ddMMyyyy')}.pdf`)
-}
-
-  // Raggruppa per articolo + taglia
-  const byItem = {}
-  assignments.forEach(a => {
-    (a.sc_kit_assignment_items||[]).forEach(item => {
-      const key = `${item.warehouse_items?.nome}||${item.taglia||'—'}`
-      if (!byItem[key]) byItem[key] = { nome: item.warehouse_items?.nome||'—', taglia: item.taglia||'—', qta: 0 }
-      byItem[key].qta += item.quantita
-    })
-  })
-
-  autoTable(doc, {
-    startY: 54,
-    head: [['Articolo','Taglia','Quantità totale']],
-    body: Object.values(byItem).map(r => [r.nome, r.taglia, r.qta]),
-    headStyles: { fillColor: [26,179,148] }, styles: { fontSize: 9 }
-  })
-
-  // Lista atleti
-  autoTable(doc, {
-    startY: doc.lastAutoTable.finalY + 10,
-    head: [['Atleta', ...((assignments[0]?.sc_kit_assignment_items||[]).map(i => i.warehouse_items?.nome||'—'))]],
-    body: assignments.map(a => [
-      `${a.youth_players?.cognome} ${a.youth_players?.nome}`,
-      ...((a.sc_kit_assignment_items||[]).map(i => i.taglia||'—'))
-    ]),
-    headStyles: { fillColor: [80,80,80] }, styles: { fontSize: 8 }
-  })
-  doc.save(`ordine_${kit.nome.replace(/\s+/g,'_')}_${Date.now()}.pdf`)
+  doc.save(`ordine_${kit.nome.replace(/\s+/g,'_')}_${format(new Date(),'ddMMyyyy')}.pdf`)
 }
 
 // ── PDF verbale consegna ─────────────────────────────────────
@@ -125,69 +94,35 @@ function generateDeliveryPDF(player, items, ts) {
   doc.setTextColor(0,0,0); doc.setFontSize(11); doc.setFont('helvetica','bold')
   doc.text(`Consegna del ${format(new Date(),'dd/MM/yyyy')}`, 14, 40)
   doc.setFont('helvetica','normal'); doc.setFontSize(10)
-  doc.text(`Atleta: ${player?.cognome} ${player?.nome}`, 14, 50)
+  doc.text(`Atleta: ${player?.cognome||''} ${player?.nome||''}`, 14, 50)
   autoTable(doc, {
     startY: 60,
     head: [['Articolo','Taglia','Qta']],
-    body: items.map(r => [r.warehouse_items?.nome||'—', r.taglia||'—', r.quantita]),
+    body: (items||[]).map(r => [r.warehouse_items?.nome||'—', r.taglia||'—', r.quantita]),
     headStyles: { fillColor: [26,179,148] }, styles: { fontSize: 9 }
   })
   const y = doc.lastAutoTable.finalY + 20
   doc.text('Firma consegnatario: ______________________', 14, y)
   doc.text('Firma ricevente: ______________________', 14, y+15)
-  doc.save(`verbale_${player?.cognome}_${Date.now()}.pdf`)
+  doc.save(`verbale_${player?.cognome||'atleta'}_${Date.now()}.pdf`)
 }
 
 // ── Modal articolo abbigliamento ─────────────────────────────
 function ItemModal({ item, onClose, onSaved }) {
   const isEdit = !!item?.id
-  const [form, setForm] = useState({ codice:'', nome:'', descrizione:'', categoria:'kit_gara', taglia:'', quantita_disponibile:0, quantita_minima:2, prezzo:0, active:true, ...item })
+  const [form, setForm] = useState({ codice:'', nome:'', descrizione:'', categoria:'kit_gara', quantita_disponibile:0, quantita_minima:2, prezzo:0, active:true, ...item })
   const [loading, setLoading] = useState(false)
   function set(k,v) { setForm(f=>({...f,[k]:v})) }
   async function save() {
-  if (!selected.length) return toast.error('Seleziona almeno un atleta')
-  setLoading(true)
-  for (const pid of selected) {
-    const { data: existing } = await supabase
-      .from('sc_kit_assignments')
-      .select('id, stato')
-      .eq('kit_config_id', kit.id)
-      .eq('youth_player_id', pid)
-      .neq('stato', 'consegnato')
-      .maybeSingle()
-
-    if (existing) {
-      await supabase.from('sc_kit_assignment_items').delete().eq('assignment_id', existing.id)
-      const items = (kit.sc_kit_config_items || []).map(item => ({
-        assignment_id: existing.id,
-        kit_config_item_id: item.id,
-        warehouse_item_id: item.warehouse_item_id,
-        taglia: taglie[pid]?.[item.id] || 'M',
-        quantita: item.quantita
-      }))
-      await supabase.from('sc_kit_assignment_items').insert(items)
-      await supabase.from('sc_kit_assignments').update({ stato: 'in_attesa' }).eq('id', existing.id)
-    } else {
-      const { data: ass, error } = await supabase.from('sc_kit_assignments').insert([{
-        kit_config_id: kit.id,
-        youth_player_id: pid,
-        stato: 'in_attesa'
-      }]).select().single()
-      if (error) { toast.error(error.message); setLoading(false); return }
-      const items = (kit.sc_kit_config_items || []).map(item => ({
-        assignment_id: ass.id,
-        kit_config_item_id: item.id,
-        warehouse_item_id: item.warehouse_item_id,
-        taglia: taglie[pid]?.[item.id] || 'M',
-        quantita: item.quantita
-      }))
-      await supabase.from('sc_kit_assignment_items').insert(items)
-    }
+    if (!form.nome) return toast.error('Nome obbligatorio')
+    setLoading(true)
+    const { error } = isEdit
+      ? await supabase.from('warehouse_items').update(form).eq('id', form.id)
+      : await supabase.from('warehouse_items').insert([form])
+    if (error) toast.error(error.message)
+    else { toast.success('Articolo salvato'); onSaved() }
+    setLoading(false)
   }
-  toast.success(`Kit assegnato a ${selected.length} atleti`)
-  onSaved()
-  setLoading(false)
-}
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -236,7 +171,7 @@ function ItemModal({ item, onClose, onSaved }) {
   )
 }
 
-// ── Modal configuratore kit (senza taglie) ───────────────────
+// ── Modal configuratore kit ──────────────────────────────────
 function KitConfigModal({ categories, items, onClose, onSaved }) {
   const { profile } = useAuth()
   const [form, setForm] = useState({ nome:'', descrizione:'', category_id:'' })
@@ -297,7 +232,7 @@ function KitConfigModal({ categories, items, onClose, onSaved }) {
                   <option value="">Articolo...</option>
                   {items.map(it=><option key={it.id} value={it.id}>{it.nome}</option>)}
                 </select>
-                <input type="number" min="1" value={row.quantita} onChange={e=>setRow(i,'quantita',+e.target.value)} className="w-14 border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]" placeholder="Qta"/>
+                <input type="number" min="1" value={row.quantita} onChange={e=>setRow(i,'quantita',+e.target.value)} className="w-14 border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]"/>
                 <input value={row.note||''} onChange={e=>setRow(i,'note',e.target.value)} placeholder="Note" className="flex-1 border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]"/>
                 {rows.length>1 && <button onClick={()=>removeRow(i)}><X size={14} className="text-red-400"/></button>}
               </div>
@@ -315,12 +250,11 @@ function KitConfigModal({ categories, items, onClose, onSaved }) {
 
 // ── Modal assegnazione kit ad atleta ─────────────────────────
 function AssignKitModal({ kit, players, onClose, onSaved }) {
-  const [selected, setSelected] = useState([])   // youth_player ids
-  const [taglie, setTaglie] = useState({})        // { playerId: { itemId: taglia } }
+  const [selected, setSelected] = useState([])
+  const [taglie, setTaglie] = useState({})
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState(1)             // 1=selezione atleti, 2=conferma taglie
+  const [step, setStep] = useState(1)
 
-  // Precarica taglie dall'anagrafica
   useEffect(() => {
     if (selected.length === 0) return
     const initial = {}
@@ -346,20 +280,44 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
     if (!selected.length) return toast.error('Seleziona almeno un atleta')
     setLoading(true)
     for (const pid of selected) {
-      const { data: ass, error } = await supabase.from('sc_kit_assignments').insert([{
-        kit_config_id: kit.id,
-        youth_player_id: pid,
-        stato: 'in_attesa'
-      }]).select().single()
-      if (error) { toast.error(error.message); setLoading(false); return }
-      const items = (kit.sc_kit_config_items||[]).map(item => ({
-        assignment_id: ass.id,
-        kit_config_item_id: item.id,
-        warehouse_item_id: item.warehouse_item_id,
-        taglia: taglie[pid]?.[item.id] || 'M',
-        quantita: item.quantita
-      }))
-      await supabase.from('sc_kit_assignment_items').insert(items)
+      // Controlla se esiste già un'assegnazione NON consegnata
+      const { data: existing } = await supabase
+        .from('sc_kit_assignments')
+        .select('id, stato')
+        .eq('kit_config_id', kit.id)
+        .eq('youth_player_id', pid)
+        .neq('stato', 'consegnato')
+        .maybeSingle()
+
+      if (existing) {
+        // Aggiorna quella esistente
+        await supabase.from('sc_kit_assignment_items').delete().eq('assignment_id', existing.id)
+        const items = (kit.sc_kit_config_items||[]).map(item => ({
+          assignment_id: existing.id,
+          kit_config_item_id: item.id,
+          warehouse_item_id: item.warehouse_item_id,
+          taglia: taglie[pid]?.[item.id] || 'M',
+          quantita: item.quantita
+        }))
+        await supabase.from('sc_kit_assignment_items').insert(items)
+        await supabase.from('sc_kit_assignments').update({ stato: 'in_attesa' }).eq('id', existing.id)
+      } else {
+        // Crea nuova (anche se esiste una consegnata → nuova stagione)
+        const { data: ass, error } = await supabase.from('sc_kit_assignments').insert([{
+          kit_config_id: kit.id,
+          youth_player_id: pid,
+          stato: 'in_attesa'
+        }]).select().single()
+        if (error) { toast.error(error.message); setLoading(false); return }
+        const items = (kit.sc_kit_config_items||[]).map(item => ({
+          assignment_id: ass.id,
+          kit_config_item_id: item.id,
+          warehouse_item_id: item.warehouse_item_id,
+          taglia: taglie[pid]?.[item.id] || 'M',
+          quantita: item.quantita
+        }))
+        await supabase.from('sc_kit_assignment_items').insert(items)
+      }
     }
     toast.success(`Kit assegnato a ${selected.length} atleti`)
     onSaved()
@@ -377,7 +335,7 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
         {step === 1 && (
           <>
             <div className="p-4">
-              <p className="text-xs text-[#999] mb-3">Seleziona gli atleti a cui assegnare il kit. Le taglie verranno pre-compilate dall'anagrafica.</p>
+              <p className="text-xs text-[#999] mb-3">Seleziona gli atleti. Le taglie verranno pre-compilate dall'anagrafica.</p>
               <div className="space-y-1 max-h-72 overflow-y-auto border border-[#e7eaec] rounded p-2">
                 {players.map(p => (
                   <label key={p.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
@@ -387,7 +345,7 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
                     </div>
                     <div className="flex-1">
                       <div className="text-sm text-[#2f4050] font-medium">{p.cognome} {p.nome}</div>
-                      <div className="text-xs text-[#999]">Taglia anagrafica: <strong>{p.taglia||'—'}</strong></div>
+                      <div className="text-xs text-[#999]">Taglia: <strong>{p.taglia||'—'}</strong></div>
                     </div>
                   </label>
                 ))}
@@ -406,7 +364,7 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
         {step === 2 && (
           <>
             <div className="p-4 space-y-4">
-              <p className="text-xs text-[#999]">Verifica e modifica le taglie per ogni atleta. Pre-compilate dall'anagrafica.</p>
+              <p className="text-xs text-[#999]">Verifica e modifica le taglie per ogni atleta.</p>
               {selected.map(pid => {
                 const p = players.find(x=>x.id===pid)
                 return (
@@ -581,7 +539,7 @@ export default function SCWarehouse() {
   const canEdit = isAdmin || isSegreteria
 
   const [tab, setTab] = useState('abbigliamento')
-  const [kitSubTab, setKitSubTab] = useState('configs')  // 'configs' | 'assignments'
+  const [kitSubTab, setKitSubTab] = useState('configs')
   const [items, setItems] = useState([])
   const [players, setPlayers] = useState([])
   const [deliveries, setDeliveries] = useState([])
@@ -595,7 +553,7 @@ export default function SCWarehouse() {
   const [filterKitConfig, setFilterKitConfig] = useState('')
   const [itemModal, setItemModal] = useState(null)
   const [kitModal, setKitModal] = useState(false)
-  const [assignModal, setAssignModal] = useState(null)   // kit da assegnare
+  const [assignModal, setAssignModal] = useState(null)
   const [materialModal, setMaterialModal] = useState(null)
   const [movementModal, setMovementModal] = useState(null)
   const [expandedKit, setExpandedKit] = useState(null)
@@ -668,7 +626,6 @@ export default function SCWarehouse() {
   async function updateAssignmentStato(id, stato, assignment) {
     await supabase.from('sc_kit_assignments').update({ stato }).eq('id', id)
     if (stato === 'consegnato') {
-      // Genera PDF consegna
       const { data: ts } = await supabase.from('team_settings').select('*').single()
       generateDeliveryPDF(assignment.youth_players, assignment.sc_kit_assignment_items, ts)
     }
@@ -676,28 +633,17 @@ export default function SCWarehouse() {
     load()
   }
 
- async function generateOrderForKit(kit) {
-  const { data: ass, error } = await supabase
-    .from('sc_kit_assignments')
-    .select(`
-      *,
-      youth_players(nome, cognome),
-      sc_kit_assignment_items(
-        *,
-        warehouse_items(nome)
-      )
-    `)
-    .eq('kit_config_id', kit.id)
-    .neq('stato', 'consegnato')
-
-  if (error) { toast.error(error.message); return }
-  if (!ass?.length) {
-    toast.error('Nessuna assegnazione da ordinare per questo kit')
-    return
+  async function generateOrderForKit(kit) {
+    const { data: ass, error } = await supabase
+      .from('sc_kit_assignments')
+      .select(`*, youth_players(nome,cognome), sc_kit_assignment_items(*, warehouse_items(nome))`)
+      .eq('kit_config_id', kit.id)
+      .neq('stato', 'consegnato')
+    if (error) { toast.error(error.message); return }
+    if (!ass?.length) { toast.error('Nessuna assegnazione da ordinare per questo kit'); return }
+    const { data: ts } = await supabase.from('team_settings').select('*').single()
+    generateOrderPDF(kit, ass, ts)
   }
-  const { data: ts } = await supabase.from('team_settings').select('*').single()
-  generateOrderPDF(kit, ass, ts)
-}
 
   const lowStockItems = items.filter(i => i.quantita_disponibile <= i.quantita_minima)
   const lowStockMats  = materials.filter(m => m.quantita_disponibile <= m.quantita_minima)
@@ -776,8 +722,6 @@ export default function SCWarehouse() {
                 ))}
                 {items.length===0 && <div className="col-span-4 text-center text-[#999] py-10 text-sm">Nessun articolo</div>}
               </div>
-
-              {/* Ultime consegne */}
               {deliveries.length > 0 && (
                 <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-[#e7eaec]">
@@ -799,7 +743,7 @@ export default function SCWarehouse() {
                         </div>
                         <button onClick={()=>{
                           const p = players.find(p=>p.id===d.youth_player_id)||d.youth_players
-                          generateDeliveryPDF(p, d.delivery_items?.map(di=>({...di,warehouse_items:di.warehouse_items})), null)
+                          generateDeliveryPDF(p, d.delivery_items, null)
                         }} className="text-[#999] hover:text-[#1ab394] flex items-center gap-1 text-xs flex-shrink-0">
                           <Download size={13}/> PDF
                         </button>
@@ -814,7 +758,6 @@ export default function SCWarehouse() {
           {/* ── TAB KIT STANDARD ── */}
           {tab === 'kit' && (
             <div className="space-y-4">
-              {/* Sub-tab */}
               <div className="flex gap-1 bg-gray-100 rounded p-1 w-fit">
                 {[['configs','Configurazioni'],['assignments','Assegnazioni']].map(([v,l])=>(
                   <button key={v} onClick={()=>setKitSubTab(v)}
@@ -825,7 +768,6 @@ export default function SCWarehouse() {
                 ))}
               </div>
 
-              {/* Configurazioni kit */}
               {kitSubTab === 'configs' && (
                 kitConfigs.length === 0 ? (
                   <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-10 text-center">
@@ -899,16 +841,13 @@ export default function SCWarehouse() {
                 )
               )}
 
-              {/* Assegnazioni */}
               {kitSubTab === 'assignments' && (
                 <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <select value={filterKitConfig} onChange={e=>setFilterKitConfig(e.target.value)}
-                      className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] flex-1">
-                      <option value="">Tutti i kit</option>
-                      {kitConfigs.map(k=><option key={k.id} value={k.id}>{k.nome}</option>)}
-                    </select>
-                  </div>
+                  <select value={filterKitConfig} onChange={e=>setFilterKitConfig(e.target.value)}
+                    className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] w-full sm:w-auto">
+                    <option value="">Tutti i kit</option>
+                    {kitConfigs.map(k=><option key={k.id} value={k.id}>{k.nome}</option>)}
+                  </select>
                   {assignments.length === 0 ? (
                     <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-10 text-center">
                       <ClipboardList size={32} className="mx-auto text-[#999] mb-3"/>
@@ -1024,7 +963,7 @@ export default function SCWarehouse() {
                         {movements[mat.id].slice(0,3).map(mv=>(
                           <div key={mv.id} className="flex items-center justify-between text-xs">
                             <span className={mv.tipo==='carico' ? 'text-green-600' : 'text-red-500'}>
-                              {mv.tipo==='carico' ? '+' : '-'}{mv.quantita} {mv.note ? `(${mv.note})` : ''}
+                              {mv.tipo==='carico' ? '+' : '-'}{mv.quantita}{mv.note ? ` (${mv.note})` : ''}
                             </span>
                             <span className="text-[#999]">{format(new Date(mv.created_at),'dd/MM')}</span>
                           </div>
@@ -1045,7 +984,6 @@ export default function SCWarehouse() {
         </>
       )}
 
-      {/* Modali */}
       {itemModal !== null && <ItemModal item={itemModal} onClose={()=>setItemModal(null)} onSaved={()=>{setItemModal(null);load()}}/>}
       {kitModal && <KitConfigModal categories={categories} items={items} onClose={()=>setKitModal(false)} onSaved={()=>{setKitModal(false);load()}}/>}
       {assignModal && <AssignKitModal kit={assignModal} players={players} onClose={()=>setAssignModal(null)} onSaved={()=>{setAssignModal(null);load()}}/>}
