@@ -213,24 +213,36 @@ function PagaBatchModal({ scadenze, players, onClose, onSaved, teamSettings }) {
 
   function toggle(id) { setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]) }
 
-  async function save() {
-    if (!selected.length) return toast.error('Seleziona almeno una scadenza')
-    setLoading(true)
-    for (const id of selected) {
-      const sc = scadenze.find(s => s.id === id)
-      const player = players.find(p => p.id === sc.youth_player_id)
-      const numRicevuta = `RET-${Date.now()}-${Math.random().toString(36).slice(2,6)}`
-      await supabase.from('rette_scadenze').update({
-        stato: 'pagato', data_pagamento: data,
-        metodo_pagamento: metodo, numero_ricevuta: numRicevuta,
-        importo_pagato: sc.importo, updated_at: new Date().toISOString()
-      }).eq('id', id)
-      generateRettaReceipt({ ...sc, data_pagamento: data, metodo_pagamento: metodo, numero_ricevuta: numRicevuta, importo_pagato: sc.importo }, player, teamSettings)
-    }
-    toast.success(`${selected.length} rette registrate!`)
-    onSaved()
-    setLoading(false)
+ async function save() {
+  if (!selected.length) return toast.error('Seleziona almeno una scadenza')
+  setLoading(true)
+  const { data: ts } = await supabase.from('team_settings').select('club_id').single()
+  for (const id of selected) {
+    const sc = scadenze.find(s => s.id === id)
+    const player = players.find(p => p.id === sc.youth_player_id)
+    const numRicevuta = `RET-${Date.now()}-${Math.random().toString(36).slice(2,6)}`
+    await supabase.from('rette_scadenze').update({
+      stato: 'pagato', data_pagamento: data,
+      metodo_pagamento: metodo, numero_ricevuta: numRicevuta,
+      importo_pagato: sc.importo, updated_at: new Date().toISOString()
+    }).eq('id', id)
+    await supabase.from('accounting_entries').insert([{
+      club_id:          ts?.club_id,
+      data:             data,
+      tipo:             'entrata',
+      categoria:        'Quote SC',
+      descrizione:      `Retta ${MONTHS_FULL[(sc.mese||1)-1]} ${sc.anno} — ${player?.cognome} ${player?.nome}`,
+      importo:          +sc.importo,
+      metodo_pagamento: metodo,
+      riferimento:      numRicevuta,
+      fonte:            'retta_sc',
+    }])
+    generateRettaReceipt({ ...sc, data_pagamento: data, metodo_pagamento: metodo, numero_ricevuta: numRicevuta, importo_pagato: sc.importo }, player, teamSettings)
   }
+  toast.success(`${selected.length} rette registrate!`)
+  onSaved()
+  setLoading(false)
+}
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
