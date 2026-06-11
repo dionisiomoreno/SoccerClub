@@ -567,7 +567,7 @@ function TabScadenziario({ players, categories, teamSettings }) {
     else { toast.success(`${generate} scadenze generate`); loadScadenze() }
   }
 
-  const daPagare = scadenze.filter(s => s.stato === 'da_pagare')
+  const daPagare = scadenze.filter(s => s.stato === 'da_pagare' || s.stato === 'scaduto')
   const scadute  = scadenze.filter(s => s.stato === 'scaduto')
   const pagate   = scadenze.filter(s => s.stato === 'pagato')
   const totDovuto  = scadenze.reduce((s,r) => s + +r.importo, 0)
