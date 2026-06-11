@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, ClipboardList, Calendar, Bell,
   Package, FileText, CreditCard, AlertTriangle, ClipboardCheck,
   Settings, Menu, X, LogOut, ChevronRight, Check, Trash2,
-  Baby, Wallet, ShoppingBag, Megaphone, MessageCircle, UserCog, Dumbbell
+  Baby, Wallet, ShoppingBag, Megaphone, MessageCircle, UserCog, Dumbbell, BookOpen
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
@@ -34,6 +34,7 @@ const NAV_PRIMA_SQUADRA = [
   { to: '/mister',       label: 'Mister',         icon: UserCog,         roles: ['admin'] },
   { to: '/distinta',     label: 'Distinta Gara',  icon: ClipboardCheck,  roles: ['admin'] },
   { to: '/chat',         label: 'Chat Squadra',   icon: MessageCircle,   roles: null },
+  { to: '/contabilita', label: 'Contabilità', icon: BookOpen, roles: ['admin','segreteria'] },
   { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: null },
 ]
 
@@ -49,6 +50,7 @@ const NAV_SCUOLA_CALCIO = [
   { to: '/documenti',    label: 'Documenti',      icon: FileText,        roles: null },
   { to: '/sc/bacheca',   label: 'Bacheca',        icon: Megaphone,       roles: ['admin','segreteria','mister'] },
   { to: '/sc/chat',      label: 'Chat',           icon: MessageCircle,   roles: null },
+  { to: '/contabilita', label: 'Contabilità', icon: BookOpen, roles: ['admin','segreteria'] },
   { to: '/impostazioni', label: 'Impostazioni',   icon: Settings,        roles: ['admin'] },
 ]
 
