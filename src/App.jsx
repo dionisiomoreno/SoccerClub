@@ -83,17 +83,14 @@ function PrivateRoute({ children, roles }) {
 
   if (!user) return <Navigate to="/login" replace />
 
-  // Superadmin → solo area superadmin
   if (isSuperAdmin && !roles?.includes('superadmin')) {
     return <Navigate to="/superadmin" replace />
   }
 
-  // Genitore → solo area genitori
   if (profile?.role === 'parent' && !roles?.includes('parent')) {
     return <Navigate to="/genitore" replace />
   }
 
-  // Licenza scaduta → blocca (tranne superadmin)
   if (!isSuperAdmin && licenseExpired) {
     return <LicenseExpired />
   }
@@ -117,8 +114,6 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-
-      {/* ── Rotte pubbliche ── */}
       <Route path="/registrati" element={<Register />} />
       <Route path="/onboarding" element={<Onboarding />} />
 
@@ -150,9 +145,10 @@ function AppRoutes() {
       {/* ── App principale ── */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
-        <Route path="calciatori" element={<PrivateRoute roles={['admin','mister']}><Players /></PrivateRoute>} />
+        <Route path="calciatori"   element={<PrivateRoute roles={['admin','mister']}><Players /></PrivateRoute>} />
         <Route path="presenze"     element={<Attendances />} />
         <Route path="calendario"   element={<Calendar />} />
+        <Route path="allenamenti"  element={<PrivateRoute roles={['admin','mister']}><Trainings /></PrivateRoute>} />
         <Route path="convocazioni" element={<Callups />} />
         <Route path="materiale"    element={<Materials />} />
         <Route path="documenti"    element={<Documents />} />
@@ -161,16 +157,18 @@ function AppRoutes() {
         <Route path="mister"       element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
         <Route path="distinta"     element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
         <Route path="chat"         element={<ChatPS />} />
-        <Route path="allenamenti"  element={<PrivateRoute roles={['admin','mister']}><Trainings /></PrivateRoute>} />
-       <Route path="sc/atleti" element={<PrivateRoute roles={['admin','segreteria','mister']}><YouthPlayers /></PrivateRoute>} />
-        <Route path="sc/pagamenti" element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
-        <Route path="sc/magazzino" element={<PrivateRoute roles={['admin','segreteria']}><SCWarehouse /></PrivateRoute>} />
-        <Route path="sc/bacheca"   element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
-        <Route path="sc/mister" element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
+        <Route path="contabilita"  element={<PrivateRoute roles={['admin','segreteria']}><Accounting /></PrivateRoute>} />
+        <Route path="impostazioni" element={<Settings />} />
+
+        {/* Scuola Calcio */}
+        <Route path="sc/atleti"       element={<PrivateRoute roles={['admin','segreteria','mister']}><YouthPlayers /></PrivateRoute>} />
+        <Route path="sc/pagamenti"    element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
+        <Route path="sc/magazzino"    element={<PrivateRoute roles={['admin','segreteria']}><SCWarehouse /></PrivateRoute>} />
+        <Route path="sc/bacheca"      element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
+        <Route path="sc/mister"       element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
         <Route path="sc/allenamenti"  element={<PrivateRoute roles={['admin','segreteria','mister']}><SCTrainings /></PrivateRoute>} />
         <Route path="sc/presenze"     element={<PrivateRoute roles={['admin','segreteria','mister']}><SCAttendances /></PrivateRoute>} />
-        <Route path="sc/chat"      element={<SCChat />} />
-        <Route path="impostazioni" element={<Settings />} />
+        <Route path="sc/chat"         element={<SCChat />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
