@@ -280,26 +280,44 @@ export default function SCMister() {
 
   useEffect(() => { load() }, [tab])
 
-  async function load() {
-    setLoading(true)
-    const [{ data: m }, { data: c }, { data: ts }] = await Promise.all([
-      supabase.from('profiles').select('*, categories(nome,colore)').eq('role','mister').not('category_id','is',null).order('cognome'),
-      supabase.from('categories').select('*').order('ordine'),
-      supabase.from('team_settings').select('*').single()
-    ])
-    setMisters(m || [])
-    setCategories(c || [])
-    setTeamSettings(ts)
-    if (tab === 'cedolini') {
-      const { data: ps } = await supabase.from('coach_payslips')
-        .select('*, profiles(nome,cognome,categories(nome))')
-        .in('player_id', (m||[]).map(x => x.id))
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
-      setPayslips(ps || [])
-    }
-    setLoading(false)
+ async function load() {
+  setLoading(true)
+  const [{ data: c }, { data: ts }] = await Promise.all([
+    supabase.from('categories').select('*').order('ordine'),
+    supabase.from('team_settings').select('*').single()
+  ])
+  setCategories(c || [])
+  setTeamSettings(ts)
+
+  const { data: m } = await supabase.from('profiles')
+    .select('*').eq('role', 'mister')
+    .not('category_id', 'is', null).order('cognome')
+
+  // Arricchisci con la categoria
+  const enriched = (m || []).map(mister => ({
+    ...mister,
+    categories: (c || []).find(cat => cat.id === mister.category_id) || null
+  }))
+  setMisters(enriched)
+
+  if (tab === 'cedolini') {
+    const { data: ps } = await supabase.from('coach_payslips')
+      .select('*, profiles(nome,cognome,category_id)')
+      .in('player_id', (m||[]).map(x => x.id))
+      .order('year', { ascending: false })
+      .order('month', { ascending: false })
+    // Arricchisci cedolini con categoria
+    const enrichedPs = (ps || []).map(p => ({
+      ...p,
+      profiles: p.profiles ? {
+        ...p.profiles,
+        categories: (c || []).find(cat => cat.id === p.profiles.category_id) || null
+      } : null
+    }))
+    setPayslips(enrichedPs)
   }
+  setLoading(false)
+}
 
   async function deleteMister(m) {
     if (!confirm(`Eliminare ${m.nome} ${m.cognome}?`)) return
