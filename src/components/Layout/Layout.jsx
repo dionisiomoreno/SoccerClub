@@ -6,7 +6,7 @@ import clsx from 'clsx'
 import {
   LayoutDashboard, Users, ClipboardList, Calendar, Bell,
   Package, FileText, CreditCard, AlertTriangle, ClipboardCheck,
-  Settings, Menu, X, LogOut, ChevronRight, Check, Trash2,
+  Settings, Menu, X, LogOut, Check, Trash2,
   Baby, Wallet, ShoppingBag, Megaphone, MessageCircle, UserCog,
   Dumbbell, BookOpen, Upload
 } from 'lucide-react'
@@ -14,69 +14,54 @@ import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
 
 const ROLE_LABELS = {
-  admin: 'Società',
-  mister: 'Mister',
-  player_paid: 'Calciatore',
-  player_volunteer: 'Volontario',
-  segreteria: 'Segreteria'
+  admin: 'Società', mister: 'Mister',
+  player_paid: 'Calciatore', player_volunteer: 'Volontario', segreteria: 'Segreteria'
 }
 
-// ── Navigazione Prima Squadra con gruppi ──────────────────────
 const NAV_PRIMA_SQUADRA = [
-  { to: '/',             label: 'Dashboard',     icon: LayoutDashboard, roles: null,                               group: null },
-
-  { to: '/calciatori',   label: 'Calciatori',    icon: Users,           roles: ['admin','mister'],                 group: 'Squadra' },
-  { to: '/mister',       label: 'Mister',        icon: UserCog,         roles: ['admin'],                          group: 'Squadra' },
-  { to: '/presenze',     label: 'Presenze',      icon: ClipboardList,   roles: null,                               group: 'Squadra' },
-  { to: '/allenamenti',  label: 'Allenamenti',   icon: Dumbbell,        roles: ['admin','mister'],                 group: 'Squadra' },
-  { to: '/convocazioni', label: 'Convocazioni',  icon: Bell,            roles: null,                               group: 'Squadra' },
-
-  { to: '/calendario',   label: 'Calendario',    icon: Calendar,        roles: null,                               group: 'Gare' },
-  { to: '/distinta',     label: 'Distinta Gara', icon: ClipboardCheck,  roles: ['admin'],                          group: 'Gare' },
-
-  { to: '/materiale',    label: 'Materiale',     icon: Package,         roles: null,                               group: 'Gestione' },
-  { to: '/documenti',    label: 'Documenti',     icon: FileText,        roles: null,                               group: 'Gestione' },
-
-  { to: '/cedolini',     label: 'Cedolini',      icon: CreditCard,      roles: ['admin','mister','player_paid'],   group: 'Economico' },
-  { to: '/sanzioni',     label: 'Sanzioni',      icon: AlertTriangle,   roles: ['admin'],                          group: 'Economico' },
-  { to: '/contabilita',  label: 'Contabilità',   icon: BookOpen,        roles: ['admin','segreteria'],             group: 'Economico' },
-
-  { to: '/bacheca-ps',   label: 'Bacheca',       icon: Megaphone,       roles: null,                               group: 'Comunicazioni' },
-  { to: '/chat',         label: 'Chat Squadra',  icon: MessageCircle,   roles: null,                               group: 'Comunicazioni' },
-
-  { to: '/impostazioni', label: 'Impostazioni',  icon: Settings,        roles: null,                               group: null },
+  { to: '/',             label: 'Dashboard',     icon: LayoutDashboard, roles: null,                             group: null },
+  { to: '/calciatori',   label: 'Calciatori',    icon: Users,           roles: ['admin','mister'],               group: 'Squadra' },
+  { to: '/mister',       label: 'Mister',        icon: UserCog,         roles: ['admin'],                        group: 'Squadra' },
+  { to: '/presenze',     label: 'Presenze',      icon: ClipboardList,   roles: null,                             group: 'Squadra' },
+  { to: '/allenamenti',  label: 'Allenamenti',   icon: Dumbbell,        roles: ['admin','mister'],               group: 'Squadra' },
+  { to: '/convocazioni', label: 'Convocazioni',  icon: Bell,            roles: null,                             group: 'Squadra' },
+  { to: '/calendario',   label: 'Calendario',    icon: Calendar,        roles: null,                             group: 'Gare' },
+  { to: '/distinta',     label: 'Distinta Gara', icon: ClipboardCheck,  roles: ['admin'],                        group: 'Gare' },
+  { to: '/materiale',    label: 'Materiale',     icon: Package,         roles: null,                             group: 'Gestione' },
+  { to: '/documenti',    label: 'Documenti',     icon: FileText,        roles: null,                             group: 'Gestione' },
+  { to: '/cedolini',     label: 'Cedolini',      icon: CreditCard,      roles: ['admin','mister','player_paid'], group: 'Economico' },
+  { to: '/sanzioni',     label: 'Sanzioni',      icon: AlertTriangle,   roles: ['admin'],                        group: 'Economico' },
+  { to: '/contabilita',  label: 'Contabilità',   icon: BookOpen,        roles: ['admin','segreteria'],           group: 'Economico' },
+  { to: '/bacheca-ps',   label: 'Bacheca',       icon: Megaphone,       roles: null,                             group: 'Comunicazioni' },
+  { to: '/chat',         label: 'Chat Squadra',  icon: MessageCircle,   roles: null,                             group: 'Comunicazioni' },
+  { to: '/impostazioni', label: 'Impostazioni',  icon: Settings,        roles: null,                             group: null },
 ]
 
-// ── Navigazione Scuola Calcio con gruppi ──────────────────────
 const NAV_SCUOLA_CALCIO = [
   { to: '/',               label: 'Dashboard',    icon: LayoutDashboard, roles: null,                              group: null },
-
   { to: '/sc/atleti',      label: 'Atleti',       icon: Baby,            roles: ['admin','segreteria','mister'],   group: 'Squadra' },
   { to: '/sc/mister',      label: 'Mister SC',    icon: UserCog,         roles: ['admin','segreteria'],            group: 'Squadra' },
   { to: '/sc/presenze',    label: 'Presenze SC',  icon: ClipboardList,   roles: ['admin','segreteria','mister'],   group: 'Squadra' },
   { to: '/sc/allenamenti', label: 'Allenamenti',  icon: Dumbbell,        roles: ['admin','segreteria','mister'],   group: 'Squadra' },
-
   { to: '/calendario',     label: 'Calendario',   icon: Calendar,        roles: null,                              group: 'Gare' },
-
   { to: '/sc/magazzino',   label: 'Magazzino',    icon: ShoppingBag,     roles: ['admin','segreteria'],            group: 'Gestione' },
   { to: '/documenti',      label: 'Documenti',    icon: FileText,        roles: null,                              group: 'Gestione' },
-
   { to: '/sc/pagamenti',   label: 'Pagamenti',    icon: Wallet,          roles: ['admin','segreteria'],            group: 'Economico' },
   { to: '/contabilita',    label: 'Contabilità',  icon: BookOpen,        roles: ['admin','segreteria'],            group: 'Economico' },
-
   { to: '/sc/bacheca',     label: 'Bacheca',      icon: Megaphone,       roles: ['admin','segreteria','mister'],   group: 'Comunicazioni' },
   { to: '/sc/chat',        label: 'Chat',         icon: MessageCircle,   roles: null,                              group: 'Comunicazioni' },
-
   { to: '/impostazioni',   label: 'Impostazioni', icon: Settings,        roles: ['admin'],                         group: null },
 ]
 
 const TYPE_ICONS = {
-  payslip_generated: '💰',
-  request_approved:  '✅',
-  request_rejected:  '❌',
-  match_time_changed:'🕐',
-  callup_published:  '📋',
-  new_announcement:  '📢',
+  payslip_generated:'💰', request_approved:'✅', request_rejected:'❌',
+  match_time_changed:'🕐', callup_published:'📋', new_announcement:'📢',
+}
+
+// Colori distinti per modalità
+const THEME = {
+  ps: { primary: '#1c3d6b', accent: '#2563eb', bg: '#0f2340', label: '⚽ Prima Squadra' },
+  sc: { primary: '#166534', accent: '#16a34a', bg: '#0f3320', label: '🏫 Scuola Calcio'  },
 }
 
 function NotificationBell({ userId }) {
@@ -87,7 +72,7 @@ function NotificationBell({ userId }) {
   useEffect(() => {
     loadNotifications()
     const channel = supabase.channel('notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${userId}` },
         payload => setNotifications(prev => [payload.new, ...prev]))
       .subscribe()
     return () => supabase.removeChannel(channel)
@@ -123,7 +108,7 @@ function NotificationBell({ userId }) {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} className="relative p-2 text-[#999] hover:text-[#676a6c] transition-colors">
+      <button onClick={() => setOpen(!open)} className="relative p-2 text-[#999] hover:text-[#676a6c]">
         <Bell size={18}/>
         {unread > 0 && (
           <span className="absolute top-1 right-1 w-4 h-4 bg-[#ed5565] text-white text-xs rounded-full flex items-center justify-center font-bold">
@@ -135,28 +120,24 @@ function NotificationBell({ userId }) {
         <div className="absolute right-0 top-10 w-80 bg-white border border-[#e7eaec] rounded shadow-lg z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#e7eaec]">
             <h3 className="text-sm font-bold text-[#2f4050]">Notifiche</h3>
-            {unread > 0 && (
-              <button onClick={markAllRead} className="text-xs text-[#1ab394] hover:underline flex items-center gap-1">
-                <Check size={12}/> Tutte lette
-              </button>
-            )}
+            {unread > 0 && <button onClick={markAllRead} className="text-xs text-[#1ab394] hover:underline flex items-center gap-1"><Check size={12}/> Tutte lette</button>}
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="text-center text-[#999] py-8 text-sm">Nessuna notifica</div>
-            ) : notifications.map(n => (
-              <div key={n.id} className={clsx('flex items-start gap-3 px-4 py-3 border-b border-[#e7eaec] hover:bg-gray-50', !n.read && 'bg-[#1ab394]/5')}>
-                <span className="text-lg flex-shrink-0">{TYPE_ICONS[n.type] || '🔔'}</span>
-                <div className="flex-1 min-w-0">
-                  <p className={clsx('text-sm', !n.read ? 'text-[#2f4050] font-medium' : 'text-[#676a6c]')}>{n.message}</p>
-                  <p className="text-xs text-[#999] mt-0.5">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: it })}</p>
+            {notifications.length === 0
+              ? <div className="text-center text-[#999] py-8 text-sm">Nessuna notifica</div>
+              : notifications.map(n => (
+                <div key={n.id} className={clsx('flex items-start gap-3 px-4 py-3 border-b border-[#e7eaec] hover:bg-gray-50', !n.read && 'bg-blue-50/40')}>
+                  <span className="text-lg flex-shrink-0">{TYPE_ICONS[n.type] || '🔔'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className={clsx('text-sm', !n.read ? 'text-[#2f4050] font-medium' : 'text-[#676a6c]')}>{n.message}</p>
+                    <p className="text-xs text-[#999] mt-0.5">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: it })}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {!n.read && <button onClick={() => markRead(n.id)} className="text-[#999] hover:text-blue-500"><Check size={13}/></button>}
+                    <button onClick={() => deleteNotification(n.id)} className="text-[#999] hover:text-red-500"><Trash2 size={13}/></button>
+                  </div>
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {!n.read && <button onClick={() => markRead(n.id)} className="text-[#999] hover:text-[#1ab394]"><Check size={13}/></button>}
-                  <button onClick={() => deleteNotification(n.id)} className="text-[#999] hover:text-red-500"><Trash2 size={13}/></button>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
           {notifications.length > 0 && (
             <div className="px-4 py-2 border-t border-[#e7eaec]">
@@ -172,24 +153,22 @@ function NotificationBell({ userId }) {
 
 export default function Layout() {
   const { profile, signOut } = useAuth()
-  const navigate    = useNavigate()
-  const location    = useLocation()
+  const navigate     = useNavigate()
+  const location     = useLocation()
   const logoInputRef = useRef()
-  const [open,      setOpen]    = useState(false)
-  const [modules,   setModules] = useState({ modulo_prima_squadra: true, modulo_scuola_calcio: false })
-  const [mode,      setMode]    = useState(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
-  const [logoUrl,   setLogoUrl] = useState(null)
-  const [uploading, setUploading] = useState(false)
+  const [open,      setOpen]     = useState(false)
+  const [modules,   setModules]  = useState({ modulo_prima_squadra: true, modulo_scuola_calcio: false })
+  const [mode,      setMode]     = useState(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
+  const [logoUrl,   setLogoUrl]  = useState(null)
+  const [uploading, setUploading]= useState(false)
 
-  const role         = profile?.role
-  const isPlayer     = role === 'player_paid' || role === 'player_volunteer'
-  const isMister     = role === 'mister'
-  const isAdmin      = role === 'admin'
+  const role          = profile?.role
+  const isPlayer      = role === 'player_paid' || role === 'player_volunteer'
+  const isMister      = role === 'mister'
+  const isAdmin       = role === 'admin'
   const canSwitchMode = !isPlayer && !isMister
-  const primaryColor  = mode === 'sc' ? '#27ae60' : '#1ab394'
-  const bgColor       = mode === 'sc' ? '#2c3e50' : '#2f4050'
+  const theme         = THEME[mode]
 
-  // Carica logo
   useEffect(() => {
     supabase.from('team_settings').select('logo_url').single()
       .then(({ data }) => { if (data?.logo_url) setLogoUrl(data.logo_url) })
@@ -202,23 +181,12 @@ export default function Layout() {
         if (data) {
           setModules(data)
           if (isPlayer || isMister) {
-            if (profile?.category_id) {
-              setMode('sc')
-              if (!location.pathname.startsWith('/sc/')) navigate('/sc/chat')
-            } else {
-              setMode('ps')
-              if (location.pathname.startsWith('/sc/')) navigate('/')
-            }
+            if (profile?.category_id) { setMode('sc'); if (!location.pathname.startsWith('/sc/')) navigate('/sc/chat') }
+            else { setMode('ps'); if (location.pathname.startsWith('/sc/')) navigate('/') }
             return
           }
-          if (!data.modulo_prima_squadra && data.modulo_scuola_calcio) {
-            setMode('sc')
-            if (!location.pathname.startsWith('/sc/')) navigate('/sc/atleti')
-          }
-          if (data.modulo_prima_squadra && !data.modulo_scuola_calcio) {
-            setMode('ps')
-            if (location.pathname.startsWith('/sc/')) navigate('/')
-          }
+          if (!data.modulo_prima_squadra && data.modulo_scuola_calcio) { setMode('sc'); if (!location.pathname.startsWith('/sc/')) navigate('/sc/atleti') }
+          if (data.modulo_prima_squadra && !data.modulo_scuola_calcio) { setMode('ps'); if (location.pathname.startsWith('/sc/')) navigate('/') }
         }
       })
   }, [profile])
@@ -238,7 +206,7 @@ export default function Layout() {
     const ext  = file.name.split('.').pop()
     const path = `logos/club.${ext}`
     const { error: upErr } = await supabase.storage.from('soccerclub').upload(path, file, { upsert: true })
-    if (upErr) { alert('Errore upload: ' + upErr.message); setUploading(false); return }
+    if (upErr) { alert('Errore: ' + upErr.message); setUploading(false); return }
     const { data: { publicUrl } } = supabase.storage.from('soccerclub').getPublicUrl(path)
     await supabase.from('team_settings').update({ logo_url: publicUrl })
     setLogoUrl(publicUrl)
@@ -251,118 +219,84 @@ export default function Layout() {
   const bothEnabled = modules.modulo_prima_squadra && modules.modulo_scuola_calcio
 
   async function handleLogout() { await signOut(); navigate('/login') }
+  function switchMode(m) { setMode(m); setOpen(false); navigate(m === 'sc' ? '/sc/atleti' : '/') }
 
-  function switchMode(newMode) {
-    setMode(newMode)
-    setOpen(false)
-    if (newMode === 'sc') navigate('/sc/atleti')
-    else navigate('/')
-  }
-
-  // Raggruppa voci di menu per group
   function groupedNav(items) {
     const result = []
-    let currentGroup = undefined
+    let cur = undefined
     items.forEach(item => {
-      if (item.group !== currentGroup) {
-        currentGroup = item.group
-        result.push({ label: item.group, items: [item] })
-      } else {
-        result[result.length - 1].items.push(item)
-      }
+      if (item.group !== cur) { cur = item.group; result.push({ label: item.group, items: [item] }) }
+      else result[result.length - 1].items.push(item)
     })
     return result
   }
 
   const Sidebar = () => (
-    <div className="flex flex-col h-full" style={{ background: bgColor }}>
+    <div className="flex flex-col h-full" style={{ background: theme.bg }}>
 
-      {/* ── Logo + nome app ── */}
-      <div className="flex items-center gap-3 px-4 py-3" style={{ background: primaryColor }}>
+      {/* ── Logo ── */}
+      <div className="flex items-center gap-3 px-4 py-4" style={{ background: theme.primary }}>
         <div className="relative flex-shrink-0">
-          {logoUrl ? (
-            <img src={logoUrl} alt="Logo"
-              className="w-10 h-10 rounded-full object-cover border-2 border-white/30"/>
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">
-              {mode === 'sc' ? '🏫' : 'SC'}
-            </div>
-          )}
+          {logoUrl
+            ? <img src={logoUrl} alt="Logo" className="w-12 h-12 rounded-full object-cover border-2 border-white/40"/>
+            : <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
+                {mode === 'sc' ? '🏫' : 'SC'}
+              </div>
+          }
           {isAdmin && (
             <>
               <button onClick={() => logoInputRef.current?.click()}
-                title="Carica logo società"
-                className="absolute -bottom-1 -right-1 w-5 h-5 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow">
+                title="Carica logo"
+                className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 shadow">
                 {uploading
-                  ? <div className="w-2.5 h-2.5 border border-gray-500 border-t-transparent rounded-full animate-spin"/>
+                  ? <div className="w-2.5 h-2.5 border border-gray-400 border-t-transparent rounded-full animate-spin"/>
                   : <Upload size={10} className="text-gray-600"/>}
               </button>
-              <input ref={logoInputRef} type="file" accept=".png,.jpg,.jpeg,.svg,.webp"
-                className="hidden" onChange={handleLogoUpload}/>
+              <input ref={logoInputRef} type="file" accept=".png,.jpg,.jpeg,.svg,.webp" className="hidden" onChange={handleLogoUpload}/>
             </>
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-white font-bold text-sm leading-tight">SoccerClub</div>
-          <div className="text-white/70 text-xs leading-tight">
-            {mode === 'sc' ? 'Scuola Calcio' : 'Prima Squadra'}
+        <div>
+          <div className="text-white font-bold text-base leading-tight">SoccerClub</div>
+          <div className="text-white/60 text-xs mt-0.5">
+            {mode === 'sc' ? '🏫 Scuola Calcio' : '⚽ Prima Squadra'}
           </div>
         </div>
       </div>
 
-      {/* ── Switch PS / SC ── */}
-      {bothEnabled && canSwitchMode && (
-        <div className="px-3 py-2 bg-black/20 border-b border-white/10">
-          <div className="flex rounded-lg overflow-hidden">
-            <button onClick={() => switchMode('ps')}
-              className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
-                mode === 'ps' ? 'bg-[#1ab394] text-white' : 'text-white/40 hover:text-white/70')}>
-              ⚽ PS
-            </button>
-            <button onClick={() => switchMode('sc')}
-              className={clsx('flex-1 py-1.5 text-xs font-semibold transition-colors',
-                mode === 'sc' ? 'bg-[#27ae60] text-white' : 'text-white/40 hover:text-white/70')}>
-              🏫 SC
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ── Utente ── */}
-      <div className="px-4 py-2.5 bg-black/20 flex items-center gap-3 border-b border-white/10">
-        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-          style={{ background: primaryColor }}>
+      <div className="px-4 py-2.5 flex items-center gap-3 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.25)' }}>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+          style={{ background: theme.accent }}>
           {initials || '?'}
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-white text-xs font-medium truncate">{profile?.nome} {profile?.cognome}</div>
-          <div className="text-white/50 text-xs truncate">{ROLE_LABELS[profile?.role] || profile?.role}</div>
+          <div className="text-white/40 text-xs">{ROLE_LABELS[profile?.role] || profile?.role}</div>
         </div>
       </div>
 
-      {/* ── Navigazione con gruppi ── */}
+      {/* ── Navigazione ── */}
       <nav className="flex-1 overflow-y-auto py-1">
         {groupedNav(filtered).map(({ label, items }, gi) => (
           <div key={gi}>
             {label && (
               <div className="px-4 pt-3 pb-0.5">
-                <span className="text-white/25 text-xs uppercase tracking-widest font-semibold">
-                  {label}
-                </span>
+                <span className="text-white/20 text-xs uppercase tracking-widest font-semibold">{label}</span>
               </div>
             )}
-            {items.map(({ to, label: itemLabel, icon: Icon }) => (
+            {items.map(({ to, label: lbl, icon: Icon }) => (
               <NavLink key={to} to={to} end={to === '/'}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) => clsx(
-                  'flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-4',
+                  'flex items-center gap-3 px-4 py-2 text-sm transition-all border-l-4',
                   isActive
-                    ? 'bg-black/20 text-white'
-                    : 'text-white/55 hover:text-white hover:bg-black/10 border-transparent'
+                    ? 'bg-white/10 text-white font-medium'
+                    : 'text-white/50 hover:text-white hover:bg-white/5 border-transparent'
                 )}
-                style={({ isActive }) => isActive ? { borderLeftColor: primaryColor } : {}}>
+                style={({ isActive }) => isActive ? { borderLeftColor: theme.accent } : {}}>
                 <Icon size={15}/>
-                <span>{itemLabel}</span>
+                <span>{lbl}</span>
               </NavLink>
             ))}
           </div>
@@ -372,7 +306,7 @@ export default function Layout() {
       {/* ── Logout ── */}
       <div className="p-3 border-t border-white/10">
         <button onClick={handleLogout}
-          className="flex items-center gap-2 w-full px-3 py-2 text-white/55 hover:text-white hover:bg-black/20 rounded text-sm transition-colors">
+          className="flex items-center gap-2 w-full px-3 py-2 text-white/40 hover:text-white hover:bg-white/10 rounded text-sm transition-colors">
           <LogOut size={15}/><span>Disconnetti</span>
         </button>
       </div>
@@ -389,25 +323,48 @@ export default function Layout() {
         </div>
       )}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ── Header ── */}
         <header className="h-14 bg-white border-b border-[#e7eaec] flex items-center px-4 gap-3 flex-shrink-0">
-          <button className="md:hidden text-[#999] hover:text-[#676a6c]" onClick={() => setOpen(!open)}>
+          <button className="md:hidden text-[#999]" onClick={() => setOpen(!open)}>
             {open ? <X size={20}/> : <Menu size={20}/>}
           </button>
-          <div className="flex-1 flex items-center gap-2">
-            <span className="text-xs font-semibold px-2 py-1 rounded"
-              style={{ background: primaryColor + '15', color: primaryColor }}>
-              {mode === 'sc' ? '🏫 Scuola Calcio' : '⚽ Prima Squadra'}
+
+          {/* Badge modalità */}
+          <div className="flex-1">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full text-white"
+              style={{ background: theme.accent }}>
+              {theme.label}
             </span>
           </div>
+
+          {/* Switch PS/SC — in alto a destra */}
+          {bothEnabled && canSwitchMode && (
+            <div className="flex rounded-lg overflow-hidden border border-[#e7eaec]">
+              <button onClick={() => switchMode('ps')}
+                className={clsx('px-3 py-1.5 text-xs font-semibold transition-colors',
+                  mode === 'ps' ? 'text-white' : 'text-[#999] hover:text-[#676a6c] bg-white')}
+                style={mode === 'ps' ? { background: THEME.ps.accent } : {}}>
+                ⚽ PS
+              </button>
+              <button onClick={() => switchMode('sc')}
+                className={clsx('px-3 py-1.5 text-xs font-semibold transition-colors',
+                  mode === 'sc' ? 'text-white' : 'text-[#999] hover:text-[#676a6c] bg-white')}
+                style={mode === 'sc' ? { background: THEME.sc.accent } : {}}>
+                🏫 SC
+              </button>
+            </div>
+          )}
+
           {profile?.id && <NotificationBell userId={profile.id}/>}
           <div className="flex items-center gap-2">
             <span className="text-sm text-[#676a6c] hidden sm:block">{profile?.nome} {profile?.cognome}</span>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-              style={{ background: primaryColor }}>
+              style={{ background: theme.accent }}>
               {initials || '?'}
             </div>
           </div>
         </header>
+
         <main className="flex-1 overflow-y-auto p-4 md:p-6"><Outlet/></main>
       </div>
     </div>
