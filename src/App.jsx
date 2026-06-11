@@ -19,6 +19,7 @@ import MatchReport from './pages/MatchReport'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 import ChatPS from './pages/ChatPS'
+import Accounting from './pages/Accounting'
 // Scuola Calcio
 import YouthPlayers from './pages/sc/YouthPlayers'
 import SCPayments from './pages/sc/SCPayments'
