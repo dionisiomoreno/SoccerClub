@@ -408,7 +408,9 @@ export default function Players() {
   async function load() {
     setLoading(true)
     const [{ data: pl }, { data: ts }] = await Promise.all([
-      supabase.from('profiles').select('*').order('cognome'),
+  supabase.from('profiles').select('*')
+    .in('role', ['player_paid','player_volunteer'])
+    .order('cognome'),
       supabase.from('team_settings').select('*').single()
     ])
     setPlayers(pl || [])
