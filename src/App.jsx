@@ -140,6 +140,7 @@ function AppRoutes() {
         <Route path="documenti" element={<ParentDocuments />} />
         <Route path="bacheca"   element={<ParentBacheca />} />
         <Route path="kit"       element={<ParentKit />} />
+        <Route path="chat"      element={<SCChat />} />
       </Route>
 
       {/* ── App principale ── */}
