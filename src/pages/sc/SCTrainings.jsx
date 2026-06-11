@@ -10,16 +10,15 @@ import clsx from 'clsx'
 function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
   const isEdit = !!training?.id
   const [venues, setVenues] = useState([])
-  const [form, setForm] = useState({
-    titolo: 'Allenamento',
-    data: format(new Date(), 'yyyy-MM-dd'),
-    ora_inizio: '17:00',
-    ora_fine: '19:00',
-    venue_id: '',
-    note: '',
-    ...training,
-    venue_id: training?.venue_id || '',
-  })
+ const [form, setForm] = useState({
+  titolo: 'Allenamento',
+  data: format(new Date(), 'yyyy-MM-dd'),
+  ora_inizio: '17:00',
+  ora_fine: '19:00',
+  venue_id: '',
+  note: '',
+  ...training,
+})
   const [loading, setLoading] = useState(false)
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
