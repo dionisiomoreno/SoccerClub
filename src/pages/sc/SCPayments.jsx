@@ -500,8 +500,9 @@ function TabScadenziario({ players, categories, teamSettings }) {
 
   // Genera scadenze mancanti per il mese selezionato
   async function generaScadenzeMese() {
-    const { data: configs } = await supabase.from('rette_config').select('*').eq('active', true)
-    if (!configs?.length) return toast.error('Nessuna configurazione retta trovata. Configura le rette dagli atleti.')
+  const { data: configs, error: configError } = await supabase.from('rette_config').select('*').eq('active', true)
+  console.log('configs trovate:', configs?.length, 'errore:', configError)
+  if (!configs?.length) return toast.error('Nessuna configurazione retta trovata. Configura le rette dagli atleti.')
 
     let generate = 0
     for (const cfg of configs) {
