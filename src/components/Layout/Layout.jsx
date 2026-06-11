@@ -236,9 +236,11 @@ export default function Layout() {
 
       {/* ── Logo ── */}
       <div className="flex items-center gap-3 px-4 py-4" style={{ background: theme.primary }}>
-        <div className="relative flex-shrink-0">
-          {logoUrl
-            ? <img src={logoUrl} alt="Logo" className="w-12 h-12 rounded-full object-cover border-2 border-white/40"/>
+<div className="relative flex-shrink-0">
+  {logoUrl
+    ? <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 bg-white flex-shrink-0">
+        <img src={logoUrl} alt="Logo" className="w-full h-full object-contain"/>
+      </div>
             : <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
                 {mode === 'sc' ? '🏫' : 'SC'}
               </div>
