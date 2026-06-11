@@ -234,7 +234,7 @@ export default function Layout() {
   const Sidebar = () => (
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
 
-    {/* ── Logo ── */}
+{/* ── Logo ── */}
 <div className="flex items-center gap-3 px-4 py-4" style={{ background: theme.primary }}>
   <div className="relative flex-shrink-0">
     {logoUrl
