@@ -125,20 +125,33 @@ function VenueModal({ venue, onClose, onSaved, clubId }) {
   )
 }
 
-// ── Modal categoria SC ─────────────────────────────────────────
+// ── Modal categoria SC — con importo retta ─────────────────────
 function CategoryModal({ cat, onClose, onSaved }) {
   const { profile, club } = useAuth()
   const isEdit = !!cat?.id
-  const [form, setForm] = useState({ nome: '', colore: '#1ab394', ordine: 99, ...cat })
+  const [form, setForm] = useState({
+    nome: '',
+    colore: '#1ab394',
+    ordine: 99,
+    importo_retta: '',
+    giorno_scadenza_retta: 10,
+    ...cat,
+    importo_retta: cat?.importo_retta ?? '',
+    giorno_scadenza_retta: cat?.giorno_scadenza_retta ?? 10,
+  })
   const [loading, setLoading] = useState(false)
 
   async function save() {
     if (!form.nome) return toast.error('Nome obbligatorio')
     setLoading(true)
     const payload = {
-      nome: form.nome, colore: form.colore,
-      ordine: form.ordine || 99, active: true,
-      club_id: club?.id || profile?.club_id
+      nome:                  form.nome,
+      colore:                form.colore,
+      ordine:                form.ordine || 99,
+      active:                true,
+      club_id:               club?.id || profile?.club_id,
+      importo_retta:         form.importo_retta !== '' ? +form.importo_retta : null,
+      giorno_scadenza_retta: +form.giorno_scadenza_retta || 10,
     }
     const { error } = isEdit
       ? await supabase.from('categories').update(payload).eq('id', form.id)
@@ -156,12 +169,15 @@ function CategoryModal({ cat, onClose, onSaved }) {
           <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
         </div>
         <div className="p-4 space-y-3">
+          {/* Nome */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome *</label>
             <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
               placeholder="Es. Pulcini, Esordienti..."
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
+
+          {/* Colore e ordine */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Colore</label>
@@ -179,13 +195,48 @@ function CategoryModal({ cat, onClose, onSaved }) {
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           </div>
+
+          {/* ── Sezione retta ── */}
+          <div className="border-t border-[#e7eaec] pt-3">
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
+              💶 Retta mensile (default categoria)
+            </label>
+            <p className="text-xs text-[#999] mb-3">
+              Importo proposto automaticamente al tesseramento di un nuovo atleta in questa categoria.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-[#999] mb-1">Importo (€/mese)</label>
+                <input type="number" min="0" step="0.01"
+                  value={form.importo_retta}
+                  onChange={e => setForm(f => ({ ...f, importo_retta: e.target.value }))}
+                  placeholder="Es. 80.00"
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              </div>
+              <div>
+                <label className="block text-xs text-[#999] mb-1">Giorno scadenza</label>
+                <input type="number" min="1" max="28"
+                  value={form.giorno_scadenza_retta}
+                  onChange={e => setForm(f => ({ ...f, giorno_scadenza_retta: +e.target.value }))}
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              </div>
+            </div>
+          </div>
+
           {/* Anteprima */}
           <div className="flex items-center gap-3 p-3 rounded"
             style={{ background: form.colore + '20', border: `1px solid ${form.colore}40` }}>
             <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: form.colore }}/>
-            <span className="text-sm font-medium" style={{ color: form.colore }}>
-              {form.nome || 'Anteprima'}
-            </span>
+            <div className="flex-1">
+              <span className="text-sm font-medium" style={{ color: form.colore }}>
+                {form.nome || 'Anteprima'}
+              </span>
+              {form.importo_retta && (
+                <span className="ml-2 text-xs" style={{ color: form.colore }}>
+                  — €{Number(form.importo_retta).toFixed(2)}/mese
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
@@ -505,7 +556,6 @@ export default function Settings() {
                         </label>
                       </div>
                     ))}
-                    {/* Toggle timbratura SC */}
                     {teamSettings.modulo_scuola_calcio && (
                       <div className="flex items-center justify-between p-3 bg-[#27ae60]/5 border border-[#27ae60]/30 rounded">
                         <div>
@@ -599,7 +649,7 @@ export default function Settings() {
                 </button>
               </div>
               <p className="text-xs text-[#999]">
-                Gestisci le categorie del settore giovanile. L'ordine determina la sequenza di visualizzazione.
+                Gestisci le categorie del settore giovanile. Puoi configurare la retta mensile di default per ciascuna.
               </p>
               {categories.length === 0 ? (
                 <div className="text-center text-[#999] py-6 text-sm">Nessuna categoria configurata.</div>
@@ -612,6 +662,11 @@ export default function Settings() {
                         <div>
                           <span className="text-sm font-medium text-[#2f4050]">{c.nome}</span>
                           <span className="text-xs text-[#999] ml-2">ordine: {c.ordine}</span>
+                          {c.importo_retta > 0 && (
+                            <span className="ml-2 text-xs text-[#27ae60] font-medium">
+                              💶 €{Number(c.importo_retta).toFixed(2)}/mese
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-2">
