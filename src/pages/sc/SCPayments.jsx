@@ -577,7 +577,7 @@ function TabScadenziario({ players, categories, teamSettings }) {
   return (
     <div className="space-y-4">
       {/* Alert mese corrente */}
-      {isMeseCorrente && daPagare.length > 0 && (
+      {daPagare.length > 0 && (
         <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded p-3">
           <div className="flex items-center gap-2 text-yellow-700 text-sm">
             <Bell size={16}/>
