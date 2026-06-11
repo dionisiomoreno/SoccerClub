@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { User, Lock, Shield, MapPin, Loader, Plus, Edit2, Trash2, X } from 'lucide-react'
+import { User, Lock, Shield, MapPin, Loader, Plus, Edit2, Trash2, X, Tag } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const ROLE_LABELS = { admin: 'Società', mister: 'Mister', player_paid: 'Calciatore', player_volunteer: 'Volontario' }
@@ -38,14 +38,10 @@ function VenueModal({ venue, onClose, onSaved, clubId }) {
     if (!form.nome) return toast.error('Nome obbligatorio')
     setLoading(true)
     const payload = {
-      nome: form.nome,
-      indirizzo: form.indirizzo,
-      citta: form.citta,
-      lat: form.lat || null,
-      lng: form.lng || null,
+      nome: form.nome, indirizzo: form.indirizzo, citta: form.citta,
+      lat: form.lat || null, lng: form.lng || null,
       raggio_timbratura: +form.raggio_timbratura || 200,
-      active: form.active,
-      club_id: clubId,
+      active: form.active, club_id: clubId,
     }
     const { error } = isEdit
       ? await supabase.from('venues').update(payload).eq('id', venue.id)
@@ -91,15 +87,13 @@ function VenueModal({ venue, onClose, onSaved, clubId }) {
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Latitudine</label>
               <input type="number" step="0.0000001" value={form.lat || ''}
-                onChange={e => set('lat', parseFloat(e.target.value))}
-                placeholder="41.7654321"
+                onChange={e => set('lat', parseFloat(e.target.value))} placeholder="41.7654321"
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Longitudine</label>
               <input type="number" step="0.0000001" value={form.lng || ''}
-                onChange={e => set('lng', parseFloat(e.target.value))}
-                placeholder="14.7654321"
+                onChange={e => set('lng', parseFloat(e.target.value))} placeholder="14.7654321"
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           </div>
@@ -118,6 +112,81 @@ function VenueModal({ venue, onClose, onSaved, clubId }) {
             <input type="checkbox" checked={form.active} onChange={e => set('active', e.target.checked)} className="accent-[#1ab394]"/>
             <span className="text-sm text-[#676a6c]">Attiva</span>
           </label>
+        </div>
+        <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
+          <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
+          <button onClick={save} disabled={loading}
+            className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
+            {loading ? 'Salvataggio...' : 'Salva'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal categoria SC ─────────────────────────────────────────
+function CategoryModal({ cat, onClose, onSaved }) {
+  const { profile, club } = useAuth()
+  const isEdit = !!cat?.id
+  const [form, setForm] = useState({ nome: '', colore: '#1ab394', ordine: 99, ...cat })
+  const [loading, setLoading] = useState(false)
+
+  async function save() {
+    if (!form.nome) return toast.error('Nome obbligatorio')
+    setLoading(true)
+    const payload = {
+      nome: form.nome, colore: form.colore,
+      ordine: form.ordine || 99, active: true,
+      club_id: club?.id || profile?.club_id
+    }
+    const { error } = isEdit
+      ? await supabase.from('categories').update(payload).eq('id', form.id)
+      : await supabase.from('categories').insert([payload])
+    if (error) toast.error(error.message)
+    else { toast.success(isEdit ? 'Categoria aggiornata' : 'Categoria aggiunta'); onSaved() }
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-sm">
+        <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
+          <h2 className="text-[#2f4050] font-bold">{isEdit ? 'Modifica' : 'Nuova'} Categoria</h2>
+          <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome *</label>
+            <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+              placeholder="Es. Pulcini, Esordienti..."
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Colore</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={form.colore}
+                  onChange={e => setForm(f => ({ ...f, colore: e.target.value }))}
+                  className="w-10 h-9 border border-[#e7eaec] rounded cursor-pointer"/>
+                <span className="text-xs text-[#999]">{form.colore}</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ordine</label>
+              <input type="number" min="1" value={form.ordine}
+                onChange={e => setForm(f => ({ ...f, ordine: +e.target.value }))}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+            </div>
+          </div>
+          {/* Anteprima */}
+          <div className="flex items-center gap-3 p-3 rounded"
+            style={{ background: form.colore + '20', border: `1px solid ${form.colore}40` }}>
+            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: form.colore }}/>
+            <span className="text-sm font-medium" style={{ color: form.colore }}>
+              {form.nome || 'Anteprima'}
+            </span>
+          </div>
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
@@ -151,6 +220,8 @@ export default function Settings() {
   const [geoLoading, setGeoLoading] = useState(false)
   const [venues, setVenues] = useState([])
   const [venueModal, setVenueModal] = useState(null)
+  const [categories, setCategories] = useState([])
+  const [catModal, setCatModal] = useState(null)
 
   const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
 
@@ -158,6 +229,7 @@ export default function Settings() {
     if (isAdmin) {
       loadTeamSettings()
       loadVenues()
+      loadCategories()
     }
   }, [isAdmin])
 
@@ -165,12 +237,12 @@ export default function Settings() {
     const { data } = await supabase.from('team_settings').select('*').single()
     if (data) setTeamSettings(data)
     else setTeamSettings({
-  nome_squadra: '', indirizzo: '', citta: '', telefono: '', email: '',
-  sito_web: '', anno_fondazione: new Date().getFullYear(),
-  lat: null, lng: null, raggio_timbratura: 200,
-  modulo_prima_squadra: true, modulo_scuola_calcio: false,
-  sc_timbratura_abilitata: false
-})
+      nome_squadra: '', indirizzo: '', citta: '', telefono: '', email: '',
+      sito_web: '', anno_fondazione: new Date().getFullYear(),
+      lat: null, lng: null, raggio_timbratura: 200,
+      modulo_prima_squadra: true, modulo_scuola_calcio: false,
+      sc_timbratura_abilitata: false
+    })
   }
 
   async function loadVenues() {
@@ -178,11 +250,25 @@ export default function Settings() {
     setVenues(data || [])
   }
 
+  async function loadCategories() {
+    const { data } = await supabase.from('categories').select('*').order('ordine')
+    setCategories(data || [])
+  }
+
   async function deleteVenue(id) {
     if (!confirm('Eliminare questa struttura?')) return
     await supabase.from('venues').delete().eq('id', id)
     toast.success('Struttura eliminata')
     loadVenues()
+  }
+
+  async function deleteCategory(id) {
+    const { count } = await supabase.from('youth_players')
+      .select('id', { count: 'exact' }).eq('category_id', id)
+    if (count > 0) return toast.error(`Impossibile eliminare: ${count} atleti collegati`)
+    await supabase.from('categories').delete().eq('id', id)
+    toast.success('Categoria eliminata')
+    loadCategories()
   }
 
   function setTeam(k, v) { setTeamSettings(t => ({ ...t, [k]: v })) }
@@ -396,57 +482,47 @@ export default function Settings() {
                   </div>
                 </div>
 
-               // Trova questo blocco in Settings.jsx (sezione "Moduli abilitati")
-// e SOSTITUISCI con quello qui sotto
+                {/* Moduli abilitati */}
+                <div className="border-t border-[#e7eaec] pt-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Shield size={16} className="text-[#1ab394]"/>
+                    <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Moduli abilitati</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      ['modulo_prima_squadra', '⚽ Prima Squadra', 'Gestione calciatori, presenze, cedolini, convocazioni'],
+                      ['modulo_scuola_calcio', '🏫 Scuola Calcio', 'Gestione atleti, pagamenti, magazzino, bacheca']
+                    ].map(([k, label, desc]) => (
+                      <div key={k} className="flex items-center justify-between p-3 bg-gray-50 border border-[#e7eaec] rounded">
+                        <div>
+                          <div className="text-[#2f4050] font-medium text-sm">{label}</div>
+                          <div className="text-xs text-[#999]">{desc}</div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={teamSettings[k] ?? false}
+                            onChange={e => setTeam(k, e.target.checked)} className="sr-only peer"/>
+                          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1ab394]"></div>
+                        </label>
+                      </div>
+                    ))}
+                    {/* Toggle timbratura SC */}
+                    {teamSettings.modulo_scuola_calcio && (
+                      <div className="flex items-center justify-between p-3 bg-[#27ae60]/5 border border-[#27ae60]/30 rounded">
+                        <div>
+                          <div className="text-[#2f4050] font-medium text-sm">📍 Timbratura presenze SC</div>
+                          <div className="text-xs text-[#999]">Abilita la timbratura GPS per gli atleti della Scuola Calcio</div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={teamSettings.sc_timbratura_abilitata ?? false}
+                            onChange={e => setTeam('sc_timbratura_abilitata', e.target.checked)} className="sr-only peer"/>
+                          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#27ae60]"></div>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-{/* Moduli */}
-<div className="border-t border-[#e7eaec] pt-4 space-y-3">
-  <div className="flex items-center gap-2">
-    <Shield size={16} className="text-[#1ab394]"/>
-    <h3 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Moduli abilitati</h3>
-  </div>
-  <div className="space-y-3">
-    {[
-      ['modulo_prima_squadra', '⚽ Prima Squadra', 'Gestione calciatori, presenze, cedolini, convocazioni'],
-      ['modulo_scuola_calcio', '🏫 Scuola Calcio', 'Gestione atleti, pagamenti, magazzino, bacheca']
-    ].map(([k, label, desc]) => (
-      <div key={k} className="flex items-center justify-between p-3 bg-gray-50 border border-[#e7eaec] rounded">
-        <div>
-          <div className="text-[#2f4050] font-medium text-sm">{label}</div>
-          <div className="text-xs text-[#999]">{desc}</div>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" checked={teamSettings[k] ?? false}
-            onChange={e => setTeam(k, e.target.checked)} className="sr-only peer"/>
-          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1ab394]"></div>
-        </label>
-      </div>
-    ))}
-
-    {/* Toggle timbratura SC — visibile solo se modulo SC attivo */}
-    {teamSettings.modulo_scuola_calcio && (
-      <div className="flex items-center justify-between p-3 bg-[#27ae60]/5 border border-[#27ae60]/30 rounded">
-        <div>
-          <div className="text-[#2f4050] font-medium text-sm">📍 Timbratura presenze SC</div>
-          <div className="text-xs text-[#999]">
-            Abilita la timbratura GPS per gli atleti della Scuola Calcio
-          </div>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={teamSettings.sc_timbratura_abilitata ?? false}
-            onChange={e => setTeam('sc_timbratura_abilitata', e.target.checked)}
-            className="sr-only peer"
-          />
-          <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#27ae60]"></div>
-        </label>
-      </div>
-    )}
-  </div>
-</div>
-
-                {/* Geo struttura principale */}
+                {/* Struttura principale GPS */}
                 <div className="border-t border-[#e7eaec] pt-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <MapPin size={16} className="text-[#1ab394]"/>
@@ -509,6 +585,46 @@ export default function Settings() {
             )}
           </div>
 
+          {/* Categorie Scuola Calcio */}
+          {teamSettings?.modulo_scuola_calcio && (
+            <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-[#e7eaec] pb-3">
+                <div className="flex items-center gap-2">
+                  <Tag size={16} className="text-[#27ae60]"/>
+                  <h2 className="text-[#2f4050] font-bold text-sm uppercase tracking-wide">Categorie Scuola Calcio</h2>
+                </div>
+                <button onClick={() => setCatModal({})}
+                  className="flex items-center gap-1 bg-[#27ae60] hover:bg-[#229954] text-white px-3 py-1.5 rounded text-xs font-semibold">
+                  <Plus size={13}/> Nuova
+                </button>
+              </div>
+              <p className="text-xs text-[#999]">
+                Gestisci le categorie del settore giovanile. L'ordine determina la sequenza di visualizzazione.
+              </p>
+              {categories.length === 0 ? (
+                <div className="text-center text-[#999] py-6 text-sm">Nessuna categoria configurata.</div>
+              ) : (
+                <div className="space-y-2">
+                  {categories.map(c => (
+                    <div key={c.id} className="flex items-center justify-between p-3 bg-gray-50 border border-[#e7eaec] rounded">
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: c.colore }}/>
+                        <div>
+                          <span className="text-sm font-medium text-[#2f4050]">{c.nome}</span>
+                          <span className="text-xs text-[#999] ml-2">ordine: {c.ordine}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => setCatModal(c)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={15}/></button>
+                        <button onClick={() => deleteCategory(c.id)} className="text-[#999] hover:text-red-500"><Trash2 size={15}/></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Strutture sportive */}
           <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-[#e7eaec] pb-3">
@@ -542,13 +658,9 @@ export default function Settings() {
                           <MapPin size={10}/> {v.indirizzo}{v.citta ? `, ${v.citta}` : ''}
                         </div>
                       )}
-                      {v.lat && v.lng ? (
-                        <div className="text-xs text-green-600 mt-0.5">
-                          ✅ GPS configurato — raggio {v.raggio_timbratura}m
-                        </div>
-                      ) : (
-                        <div className="text-xs text-yellow-600 mt-0.5">⚠️ GPS non configurato</div>
-                      )}
+                      {v.lat && v.lng
+                        ? <div className="text-xs text-green-600 mt-0.5">✅ GPS configurato — raggio {v.raggio_timbratura}m</div>
+                        : <div className="text-xs text-yellow-600 mt-0.5">⚠️ GPS non configurato</div>}
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setVenueModal(v)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={15}/></button>
@@ -562,12 +674,20 @@ export default function Settings() {
         </>
       )}
 
+      {/* Modali */}
       {venueModal !== null && (
         <VenueModal
           venue={venueModal}
           clubId={club?.id || profile?.club_id}
           onClose={() => setVenueModal(null)}
           onSaved={() => { setVenueModal(null); loadVenues() }}
+        />
+      )}
+      {catModal !== null && (
+        <CategoryModal
+          cat={catModal}
+          onClose={() => setCatModal(null)}
+          onSaved={() => { setCatModal(null); loadCategories() }}
         />
       )}
     </div>
