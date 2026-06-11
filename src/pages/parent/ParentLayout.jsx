@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import clsx from 'clsx'
 import {
   Home, User, CreditCard, FileText, Megaphone,
-  ShoppingBag, LogOut, Menu, X, Bell
+  ShoppingBag, LogOut, Menu, X, Bell, MessageCircle
 } from 'lucide-react'
 
 const navItems = [
@@ -15,6 +15,7 @@ const navItems = [
   { to: '/genitore/documenti', label: 'Documenti',     icon: FileText },
   { to: '/genitore/bacheca',   label: 'Bacheca',       icon: Megaphone },
   { to: '/genitore/kit',       label: 'Richiesta Kit', icon: ShoppingBag },
+  { to: '/genitore/chat',      label: 'Chat',          icon: MessageCircle },
 ]
 
 export default function ParentLayout() {
