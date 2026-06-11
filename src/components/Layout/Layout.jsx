@@ -244,6 +244,7 @@ export default function Layout() {
             : <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
                 {mode === 'sc' ? '🏫' : 'SC'}
               </div>
+    </div>
           }
           {isAdmin && (
             <>
