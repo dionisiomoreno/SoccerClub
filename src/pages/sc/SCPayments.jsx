@@ -103,30 +103,50 @@ function PagaRettaModal({ scadenza, player, onClose, onSaved, teamSettings }) {
   })
   const [loading, setLoading] = useState(false)
 
-  async function save() {
-    if (!form.importo_pagato || form.importo_pagato <= 0) return toast.error('Importo non valido')
-    setLoading(true)
-    const numRicevuta = `RET-${Date.now()}`
-    const { error } = await supabase.from('rette_scadenze').update({
-      stato:            'pagato',
-      data_pagamento:   form.data_pagamento,
-      metodo_pagamento: form.metodo_pagamento,
-      numero_ricevuta:  numRicevuta,
-      importo_pagato:   +form.importo_pagato,
-      note:             form.note,
-      updated_at:       new Date().toISOString()
-    }).eq('id', scadenza.id)
-    if (error) { toast.error(error.message); setLoading(false); return }
-    // Genera PDF
-    generateRettaReceipt(
-      { ...scadenza, ...form, numero_ricevuta: numRicevuta },
-      player,
-      teamSettings
-    )
-    toast.success('Retta registrata e ricevuta generata!')
-    onSaved()
-    setLoading(false)
-  }
+ async function save() {
+  if (!form.importo_pagato || form.importo_pagato <= 0) return toast.error('Importo non valido')
+  setLoading(true)
+  const numRicevuta = `RET-${Date.now()}`
+
+  // 1. Aggiorna la scadenza retta
+  const { error } = await supabase.from('rette_scadenze').update({
+    stato:            'pagato',
+    data_pagamento:   form.data_pagamento,
+    metodo_pagamento: form.metodo_pagamento,
+    numero_ricevuta:  numRicevuta,
+    importo_pagato:   +form.importo_pagato,
+    note:             form.note,
+    updated_at:       new Date().toISOString()
+  }).eq('id', scadenza.id)
+
+  if (error) { toast.error(error.message); setLoading(false); return }
+
+  // 2. Crea entry in contabilità
+  const { data: ts } = await supabase.from('team_settings').select('club_id').single()
+  await supabase.from('accounting_entries').insert([{
+    club_id:           ts?.club_id,
+    data:              form.data_pagamento,
+    tipo:              'entrata',
+    categoria:         'Quote SC',
+    descrizione:       `Retta ${MONTHS_FULL[(scadenza.mese||1)-1]} ${scadenza.anno} — ${player?.cognome} ${player?.nome}`,
+    importo:           +form.importo_pagato,
+    metodo_pagamento:  form.metodo_pagamento,
+    riferimento:       numRicevuta,
+    fonte:             'retta_sc',
+    note:              form.note || null,
+  }])
+
+  // 3. Genera PDF ricevuta
+  generateRettaReceipt(
+    { ...scadenza, ...form, numero_ricevuta: numRicevuta },
+    player,
+    teamSettings
+  )
+
+  toast.success('Retta registrata e ricevuta generata!')
+  onSaved()
+  setLoading(false)
+}
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
