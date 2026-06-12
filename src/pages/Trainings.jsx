@@ -31,6 +31,16 @@ function TrainingModal({ training, onClose, onSaved, misterId }) {
 
   const selectedVenue = venues.find(v => v.id === form.venue_id)
 
+  useEffect(() => {
+  if (!form.venue_id || !form.data) { setVenueConflicts([]); return }
+  supabase.from('trainings')
+    .select('*, profiles(nome,cognome), categories(nome,colore)')
+    .eq('data', form.data)
+    .eq('venue_id', form.venue_id)
+    .neq('id', form.id || '00000000-0000-0000-0000-000000000000')
+    .then(({ data }) => setVenueConflicts(data || []))
+}, [form.venue_id, form.data])
+
   async function save() {
     if (!form.data) return toast.error('Data obbligatoria')
     setLoading(true)
