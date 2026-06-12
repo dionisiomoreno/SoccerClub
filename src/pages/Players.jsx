@@ -8,7 +8,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format, differenceInDays } from 'date-fns'
 
-const ROLES = ['admin','mister','player_paid','player_volunteer']
+const ROLES = ['player_paid','player_volunteer']
 const ROLE_LABELS = { admin:'Società', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario' }
 const ROLE_COLORS = {
   admin: 'bg-red-100 text-red-600',
