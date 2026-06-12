@@ -159,7 +159,8 @@ function AppRoutes() {
         <Route path="mister"       element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
         <Route path="distinta"     element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
         <Route path="chat"         element={<ChatPS />} />
-        <Route path="contabilita"  element={<PrivateRoute roles={['admin','segreteria']}><Accounting /></PrivateRoute>} />
+       <Route path="contabilita" element={<PrivateRoute roles={['admin','segreteria']}><Accounting modulo="ps" /></PrivateRoute>} />
+        <Route path="sc/contabilita" element={<PrivateRoute roles={['admin','segreteria']}><Accounting modulo="sc" /></PrivateRoute>} />
         <Route path="impostazioni" element={<Settings />} />
         <Route path="bacheca-ps" element={<BachecaPS />} />
 
