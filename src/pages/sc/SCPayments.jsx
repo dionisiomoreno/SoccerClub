@@ -132,7 +132,7 @@ function PagaRettaModal({ scadenza, player, onClose, onSaved, teamSettings }) {
     importo:           +form.importo_pagato,
     metodo_pagamento:  form.metodo_pagamento,
     riferimento:       numRicevuta,
-    fonte:             'retta_sc',
+    modulo:            'sc',
     note:              form.note || null,
   }])
 
