@@ -235,7 +235,7 @@ function PagaBatchModal({ scadenze, players, onClose, onSaved, teamSettings }) {
       importo:          +sc.importo,
       metodo_pagamento: metodo,
       riferimento:      numRicevuta,
-      fonte:            'retta_sc',
+      modulo:           'sc',
     }])
     generateRettaReceipt({ ...sc, data_pagamento: data, metodo_pagamento: metodo, numero_ricevuta: numRicevuta, importo_pagato: sc.importo }, player, teamSettings)
   }
