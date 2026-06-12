@@ -192,7 +192,7 @@ export default function Layout() {
   }, [profile])
 
   useEffect(() => {
-    const sharedPaths = ['/impostazioni', '/calendario', '/materiale', '/documenti', '/presenze', '/contabilita']
+    const sharedPaths = ['/impostazioni', '/calendario', '/materiale', '/documenti', '/presenze']
     if (sharedPaths.includes(location.pathname)) return
     if (isPlayer || (isMister && profile?.category_id)) return
     if (location.pathname.startsWith('/sc/')) { setMode('sc'); return }
