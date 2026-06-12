@@ -455,9 +455,12 @@ if (isAdmin) {
                   {format(day, 'd')}
                 </div>
                 {dayTrainings.map(t => (
-                  <div key={t.id} className="text-xs bg-[#1ab394]/20 text-[#1ab394] rounded px-1 py-0.5 mb-0.5 truncate font-medium">
-                    {t.ora_inizio ? t.ora_inizio.slice(0,5) : ''} {t.titolo}
-                  </div>
+                  <div key={t.id}
+  className="text-xs rounded px-1 py-0.5 mb-0.5 truncate font-medium text-white"
+  style={{ background: t.categories?.colore || '#1ab394', opacity: 0.9 }}
+  title={t.categories ? `SC - ${t.categories.nome}` : 'PS'}>
+  {t.ora_inizio ? t.ora_inizio.slice(0,5) : ''} {t.titolo}
+</div>
                 ))}
               </div>
             )
