@@ -22,6 +22,9 @@ export default function Attendances() {
   const isVolunteer = profile?.role === 'player_volunteer'
   const isPaid      = profile?.role === 'player_paid'
 
+  // Il mister PS non vede i rimborsi — solo admin li vede
+  const showRimborsi = isAdmin || isPaid
+
   const [attendances, setAttendances]     = useState([])
   const [players, setPlayers]             = useState([])
   const [filterPlayer, setFilterPlayer]   = useState('')
@@ -30,39 +33,31 @@ export default function Attendances() {
   const [loading, setLoading]             = useState(true)
   const [geoLoading, setGeoLoading]       = useState(false)
   const [teamSettings, setTeamSettings]   = useState(null)
-  const [todayTraining, setTodayTraining] = useState(null)   // allenamento PS pubblicato oggi
+  const [todayTraining, setTodayTraining] = useState(null)
   const [todayMatch, setTodayMatch]       = useState(null)
   const [distance, setDistance]           = useState(null)
   const [geoTarget, setGeoTarget]         = useState(null)
-  const [scTimbratura, setScTimbratura]   = useState(false)  // toggle timbratura SC
 
   useEffect(() => { load() }, [filterMonth, filterPlayer])
   useEffect(() => { loadSettings(); loadTodayEvents() }, [profile])
 
   async function loadSettings() {
     const { data } = await supabase.from('team_settings').select('*').single()
-    if (data) {
-      setTeamSettings(data)
-      setScTimbratura(data.sc_timbratura_abilitata ?? false)
-    }
+    if (data) setTeamSettings(data)
   }
 
   async function loadTodayEvents() {
     const today = format(new Date(), 'yyyy-MM-dd')
-
-    // Cerca allenamento PS pubblicato oggi (solo per calciatori PS)
     if (!profile?.category_id) {
       const { data: tr } = await supabase
         .from('trainings')
         .select('*, venues(nome,lat,lng,raggio_timbratura,indirizzo,citta)')
         .eq('data', today)
-        .is('category_id', null)   // allenamenti PS non hanno category_id
+        .is('category_id', null)
         .limit(1)
         .maybeSingle()
       setTodayTraining(tr || null)
     }
-
-    // Cerca partita oggi
     const { data: match } = await supabase
       .from('matches').select('*').eq('date', today).maybeSingle()
     setTodayMatch(match || null)
@@ -100,10 +95,8 @@ export default function Attendances() {
     setLoading(false)
   }
 
-  // Restituisce la struttura GPS da usare per la timbratura
   async function getTargetLocation(type) {
     if (type === 'training') {
-      // Usa la struttura dell'allenamento pubblicato oggi (se esiste)
       if (todayTraining?.venues?.lat && todayTraining?.venues?.lng) {
         const v = todayTraining.venues
         return {
@@ -112,7 +105,6 @@ export default function Attendances() {
           raggio: v.raggio_timbratura || 200
         }
       }
-      // Fallback: struttura principale del club
       if (teamSettings?.lat && teamSettings?.lng) {
         return {
           lat: teamSettings.lat, lng: teamSettings.lng,
@@ -122,7 +114,6 @@ export default function Attendances() {
       }
       return null
     }
-
     if (type === 'match' && todayMatch) {
       if (todayMatch.casa) {
         if (!teamSettings?.lat || !teamSettings?.lng) return null
@@ -157,7 +148,6 @@ export default function Attendances() {
     const today = format(new Date(), 'yyyy-MM-dd')
     if (todayAtt.includes(type)) return
     setGeoLoading(true)
-
     try {
       const target = await getTargetLocation(type)
       setGeoTarget(target)
@@ -169,7 +159,6 @@ export default function Attendances() {
       const carburante = isVolunteer ? 0
         : (profile?.importo_carburante ?? teamSettings?.importo_carburante ?? 0)
 
-      // Allenamento pubblicato trovato ma senza GPS → timbratura libera con avviso
       if (type === 'training' && todayTraining && !target) {
         toast('Struttura senza GPS: timbratura libera', { icon: '⚠️' })
       }
@@ -203,13 +192,11 @@ export default function Attendances() {
         async pos => {
           const dist = getDistance(pos.coords.latitude, pos.coords.longitude, target.lat, target.lng)
           setDistance(Math.round(dist))
-
           if (dist > target.raggio) {
             toast.error(`Sei troppo lontano da ${target.label}! (${Math.round(dist)}m — max ${target.raggio}m)`)
             setGeoLoading(false)
             return
           }
-
           const { error } = await supabase.from('attendances').insert([{
             player_id: profile.id, type, date: today,
             amount: importoBase, rimborso_carburante: carburante,
@@ -239,12 +226,12 @@ export default function Attendances() {
     }
   }
 
-  const trainings    = attendances.filter(a => a.type === 'training').length
-  const matches      = attendances.filter(a => a.type === 'match').length
-  const totalBase    = attendances.reduce((s, a) => s + (a.amount || 0), 0)
-  const totalCarb    = attendances.reduce((s, a) => s + (a.rimborso_carburante || 0), 0)
-  const total        = totalBase + totalCarb
-  const geoActive    = !!(todayTraining?.venues?.lat || teamSettings?.lat)
+  const trainings = attendances.filter(a => a.type === 'training').length
+  const matches   = attendances.filter(a => a.type === 'match').length
+  const totalBase = attendances.reduce((s, a) => s + (a.amount || 0), 0)
+  const totalCarb = attendances.reduce((s, a) => s + (a.rimborso_carburante || 0), 0)
+  const total     = totalBase + totalCarb
+  const geoActive = !!(todayTraining?.venues?.lat || teamSettings?.lat)
 
   return (
     <div className="space-y-5">
@@ -253,16 +240,14 @@ export default function Attendances() {
         <p className="text-sm text-[#999] mt-1">Registro presenze allenamenti e partite</p>
       </div>
 
-      {/* Info allenamento pubblicato oggi */}
+      {/* Info allenamento oggi — solo calciatori */}
       {!isAdmin && !isMister && todayTraining && (
         <div className="flex items-start gap-2 rounded p-3 text-sm border bg-blue-50 border-blue-200 text-blue-700">
           <Dumbbell size={15} className="mt-0.5 flex-shrink-0"/>
           <div>
             <span className="font-semibold">{todayTraining.titolo}</span>
             {todayTraining.ora_inizio && <span className="ml-1">— {todayTraining.ora_inizio.slice(0,5)}</span>}
-            {todayTraining.venues && (
-              <span className="ml-1">@ {todayTraining.venues.nome}</span>
-            )}
+            {todayTraining.venues && <span className="ml-1">@ {todayTraining.venues.nome}</span>}
             {todayTraining.venues?.lat
               ? <span className="ml-2 text-green-600 font-medium">✅ GPS attivo</span>
               : <span className="ml-2 text-yellow-600">⚠️ Nessun GPS</span>}
@@ -270,7 +255,6 @@ export default function Attendances() {
         </div>
       )}
 
-      {/* Nessun allenamento pubblicato oggi */}
       {!isAdmin && !isMister && !todayTraining && (
         <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-sm text-yellow-700">
           <AlertTriangle size={15}/>
@@ -278,7 +262,6 @@ export default function Attendances() {
         </div>
       )}
 
-      {/* Info partita oggi */}
       {!isAdmin && !isMister && todayMatch && (
         <div className={clsx('flex items-center gap-2 rounded p-3 text-sm border',
           todayMatch.casa ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700')}>
@@ -289,7 +272,6 @@ export default function Attendances() {
         </div>
       )}
 
-      {/* Info carburante */}
       {!isAdmin && !isMister && isPaid && teamSettings?.importo_carburante > 0 && (
         <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-700">
           <Fuel size={15}/>
@@ -297,12 +279,9 @@ export default function Attendances() {
         </div>
       )}
 
-      {/* Info geo */}
       {!isAdmin && !isMister && (
         <div className={clsx('flex items-center gap-2 rounded p-3 text-sm border',
-          geoActive
-            ? 'bg-green-50 border-green-200 text-green-700'
-            : 'bg-yellow-50 border-yellow-200 text-yellow-700')}>
+          geoActive ? 'bg-green-50 border-green-200 text-green-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700')}>
           <MapPin size={15}/>
           {geoActive
             ? todayTraining?.venues
@@ -312,7 +291,6 @@ export default function Attendances() {
         </div>
       )}
 
-      {/* Distanza rilevata */}
       {distance !== null && !isAdmin && !isMister && (
         <div className={clsx('flex items-center gap-2 rounded p-3 text-sm border',
           distance <= (geoTarget?.raggio || 200)
@@ -324,7 +302,7 @@ export default function Attendances() {
         </div>
       )}
 
-      {/* Pulsanti timbratura */}
+      {/* Pulsanti timbratura — solo calciatori */}
       {!isAdmin && !isMister && (
         <div className="grid grid-cols-2 gap-4">
           {[
@@ -339,11 +317,9 @@ export default function Attendances() {
               <button key={type} onClick={() => register(type)} disabled={done || geoLoading}
                 className={clsx(
                   'flex flex-col items-center justify-center gap-2 p-6 rounded border transition-all shadow-sm',
-                  done
-                    ? 'bg-green-50 border-green-200 cursor-default'
-                    : geoLoading
-                      ? 'bg-gray-50 border-[#e7eaec] cursor-wait'
-                      : 'bg-white border-[#e7eaec] hover:border-[#1ab394] cursor-pointer hover:shadow-md'
+                  done ? 'bg-green-50 border-green-200 cursor-default'
+                    : geoLoading ? 'bg-gray-50 border-[#e7eaec] cursor-wait'
+                    : 'bg-white border-[#e7eaec] hover:border-[#1ab394] cursor-pointer hover:shadow-md'
                 )}>
                 {geoLoading
                   ? <Loader size={28} className="animate-spin text-[#999]"/>
@@ -366,8 +342,8 @@ export default function Attendances() {
         </div>
       )}
 
-      {/* KPI mese */}
-      <div className={clsx('grid gap-3', isPaid ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2')}>
+      {/* KPI mese — mister vede solo allenamenti e partite, NO rimborsi */}
+      <div className={clsx('grid gap-3', showRimborsi ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2')}>
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">{trainings}</div>
           <div className="text-xs text-[#999] mt-1 uppercase tracking-wide">Allenamenti</div>
@@ -376,7 +352,7 @@ export default function Attendances() {
           <div className="text-2xl font-bold text-yellow-600">{matches}</div>
           <div className="text-xs text-[#999] mt-1 uppercase tracking-wide">Partite</div>
         </div>
-        {(isPaid || isAdmin || isMister) && (
+        {showRimborsi && (
           <>
             <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
               <div className="text-2xl font-bold text-blue-400">€{totalCarb}</div>
@@ -422,7 +398,8 @@ export default function Attendances() {
                 )}
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Tipo</th>
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Data</th>
-                {(isPaid || isAdmin || isMister) && (
+                {/* Colonne rimborsi — solo admin e calciatori paid */}
+                {showRimborsi && (
                   <>
                     <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Base</th>
                     <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Carb.</th>
@@ -452,7 +429,7 @@ export default function Attendances() {
                   <td className="px-4 py-3 text-[#999]">
                     {format(new Date(a.date), 'dd MMM yyyy', { locale: it })}
                   </td>
-                  {(isPaid || isAdmin || isMister) && (
+                  {showRimborsi && (
                     <>
                       <td className="px-4 py-3 text-[#1ab394] font-medium">+€{a.amount}</td>
                       <td className="px-4 py-3">
@@ -469,9 +446,10 @@ export default function Attendances() {
                   </td>
                 </tr>
               ))}
-              {(isPaid || isAdmin || isMister) && (
+              {/* Riga totale — solo admin e calciatori paid */}
+              {showRimborsi && (
                 <tr className="bg-gray-50 font-semibold">
-                  <td colSpan={(isAdmin || isMister) ? 3 : 2} className="px-4 py-3 text-[#999] text-xs uppercase tracking-wide">
+                  <td colSpan={isAdmin ? 3 : 2} className="px-4 py-3 text-[#999] text-xs uppercase tracking-wide">
                     Totale mese
                   </td>
                   <td className="px-4 py-3 text-[#1ab394]">+€{totalBase}</td>
