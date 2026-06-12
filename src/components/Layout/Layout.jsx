@@ -357,7 +357,12 @@ export default function Layout() {
               </button>
             </div>
           )}
-
+<button onClick={toggleTheme}
+  className="p-2 text-[#999] hover:text-[#676a6c] transition-colors"
+  title={dark ? 'Modalità chiara' : 'Modalità scura'}>
+  {dark ? '☀️' : '🌙'}
+</button>
+          
           {profile?.id && <NotificationBell userId={profile.id}/>}
           <div className="flex items-center gap-2">
             <span className="text-sm text-[#676a6c] hidden sm:block">{profile?.nome} {profile?.cognome}</span>
