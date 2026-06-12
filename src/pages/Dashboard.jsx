@@ -118,12 +118,14 @@ export default function Dashboard() {
         </>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard icon={Dumbbell} label="Allenamenti mese" value={kpi.trainings} color="#1c84c6"/>
-            <KpiCard icon={Trophy} label="Partite mese" value={kpi.matches} color="#f8ac59"/>
-            <KpiCard icon={Euro} label="Rimborso stimato" value={`€${kpi.rimborso}`} color="#1ab394"/>
-            <KpiCard icon={Users} label="Presenze totali" value={kpi.totAtt} color="#23c6c8"/>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+  <KpiCard icon={Dumbbell} label="Allenamenti mese" value={kpi.trainings} color="#1c84c6"/>
+  <KpiCard icon={Trophy} label="Partite mese" value={kpi.matches} color="#f8ac59"/>
+  {profile?.role === 'player_paid' && (
+    <KpiCard icon={Euro} label="Rimborso stimato" value={`€${kpi.rimborso}`} color="#1ab394"/>
+  )}
+  <KpiCard icon={Users} label="Presenze totali" value={kpi.totAtt} color="#23c6c8"/>
+</div>
           <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide">Presenze per mese</h2>
