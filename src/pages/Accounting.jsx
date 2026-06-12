@@ -271,7 +271,7 @@ export default function Accounting({ modulo = 'ps' }) {
       .gte('data', start).lte('data', end)
       .order('data', { ascending: false })
     // Esclude le rette SC dalla contabilità PS
-.eq('modulo', 'ps')
+.eq('modulo', modulo)
     if (filterTipo) q = q.eq('tipo', filterTipo)
     if (filterCat) q = q.eq('categoria', filterCat)
     const { data } = await q
