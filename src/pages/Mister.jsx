@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { Edit2, Download, Plus, X, Euro } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -157,8 +158,8 @@ function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
   async function save() {
     setLoading(true)
     const { data: ps, error } = await supabase.from('coach_payslips')
-  .upsert([{ player_id: mister.id, club_id: profile?.club_id, ...form }], { onConflict: 'player_id,month,year' })
-  .select().single()
+      .upsert([{ player_id: mister.id, club_id: profile?.club_id, ...form }], { onConflict: 'player_id,month,year' })
+      .select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
     await supabase.from('notifications').insert([{
       user_id: mister.id, type: 'payslip_generated',
