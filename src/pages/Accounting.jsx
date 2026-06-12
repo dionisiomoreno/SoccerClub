@@ -216,7 +216,7 @@ function generatePDF(entries, period, teamSettings, totEntrate, totUscite) {
 }
 
 // ── Componente principale ────────────────────────────────────
-export default function Accounting() {
+export default function Accounting({ modulo = 'ps' }) {
   const { profile, club } = useAuth()
 
   const [entries, setEntries] = useState([])
