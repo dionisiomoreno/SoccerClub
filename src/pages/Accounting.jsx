@@ -27,7 +27,7 @@ const METODI = ['contanti', 'bonifico', 'pos', 'assegno', 'altro']
 const METODI_LABELS = { contanti: 'Contanti', bonifico: 'Bonifico', pos: 'POS', assegno: 'Assegno', altro: 'Altro' }
 
 // ── Modal entry ──────────────────────────────────────────────
-function EntryModal({ entry, onClose, onSaved }) {
+function EntryModal({ entry, onClose, onSaved, modulo = 'ps' }) {
   const { profile, club } = useAuth()
   const isEdit = !!entry?.id
   const [form, setForm] = useState({
