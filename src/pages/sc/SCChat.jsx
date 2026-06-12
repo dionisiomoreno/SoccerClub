@@ -17,18 +17,22 @@ const ROLE_COLORS = {
 
 export default function SCChat() {
   const { profile } = useAuth()
-  const isAdmin = profile?.role === 'admin'
+  const isAdmin      = profile?.role === 'admin'
   const isSegreteria = profile?.role === 'segreteria'
-  const isMister = profile?.role === 'mister'
-  const isParent = profile?.role === 'parent'
-  const isPlayer = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
+  const isMister     = profile?.role === 'mister'
+  const isParent     = profile?.role === 'parent'
+  const isPlayer     = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
 
-  const [chats, setChats] = useState([])
+  // Mister SC ha category_id, Mister PS no
+  const isMisterSC = isMister && !!profile?.category_id
+  const isMisterPS = isMister && !profile?.category_id
+
+  const [chats, setChats]           = useState([])
   const [activeChat, setActiveChat] = useState(null)
-  const [messages, setMessages] = useState([])
-  const [text, setText] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [sending, setSending] = useState(false)
+  const [messages, setMessages]     = useState([])
+  const [text, setText]             = useState('')
+  const [loading, setLoading]       = useState(true)
+  const [sending, setSending]       = useState(false)
   const bottomRef = useRef()
 
   useEffect(() => { initChats() }, [])
@@ -54,7 +58,6 @@ export default function SCChat() {
       const { data: created } = await supabase.from('chats').insert([{ tipo: 'gruppo', nome }]).select().single()
       existing = created
     }
-    // Partecipa alla chat se non già presente
     if (existing) {
       const { data: part } = await supabase.from('chat_participants').select('id')
         .eq('chat_id', existing.id).eq('user_id', profile.id).maybeSingle()
@@ -72,26 +75,25 @@ export default function SCChat() {
     setLoading(true)
     const result = []
 
-    // ── Chat GENERALE ──
-    // PS: Società + Calciatori + Mister
-    // SC: Società + Genitori + Mister
-    const canSeeGenerale = isAdmin || isSegreteria || isMister || isPlayer || isParent
+    // ── Chat GENERALE SC ──
+    // Visibile a: Admin, Segreteria, Mister PS, Mister SC, Genitori
+    // NON visibile a: calciatori PS (isPlayer senza category_id)
+    const canSeeGenerale = isAdmin || isSegreteria || isMister || isParent
     if (canSeeGenerale) {
       const chat = await getOrCreateChat('🌐 Generale SC')
-      if (chat) result.push({ ...chat, colore: '#6c757d', label: '🌐 Generale' })
+      if (chat) result.push({ ...chat, colore: '#6c757d', label: '🌐 Generale SC' })
     }
 
     // ── Chat SQUADRA per categoria ──
-    // Visibile solo al mister assegnato a quella categoria + calciatori di quella categoria
-    if (isMister && profile?.category_id) {
+    if (isMisterSC) {
       // Mister SC → vede solo la chat della sua categoria
       const { data: cat } = await supabase.from('categories').select('*').eq('id', profile.category_id).single()
       if (cat) {
         const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
         if (chat) result.push({ ...chat, colore: cat.colore, label: `🏫 ${cat.nome}` })
       }
-    } else if (isAdmin || isSegreteria) {
-      // Admin e segreteria vedono tutte le chat squadra
+    } else if (isAdmin || isSegreteria || isMisterPS) {
+      // Admin, Segreteria e Mister PS vedono tutte le chat squadra
       const { data: cats } = await supabase.from('categories').select('*').order('ordine')
       for (const cat of (cats || [])) {
         const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
@@ -104,7 +106,7 @@ export default function SCChat() {
         .select('youth_players(category_id, categories(nome, colore))')
         .eq('user_id', profile.id)
         .single()
-      const cat = parent?.youth_players?.categories
+      const cat   = parent?.youth_players?.categories
       const catId = parent?.youth_players?.category_id
       if (cat && catId) {
         const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
@@ -168,12 +170,12 @@ export default function SCChat() {
                 activeChat?.id === chat.id && 'bg-[#1ab394]/5 border-l-4 border-l-[#1ab394]')}>
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                 style={{ background: chat.colore }}>
-                {chat.label.includes('🌐') ? '🌐' : chat.label.includes('🏫') ? '🏫' : chat.label[0]}
+                {chat.label.includes('🌐') ? '🌐' : '🏫'}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[#2f4050] text-sm font-medium truncate">{chat.label}</div>
                 <div className="text-xs text-[#999]">
-                  {chat.nome.includes('Generale') ? 'Tutti' : 'Squadra'}
+                  {chat.nome.includes('Generale') ? 'Tutti' : 'Squadra categoria'}
                 </div>
               </div>
               {chat.unread > 0 && (
@@ -203,7 +205,7 @@ export default function SCChat() {
               <div>
                 <div className="text-[#2f4050] font-bold text-sm">{activeChat.label}</div>
                 <div className="text-xs text-[#999]">
-                  {activeChat.nome.includes('Generale') ? 'Società · Genitori · Mister' : 'Mister · Calciatori categoria'}
+                  {activeChat.nome.includes('Generale') ? 'Società · Segreteria · Mister · Genitori' : 'Mister · Genitori categoria'}
                 </div>
               </div>
             </div>
