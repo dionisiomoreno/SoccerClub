@@ -435,7 +435,10 @@ if (isAdmin) {
             <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-[#e7eaec] bg-gray-50"/>
           ))}
           {days.map(day => {
-            const dayTrainings = trainings.filter(t => isSameDay(new Date(t.data), day))
+            const dayTrainings = [
+  ...trainings.filter(t => isSameDay(new Date(t.data), day)),
+  ...(isAdmin ? allTrainings.filter(t => isSameDay(new Date(t.data), day)) : [])
+]
             const isSelected = selectedDay && isSameDay(day, selectedDay)
             const today = isToday(day)
             return (
