@@ -145,6 +145,7 @@ function MisterModal({ mister, onClose, onSaved }) {
 }
 
 function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
+  const { profile } = useAuth()
   const [form, setForm] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
