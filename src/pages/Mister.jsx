@@ -31,7 +31,6 @@ function generateMisterPDF(payslip, mister, teamSettings) {
   doc.setFont('helvetica', 'normal')
   doc.text(`Allenatore: ${mister?.cognome} ${mister?.nome}`, 14, 55)
   doc.text(`Generato il: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 62)
-
   autoTable(doc, {
     startY: 72,
     head: [['Voce', 'Importo']],
@@ -42,7 +41,6 @@ function generateMisterPDF(payslip, mister, teamSettings) {
     headStyles: { fillColor: [26, 179, 148] },
     styles: { fontSize: 10 }
   })
-
   const y = doc.lastAutoTable.finalY + 15
   doc.setFillColor(245, 245, 245)
   doc.rect(14, y, 182, 24, 'F')
@@ -57,7 +55,10 @@ function generateMisterPDF(payslip, mister, teamSettings) {
   doc.save(`cedolino_mister_${mister?.cognome}_${MONTHS[payslip.month - 1]}_${payslip.year}.pdf`)
 }
 
+// ── Modal crea/modifica mister ────────────────────────────────
 function MisterModal({ mister, onClose, onSaved }) {
+  const { profile } = useAuth()
+  const isEdit = !!mister?.id
   const [form, setForm] = useState({
     nome: '', cognome: '', email: '', telefono: '',
     codice_fiscale: '', numero_patente: '', numero_tessera: '',
@@ -65,14 +66,51 @@ function MisterModal({ mister, onClose, onSaved }) {
     compenso_fisso: '', taglia: 'M', active: true,
     ...mister
   })
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   async function save() {
+    if (!form.nome || !form.cognome) return toast.error('Nome e cognome obbligatori')
     setLoading(true)
-    const { error } = await supabase.from('profiles').update({ ...form }).eq('id', form.id)
-    if (error) toast.error(error.message)
-    else { toast.success('Mister aggiornato'); onSaved() }
+    try {
+      if (isEdit) {
+        const { error } = await supabase.from('profiles').update({
+          nome: form.nome, cognome: form.cognome, telefono: form.telefono,
+          codice_fiscale: form.codice_fiscale, numero_patente: form.numero_patente,
+          numero_tessera: form.numero_tessera,
+          data_visita_medica: form.data_visita_medica || null,
+          scadenza_visita_medica: form.scadenza_visita_medica || null,
+          compenso_fisso: form.compenso_fisso !== '' ? +form.compenso_fisso : null,
+          taglia: form.taglia, active: form.active,
+        }).eq('id', form.id)
+        if (error) throw new Error(error.message)
+        toast.success('Mister aggiornato')
+      } else {
+        if (!form.email) return toast.error('Email obbligatoria')
+        if (password.length < 8) return toast.error('Password minimo 8 caratteri')
+        const { data: authData, error: authError } = await supabase.auth.signUp({ email: form.email, password })
+        if (authError) throw new Error('Errore creazione account: ' + authError.message)
+        const userId = authData.user?.id
+        if (!userId) throw new Error('ID utente non disponibile')
+        const { error: profileError } = await supabase.from('profiles').upsert([{
+          id: userId,
+          club_id: profile?.club_id,
+          role: 'mister',
+          category_id: null, // mister PS — senza categoria
+          nome: form.nome, cognome: form.cognome, email: form.email,
+          telefono: form.telefono, codice_fiscale: form.codice_fiscale,
+          numero_patente: form.numero_patente, numero_tessera: form.numero_tessera,
+          data_visita_medica: form.data_visita_medica || null,
+          scadenza_visita_medica: form.scadenza_visita_medica || null,
+          compenso_fisso: form.compenso_fisso !== '' ? +form.compenso_fisso : null,
+          taglia: form.taglia, active: form.active,
+        }])
+        if (profileError) throw new Error('Errore profilo: ' + profileError.message)
+        toast.success('Mister aggiunto! Può accedere con email e password impostate.')
+      }
+      onSaved()
+    } catch(e) { toast.error(e.message) }
     setLoading(false)
   }
 
@@ -80,12 +118,12 @@ function MisterModal({ mister, onClose, onSaved }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
-          <h2 className="text-[#2f4050] font-bold">Modifica Mister</h2>
+          <h2 className="text-[#2f4050] font-bold">{isEdit ? 'Modifica' : 'Nuovo'} Mister PS</h2>
           <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
         </div>
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            {[['nome','Nome'],['cognome','Cognome']].map(([k,l]) => (
+            {[['nome','Nome *'],['cognome','Cognome *']].map(([k,l]) => (
               <div key={k}>
                 <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
                 <input value={form[k]||''} onChange={e=>set(k,e.target.value)}
@@ -93,6 +131,25 @@ function MisterModal({ mister, onClose, onSaved }) {
               </div>
             ))}
           </div>
+
+          {/* Email solo in creazione */}
+          {!isEdit && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Email *</label>
+                <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)}
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Password *</label>
+                <input type="password" value={password} onChange={e=>setPassword(e.target.value)}
+                  placeholder="Minimo 8 caratteri"
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                {password && password.length < 8 && <p className="text-xs text-red-400 mt-1">Minimo 8 caratteri</p>}
+              </div>
+            </>
+          )}
+
           {[['telefono','Telefono'],['codice_fiscale','Codice fiscale'],['numero_patente','N° patente'],['numero_tessera','N° tessera FIGC']].map(([k,l]) => (
             <div key={k}>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">{l}</label>
@@ -145,6 +202,7 @@ function MisterModal({ mister, onClose, onSaved }) {
   )
 }
 
+// ── Modal cedolino ────────────────────────────────────────────
 function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
   const { profile } = useAuth()
   const [form, setForm] = useState({
@@ -185,7 +243,7 @@ function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
             </div>
             <div>
               <div className="text-[#2f4050] font-semibold text-sm">{mister?.cognome} {mister?.nome}</div>
-              <div className="text-[#999] text-xs">Mister</div>
+              <div className="text-[#999] text-xs">Mister PS</div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -234,6 +292,7 @@ function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
   )
 }
 
+// ── Componente principale ─────────────────────────────────────
 export default function Mister() {
   const [misters, setMisters] = useState([])
   const [payslips, setPayslips] = useState([])
@@ -248,7 +307,8 @@ export default function Mister() {
   async function load() {
     setLoading(true)
     const [{ data: m }, { data: ts }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('role', 'mister').order('cognome'),
+      // Solo mister PS: category_id deve essere NULL
+      supabase.from('profiles').select('*').eq('role', 'mister').is('category_id', null).order('cognome'),
       supabase.from('team_settings').select('*').single()
     ])
     setMisters(m || [])
@@ -265,9 +325,17 @@ export default function Mister() {
 
   return (
     <div className="space-y-5">
-      <div className="border-b border-[#e7eaec] pb-4">
-        <h1 className="text-2xl font-bold text-[#2f4050]">Gestione Mister</h1>
-        <p className="text-sm text-[#999] mt-1">Anagrafica e cedolini dello staff tecnico</p>
+      <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#2f4050]">Gestione Mister</h1>
+          <p className="text-sm text-[#999] mt-1">Anagrafica e cedolini dello staff tecnico PS</p>
+        </div>
+        {tab === 'anagrafica' && (
+          <button onClick={() => setEditModal({})}
+            className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
+            <Plus size={16}/> Nuovo Mister
+          </button>
+        )}
       </div>
 
       {/* Tab */}
@@ -282,12 +350,14 @@ export default function Mister() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
+        <div className="flex items-center justify-center h-32">
+          <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+        </div>
       ) : tab === 'anagrafica' ? (
         <div className="space-y-3">
           {misters.length === 0 ? (
             <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-8 text-center text-[#999] text-sm">
-              Nessun mister trovato. Aggiungilo dalla pagina Calciatori con ruolo "Mister".
+              Nessun mister PS trovato. Clicca "Nuovo Mister" per aggiungerne uno.
             </div>
           ) : misters.map(m => (
             <div key={m.id} className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
@@ -300,7 +370,7 @@ export default function Mister() {
                     <div className="text-[#2f4050] font-bold text-lg">{m.cognome} {m.nome}</div>
                     <div className="text-[#999] text-sm">{m.email}</div>
                     <div className="flex gap-2 mt-1 flex-wrap">
-                      <span className="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-600 font-medium">Mister</span>
+                      <span className="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-600 font-medium">Mister PS</span>
                       <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', m.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
                         {m.active ? 'Attivo' : 'Non attivo'}
                       </span>
@@ -404,8 +474,12 @@ export default function Mister() {
         </div>
       )}
 
-      {editModal && <MisterModal mister={editModal} onClose={() => setEditModal(null)} onSaved={() => { setEditModal(null); load() }}/>}
-      {payslipModal && <PayslipModal mister={payslipModal} teamSettings={teamSettings} onClose={() => setPayslipModal(null)} onSaved={() => { setPayslipModal(null); load() }}/>}
+      {editModal !== null && (
+        <MisterModal mister={editModal} onClose={() => setEditModal(null)} onSaved={() => { setEditModal(null); load() }}/>
+      )}
+      {payslipModal && (
+        <PayslipModal mister={payslipModal} teamSettings={teamSettings} onClose={() => setPayslipModal(null)} onSaved={() => { setPayslipModal(null); load() }}/>
+      )}
     </div>
   )
 }
