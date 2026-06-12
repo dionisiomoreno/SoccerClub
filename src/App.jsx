@@ -11,7 +11,6 @@ import Attendances from './pages/Attendances'
 import Calendar from './pages/Calendar'
 import Callups from './pages/Callups'
 import Materials from './pages/Materials'
-import Documents from './pages/Documents'
 import Payslips from './pages/Payslips'
 import Sanctions from './pages/Sanctions'
 import Mister from './pages/Mister'
@@ -139,7 +138,7 @@ function AppRoutes() {
         <Route index element={<ParentDashboard />} />
         <Route path="figlio"    element={<ParentChild />} />
         <Route path="pagamenti" element={<ParentPayments />} />
-        <Route path="documenti" element={<ParentDocuments />} />
+        <Route path="documenti" element={<DMS modulo="ps" />} />
         <Route path="bacheca"   element={<ParentBacheca />} />
         <Route path="kit"       element={<ParentKit />} />
         <Route path="chat"      element={<SCChat />} />
@@ -154,7 +153,7 @@ function AppRoutes() {
         <Route path="allenamenti"  element={<PrivateRoute roles={['admin','mister']}><Trainings /></PrivateRoute>} />
         <Route path="convocazioni" element={<Callups />} />
         <Route path="materiale"    element={<Materials />} />
-       <Route path="documenti" element={<DMS />} />
+       <Route path="documenti" element={<DMS modulo="ps" />} />
         <Route path="cedolini"     element={<PrivateRoute roles={['admin','mister','player_paid']}><Payslips /></PrivateRoute>} />
         <Route path="sanzioni"     element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
         <Route path="mister"       element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
@@ -174,6 +173,7 @@ function AppRoutes() {
         <Route path="sc/allenamenti"  element={<PrivateRoute roles={['admin','segreteria','mister']}><SCTrainings /></PrivateRoute>} />
         <Route path="sc/presenze"     element={<PrivateRoute roles={['admin','segreteria','mister']}><SCAttendances /></PrivateRoute>} />
         <Route path="sc/chat"         element={<SCChat />} />
+        <Route path="sc/documenti" element={<DMS modulo="sc" />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
