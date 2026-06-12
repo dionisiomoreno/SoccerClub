@@ -104,7 +104,7 @@ function RequestModal({ materials, onClose, onSaved, playerId }) {
 }
 
 export default function Materials() {
-  const { profile, isAdmin } = useAuth()
+  const { profile, isAdmin, isMister } = useAuth()
   const [tab, setTab] = useState('inventory')
   const [materials, setMaterials] = useState([])
   const [requests, setRequests] = useState([])
@@ -121,7 +121,7 @@ export default function Materials() {
       setMaterials(data || [])
     } else {
       let q = supabase.from('material_requests').select('*, materials(nome), profiles(nome,cognome)').order('created_at', { ascending: false })
-      if (!isAdmin) q = q.eq('player_id', profile.id)
+      if (!isAdmin && !isMister) q = q.eq('player_id', profile.id)
       const { data } = await q
       setRequests(data || [])
     }
