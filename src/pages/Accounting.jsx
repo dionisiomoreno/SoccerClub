@@ -645,8 +645,8 @@ export default function Accounting({ modulo = 'ps' }) {
       )}
 
       {modal !== null && (
-        <EntryModal entry={modal} onClose={() => setModal(null)} onSaved={() => { setModal(null); load() }}/>
-      )}
+  <EntryModal entry={modal} modulo={modulo} onClose={() => setModal(null)} onSaved={() => { setModal(null); load() }}/>
+)}
     </div>
   )
 }
