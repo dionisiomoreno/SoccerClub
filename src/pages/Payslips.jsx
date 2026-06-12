@@ -236,7 +236,7 @@ export default function Payslips() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[#e7eaec] bg-gray-50">
-                {(isAdmin || isMister) && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Calciatore</th>}
+                {(isAdmin) && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Calciatore</th>}
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Periodo</th>
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Presenze</th>
                 <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Carb.</th>
@@ -248,7 +248,7 @@ export default function Payslips() {
             <tbody>
               {payslips.map(p => (
                 <tr key={p.id} className="border-b border-[#e7eaec] hover:bg-gray-50">
-                  {(isAdmin || isMister) && <td className="px-4 py-3 text-[#2f4050] font-medium">{p.profiles?.cognome} {p.profiles?.nome}</td>}
+                  {(isAdmin) && <td className="px-4 py-3 text-[#2f4050] font-medium">{p.profiles?.cognome} {p.profiles?.nome}</td>}
                   <td className="px-4 py-3 text-[#999]">{MONTHS[p.month - 1]} {p.year}</td>
                   <td className="px-4 py-3 text-[#676a6c]">€{(p.lordo || 0) - (p.carburante || 0)}</td>
                   <td className="px-4 py-3">
