@@ -56,12 +56,13 @@ function EntryModal({ entry, onClose, onSaved, modulo = 'ps' }) {
     if (!form.importo || +form.importo <= 0) return toast.error('Importo non valido')
     setLoading(true)
     const payload = {
-      ...form,
-      importo: +form.importo,
-      club_id: club?.id || profile?.club_id,
-      created_by: profile?.id,
-      modulo: modulo,
-    }
+  ...form,
+  importo: +form.importo,
+  club_id: club?.id || profile?.club_id,
+  created_by: profile?.id,
+  fonte: 'manuale',
+  modulo: modulo,
+}
     const { error } = isEdit
       ? await supabase.from('accounting_entries').update(payload).eq('id', entry.id)
       : await supabase.from('accounting_entries').insert([payload])
