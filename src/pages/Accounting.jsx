@@ -60,7 +60,7 @@ function EntryModal({ entry, onClose, onSaved }) {
       importo: +form.importo,
       club_id: club?.id || profile?.club_id,
       created_by: profile?.id,
-      fonte: 'manuale'
+      modulo: modulo,
     }
     const { error } = isEdit
       ? await supabase.from('accounting_entries').update(payload).eq('id', entry.id)
