@@ -197,7 +197,7 @@ export default function Payslips() {
   async function load() {
     setLoading(true)
     let q = supabase.from('payslips').select('*, profiles(nome,cognome)').order('year', { ascending: false }).order('month', { ascending: false })
-    if (!isAdmin && !isMister) q = q.eq('player_id', profile.id)
+    if (!isAdmin) q = q.eq('player_id', profile.id)
     const { data } = await q
     setPayslips(data || [])
     setLoading(false)
