@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
+import { useTheme } from '../../context/ThemeContext'
 
 const ROLE_LABELS = {
   admin: 'Società', mister: 'Mister',
