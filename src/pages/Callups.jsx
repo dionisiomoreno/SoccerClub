@@ -15,7 +15,7 @@ function CallupsModal({ onClose, onSaved }) {
 
   useEffect(() => {
     supabase.from('matches').select('*').gte('date', new Date().toISOString().split('T')[0]).order('date').then(({ data }) => setMatches(data || []))
-    supabase.from('profiles').select('id,nome,cognome').eq('active', true).order('cognome').then(({ data }) => setPlayers(data || []))
+    supabase.from('profiles').select('id,nome,cognome').eq('active', true).in('role', ['player_paid','player_volunteer']).order('cognome').then(({ data }) => setPlayers(data || []))
   }, [])
 
   function togglePlayer(id) { setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]) }
