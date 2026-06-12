@@ -156,8 +156,8 @@ function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
   async function save() {
     setLoading(true)
     const { data: ps, error } = await supabase.from('coach_payslips')
-      .upsert([{ player_id: mister.id, ...form }], { onConflict: 'player_id,month,year' })
-      .select().single()
+  .upsert([{ player_id: mister.id, club_id: profile?.club_id, ...form }], { onConflict: 'player_id,month,year' })
+  .select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
     await supabase.from('notifications').insert([{
       user_id: mister.id, type: 'payslip_generated',
