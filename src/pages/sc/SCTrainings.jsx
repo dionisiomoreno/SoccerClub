@@ -1,24 +1,27 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { Plus, Edit2, Trash2, X, Dumbbell, MapPin, Clock } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Dumbbell, MapPin, Clock, RefreshCw, Settings } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, getDay } from 'date-fns'
 import { it } from 'date-fns/locale'
 import clsx from 'clsx'
 
+const GIORNI = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica']
+
+// ── Modal allenamento singolo ─────────────────────────────────
 function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
   const isEdit = !!training?.id
   const [venues, setVenues] = useState([])
- const [form, setForm] = useState({
-  titolo: 'Allenamento',
-  data: format(new Date(), 'yyyy-MM-dd'),
-  ora_inizio: '17:00',
-  ora_fine: '19:00',
-  venue_id: '',
-  note: '',
-  ...training,
-})
+  const [form, setForm] = useState({
+    titolo: 'Allenamento',
+    data: format(new Date(), 'yyyy-MM-dd'),
+    ora_inizio: '17:00',
+    ora_fine: '19:00',
+    venue_id: '',
+    note: '',
+    ...training,
+  })
   const [loading, setLoading] = useState(false)
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
@@ -80,17 +83,13 @@ function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
             </div>
           </div>
-
-          {/* Struttura */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Struttura</label>
             <select value={form.venue_id} onChange={e => set('venue_id', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]">
               <option value="">— Seleziona struttura —</option>
               {venues.map(v => (
-                <option key={v.id} value={v.id}>
-                  {v.nome}{v.citta ? ` — ${v.citta}` : ''}
-                </option>
+                <option key={v.id} value={v.id}>{v.nome}{v.citta ? ` — ${v.citta}` : ''}</option>
               ))}
             </select>
             {selectedVenue && (
@@ -103,7 +102,6 @@ function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
               </div>
             )}
           </div>
-
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Note</label>
             <textarea value={form.note} onChange={e => set('note', e.target.value)} rows={3}
@@ -122,15 +120,125 @@ function TrainingModal({ training, onClose, onSaved, misterId, categoryId }) {
   )
 }
 
+// ── Modal template ricorrente SC ──────────────────────────────
+function TemplateModal({ template, onClose, onSaved, misterId, categoryId }) {
+  const isEdit = !!template?.id
+  const [venues, setVenues] = useState([])
+  const [form, setForm] = useState({
+    titolo: 'Allenamento',
+    giorno_settimana: 1,
+    ora_inizio: '17:00',
+    ora_fine: '19:00',
+    venue_id: '',
+    note: '',
+    ...template
+  })
+  const [loading, setLoading] = useState(false)
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  useEffect(() => {
+    supabase.from('venues').select('*').eq('active', true).order('nome')
+      .then(({ data }) => setVenues(data || []))
+  }, [])
+
+  async function save() {
+    setLoading(true)
+    const payload = {
+      titolo: form.titolo,
+      giorno_settimana: +form.giorno_settimana,
+      ora_inizio: form.ora_inizio || null,
+      ora_fine: form.ora_fine || null,
+      venue_id: form.venue_id || null,
+      note: form.note,
+      creato_da: misterId,
+      category_id: categoryId || null,
+      active: true,
+    }
+    const { error } = isEdit
+      ? await supabase.from('training_templates').update(payload).eq('id', template.id)
+      : await supabase.from('training_templates').insert([payload])
+    if (error) toast.error(error.message)
+    else { toast.success(isEdit ? 'Template aggiornato' : 'Template creato'); onSaved() }
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md">
+        <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
+          <h2 className="text-[#2f4050] font-bold">{isEdit ? 'Modifica' : 'Nuovo'} Allenamento Fisso</h2>
+          <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="bg-green-50 border border-green-200 rounded p-3 text-xs text-green-700">
+            💡 Gli allenamenti fissi vengono generati automaticamente ogni mese per il giorno selezionato.
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Titolo</label>
+            <input value={form.titolo} onChange={e=>set('titolo',e.target.value)}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Giorno della settimana</label>
+            <select value={form.giorno_settimana} onChange={e=>set('giorno_settimana',+e.target.value)}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]">
+              {GIORNI.map((g, i) => <option key={i} value={i}>{g}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ora inizio</label>
+              <input type="time" value={form.ora_inizio} onChange={e=>set('ora_inizio',e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ora fine</label>
+              <input type="time" value={form.ora_fine} onChange={e=>set('ora_fine',e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Struttura</label>
+            <select value={form.venue_id} onChange={e=>set('venue_id',e.target.value)}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]">
+              <option value="">— Seleziona struttura —</option>
+              {venues.map(v => (
+                <option key={v.id} value={v.id}>{v.nome}{v.citta ? ` — ${v.citta}` : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Note</label>
+            <textarea value={form.note} onChange={e=>set('note',e.target.value)} rows={2}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#27ae60] resize-none"/>
+          </div>
+        </div>
+        <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
+          <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
+          <button onClick={save} disabled={loading}
+            className="flex-1 bg-[#27ae60] hover:bg-[#229954] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
+            {loading ? 'Salvataggio...' : 'Salva'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Componente principale ─────────────────────────────────────
 export default function SCTrainings() {
   const { profile, isAdmin, isSegreteria, isMister } = useAuth()
-  const [trainings, setTrainings] = useState([])
-  const [categories, setCategories] = useState([])
+  const [trainings, setTrainings]           = useState([])
+  const [templates, setTemplates]           = useState([])
+  const [categories, setCategories]         = useState([])
   const [filterCategory, setFilterCategory] = useState(profile?.category_id || '')
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDay, setSelectedDay] = useState(null)
-  const [modal, setModal] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [currentDate, setCurrentDate]       = useState(new Date())
+  const [selectedDay, setSelectedDay]       = useState(null)
+  const [modal, setModal]                   = useState(null)
+  const [templateModal, setTemplateModal]   = useState(null)
+  const [showTemplates, setShowTemplates]   = useState(false)
+  const [loading, setLoading]               = useState(true)
+  const [generating, setGenerating]         = useState(false)
 
   const isMisterSC = isMister && !!profile?.category_id
   const effectiveCategoryId = isMisterSC ? profile.category_id : filterCategory
@@ -143,28 +251,76 @@ export default function SCTrainings() {
   }, [])
 
   useEffect(() => { load() }, [currentDate, effectiveCategoryId])
+  useEffect(() => { loadTemplates() }, [effectiveCategoryId])
 
   async function load() {
     setLoading(true)
     const start = startOfMonth(currentDate).toISOString().split('T')[0]
-    const end = endOfMonth(currentDate).toISOString().split('T')[0]
+    const end   = endOfMonth(currentDate).toISOString().split('T')[0]
 
     let q = supabase.from('trainings')
       .select('*, profiles(nome,cognome), categories(nome,colore), venues(nome,indirizzo,citta,lat,lng,raggio_timbratura)')
       .gte('data', start).lte('data', end)
       .order('data').order('ora_inizio')
 
-    if (isMisterSC) {
-      q = q.eq('creato_da', profile.id)
-    } else if (effectiveCategoryId) {
-      q = q.eq('category_id', effectiveCategoryId)
-    } else {
-      q = q.not('category_id', 'is', null)
-    }
+    if (isMisterSC) q = q.eq('creato_da', profile.id)
+    else if (effectiveCategoryId) q = q.eq('category_id', effectiveCategoryId)
+    else q = q.not('category_id', 'is', null)
 
     const { data } = await q
     setTrainings(data || [])
     setLoading(false)
+  }
+
+  async function loadTemplates() {
+    let q = supabase.from('training_templates')
+      .select('*, venues(nome,citta)')
+      .eq('active', true)
+      .order('giorno_settimana')
+    if (isMisterSC) q = q.eq('creato_da', profile.id)
+    else if (effectiveCategoryId) q = q.eq('category_id', effectiveCategoryId)
+    const { data } = await q
+    setTemplates(data || [])
+  }
+
+  async function generateFromTemplates() {
+    if (templates.length === 0) return toast.error('Nessun template configurato')
+    setGenerating(true)
+
+    const start = startOfMonth(currentDate)
+    const end   = endOfMonth(currentDate)
+    const days  = eachDayOfInterval({ start, end })
+
+    let created = 0
+    for (const tmpl of templates) {
+      const targetDayJS = tmpl.giorno_settimana === 6 ? 0 : tmpl.giorno_settimana + 1
+      for (const day of days) {
+        if (getDay(day) !== targetDayJS) continue
+        const dataStr = format(day, 'yyyy-MM-dd')
+        const { count } = await supabase.from('trainings')
+          .select('id', { count: 'exact' })
+          .eq('data', dataStr)
+          .eq('creato_da', profile.id)
+          .eq('category_id', tmpl.category_id)
+        if (count > 0) continue
+        await supabase.from('trainings').insert([{
+          titolo:      tmpl.titolo,
+          data:        dataStr,
+          ora_inizio:  tmpl.ora_inizio,
+          ora_fine:    tmpl.ora_fine,
+          venue_id:    tmpl.venue_id,
+          note:        tmpl.note,
+          creato_da:   profile.id,
+          category_id: tmpl.category_id,
+        }])
+        created++
+      }
+    }
+
+    if (created === 0) toast('Tutti gli allenamenti erano già presenti', { icon: 'ℹ️' })
+    else toast.success(`${created} allenamenti generati!`)
+    setGenerating(false)
+    load()
   }
 
   async function deleteTraining(id) {
@@ -174,20 +330,18 @@ export default function SCTrainings() {
     load()
   }
 
-  const days = eachDayOfInterval({
-    start: startOfMonth(currentDate),
-    end: endOfMonth(currentDate)
-  })
+  async function deleteTemplate(id) {
+    if (!confirm('Eliminare questo template ricorrente?')) return
+    await supabase.from('training_templates').update({ active: false }).eq('id', id)
+    toast.success('Template eliminato')
+    loadTemplates()
+  }
 
+  const days = eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) })
   const firstDayOfMonth = getDay(startOfMonth(currentDate))
   const emptyDays = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1
-
-  const selectedDayTrainings = selectedDay
-    ? trainings.filter(t => isSameDay(new Date(t.data), selectedDay))
-    : []
-
+  const selectedDayTrainings = selectedDay ? trainings.filter(t => isSameDay(new Date(t.data), selectedDay)) : []
   const canEdit = isAdmin || isSegreteria || isMister
-
   const currentCat = categories.find(c => c.id === effectiveCategoryId)
   const catColor = currentCat?.colore || '#27ae60'
 
@@ -197,29 +351,84 @@ export default function SCTrainings() {
         <div>
           <h1 className="text-2xl font-bold text-[#2f4050]">Allenamenti SC</h1>
           <p className="text-sm text-[#999] mt-1">
-            {isMisterSC
-              ? `Categoria: ${profile?.categories?.nome || '...'}`
-              : 'Calendario allenamenti Scuola Calcio'}
+            {isMisterSC ? `Categoria: ${profile?.categories?.nome || '...'}` : 'Calendario allenamenti Scuola Calcio'}
           </p>
         </div>
         {canEdit && (
-          <button
-            onClick={() => setModal({ data: selectedDay ? format(selectedDay, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd') })}
-            className="flex items-center gap-2 text-white px-4 py-2 rounded text-sm font-semibold"
-            style={{ background: catColor }}>
-            <Plus size={16}/> Nuovo
-          </button>
+          <div className="flex gap-2">
+            <button onClick={generateFromTemplates} disabled={generating}
+              className="flex items-center gap-2 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
+              <RefreshCw size={14} className={generating ? 'animate-spin' : ''}/>
+              Genera mese
+            </button>
+            <button onClick={() => setShowTemplates(s => !s)}
+              className={clsx('flex items-center gap-2 border px-3 py-2 rounded text-sm',
+                showTemplates ? 'text-white' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}
+              style={showTemplates ? { background: catColor, borderColor: catColor } : {}}>
+              <Settings size={14}/> Template fissi
+            </button>
+            <button
+              onClick={() => setModal({ data: selectedDay ? format(selectedDay, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd') })}
+              className="flex items-center gap-2 text-white px-4 py-2 rounded text-sm font-semibold"
+              style={{ background: catColor }}>
+              <Plus size={16}/> Nuovo
+            </button>
+          </div>
         )}
       </div>
+
+      {/* ── Sezione template fissi ── */}
+      {showTemplates && canEdit && (
+        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide">⚙️ Allenamenti Fissi</h3>
+            <button onClick={() => setTemplateModal({})}
+              className="flex items-center gap-1 text-xs text-white px-3 py-1.5 rounded font-semibold"
+              style={{ background: catColor }}>
+              <Plus size={12}/> Aggiungi giorno fisso
+            </button>
+          </div>
+          {templates.length === 0 ? (
+            <p className="text-xs text-[#999]">Nessun allenamento fisso configurato.</p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map(t => (
+                <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 border border-[#e7eaec] rounded">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                      style={{ background: catColor }}>
+                      {GIORNI[t.giorno_settimana]?.slice(0,2)}
+                    </div>
+                    <div>
+                      <div className="text-[#2f4050] font-medium text-sm">
+                        {GIORNI[t.giorno_settimana]} — {t.titolo}
+                      </div>
+                      <div className="text-xs text-[#999]">
+                        {t.ora_inizio?.slice(0,5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0,5)}` : ''}
+                        {t.venues && ` @ ${t.venues.nome}`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setTemplateModal(t)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={14}/></button>
+                    <button onClick={() => deleteTemplate(t.id)} className="text-[#999] hover:text-red-500"><Trash2 size={14}/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-[#999] border-t border-[#e7eaec] pt-2">
+            💡 Clicca <strong>"Genera mese"</strong> per creare automaticamente gli allenamenti del mese corrente.
+          </p>
+        </div>
+      )}
 
       {/* Filtro categoria — solo admin/segreteria */}
       {(isAdmin || isSegreteria) && (
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setFilterCategory('')}
             className={clsx('px-3 py-1.5 rounded text-xs font-medium border transition-colors',
-              !effectiveCategoryId
-                ? 'bg-[#27ae60] text-white border-[#27ae60]'
-                : 'border-[#e7eaec] text-[#676a6c] hover:border-[#27ae60]')}>
+              !effectiveCategoryId ? 'bg-[#27ae60] text-white border-[#27ae60]' : 'border-[#e7eaec] text-[#676a6c] hover:border-[#27ae60]')}>
             Tutte
           </button>
           {categories.map(c => (
@@ -236,16 +445,12 @@ export default function SCTrainings() {
       {/* Navigazione mese */}
       <div className="flex items-center justify-between bg-white border border-[#e7eaec] rounded shadow-sm px-4 py-3">
         <button onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">
-          ← Prec
-        </button>
+          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">← Prec</button>
         <h2 className="text-[#2f4050] font-bold capitalize">
           {format(currentDate, 'MMMM yyyy', { locale: it })}
         </h2>
         <button onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">
-          Succ →
-        </button>
+          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">Succ →</button>
       </div>
 
       {/* Calendario */}
@@ -331,7 +536,6 @@ export default function SCTrainings() {
                           {t.ora_inizio?.slice(0, 5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0, 5)}` : ''}
                         </div>
                       )}
-                      {/* Struttura */}
                       {t.venues && (
                         <div className="flex items-center gap-1 text-xs mt-0.5">
                           <MapPin size={11} className="text-[#999]"/>
@@ -362,6 +566,7 @@ export default function SCTrainings() {
         </div>
       )}
 
+      {/* Modali */}
       {modal !== null && (
         <TrainingModal
           training={modal}
@@ -369,6 +574,15 @@ export default function SCTrainings() {
           categoryId={effectiveCategoryId}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load() }}
+        />
+      )}
+      {templateModal !== null && (
+        <TemplateModal
+          template={templateModal}
+          misterId={profile.id}
+          categoryId={effectiveCategoryId}
+          onClose={() => setTemplateModal(null)}
+          onSaved={() => { setTemplateModal(null); loadTemplates() }}
         />
       )}
     </div>
