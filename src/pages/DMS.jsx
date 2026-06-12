@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import {
   Folder, FolderPlus, FileText, Upload, Trash2, Download,
-  X, Edit2, Plus, AlertTriangle, Search, Tag, Calendar,
-  ChevronRight, Home, Lock, Users, User
+  X, Edit2, Search, Tag, Calendar, AlertTriangle,
+  ChevronRight, Home, Lock, Users, User, Filter
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, differenceInDays } from 'date-fns'
@@ -13,9 +13,11 @@ import clsx from 'clsx'
 
 // ── Costanti ──────────────────────────────────────────────────
 const PERMESSI = {
-  admin_only: { label: 'Solo Admin',       icon: Lock,  color: 'bg-red-100 text-red-600' },
-  mister:     { label: 'Admin + Mister',   icon: Users, color: 'bg-blue-100 text-blue-600' },
-  players:    { label: 'Staff + Calciatori', icon: User, color: 'bg-green-100 text-green-600' },
+  admin_only:     { label: 'Solo Admin',            icon: Lock,  color: 'bg-red-100 text-red-600' },
+  mister:         { label: 'Admin + Mister',        icon: Users, color: 'bg-blue-100 text-blue-600' },
+  players:        { label: 'Staff + Calciatori',    icon: User,  color: 'bg-green-100 text-green-600' },
+  parent:         { label: 'Genitori',              icon: Users, color: 'bg-orange-100 text-orange-600' },
+  players_parent: { label: 'Calciatori + Genitori', icon: Users, color: 'bg-purple-100 text-purple-600' },
 }
 
 const COLORI_PRESET = [
@@ -23,7 +25,6 @@ const COLORI_PRESET = [
   '#9b59b6','#27ae60','#e74c3c','#2c3e50',
 ]
 
-// ── Helpers ───────────────────────────────────────────────────
 function formatBytes(bytes) {
   if (!bytes) return '—'
   if (bytes < 1024) return `${bytes} B`
@@ -68,32 +69,27 @@ function FolderModal({ folder, onClose, onSaved }) {
     setLoading(false)
   }
 
-  const ICONE = ['📁','📂','📄','📋','🪪','🏥','📝','⚽','🏆','💼','🔒','📊','🖊️','📌']
+  const ICONE = ['📁','📂','📄','📋','🪪','🏥','📝','⚽','🏆','💼','🔒','📊','🖊️','📌','🏫']
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
           <h2 className="text-[#2f4050] font-bold">{isEdit ? 'Modifica' : 'Nuova'} Cartella</h2>
           <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
         </div>
         <div className="p-4 space-y-3">
-          {/* Nome */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome *</label>
             <input value={form.nome} onChange={e => set('nome', e.target.value)}
               placeholder="Es. Contratti Mister"
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
-
-          {/* Descrizione */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Descrizione</label>
             <input value={form.descrizione || ''} onChange={e => set('descrizione', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
-
-          {/* Icona */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Icona</label>
             <div className="flex flex-wrap gap-2">
@@ -106,8 +102,6 @@ function FolderModal({ folder, onClose, onSaved }) {
               ))}
             </div>
           </div>
-
-          {/* Colore */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Colore</label>
             <div className="flex gap-2 flex-wrap">
@@ -119,8 +113,6 @@ function FolderModal({ folder, onClose, onSaved }) {
               ))}
             </div>
           </div>
-
-          {/* Permesso */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Permessi accesso</label>
             <div className="space-y-2">
@@ -129,27 +121,26 @@ function FolderModal({ folder, onClose, onSaved }) {
                   style={form.permesso === val ? { borderColor: '#1ab394', background: '#1ab39410' } : { borderColor: '#e7eaec' }}>
                   <input type="radio" checked={form.permesso === val}
                     onChange={() => set('permesso', val)} className="accent-[#1ab394]"/>
-                  <div className={clsx('px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1', color)}>
+                  <div className={clsx('px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 flex-shrink-0', color)}>
                     <Icon size={11}/> {label}
                   </div>
                   <span className="text-xs text-[#999]">
-                    {val === 'admin_only' && 'Solo la società può vedere e caricare'}
-                    {val === 'mister' && 'Admin e mister possono vedere e caricare'}
-                    {val === 'players' && 'Calciatori vedono solo i propri file'}
+                    {val === 'admin_only'     && 'Solo la società'}
+                    {val === 'mister'         && 'Admin e mister (no calciatori)'}
+                    {val === 'players'        && 'Admin + calciatori (solo i propri file)'}
+                    {val === 'parent'         && 'Admin + genitori (solo file del figlio)'}
+                    {val === 'players_parent' && 'Admin + calciatori + genitori'}
                   </span>
                 </label>
               ))}
             </div>
           </div>
-
-          {/* Ordine */}
           <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ordine visualizzazione</label>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ordine</label>
             <input type="number" min="1" value={form.ordine}
               onChange={e => set('ordine', +e.target.value)}
               className="w-24 border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
-
           {/* Anteprima */}
           <div className="rounded p-3 flex items-center gap-3 border"
             style={{ background: form.colore + '15', borderColor: form.colore + '40' }}>
@@ -175,10 +166,12 @@ function FolderModal({ folder, onClose, onSaved }) {
 // ── Modal Carica Documento ────────────────────────────────────
 function UploadModal({ folder, onClose, onSaved }) {
   const { profile, club, isAdmin } = useAuth()
+  const isParent = profile?.role === 'parent'
   const fileRef = useRef()
   const [form, setForm] = useState({
     nome: '', descrizione: '', scadenza: '', tags: '',
-    owner_id: (folder.permesso === 'players' && !isAdmin) ? profile?.id : ''
+    owner_id: (isParent || (!isAdmin && ['players','players_parent'].includes(folder.permesso)))
+      ? profile?.id : ''
   })
   const [file, setFile] = useState(null)
   const [dragging, setDragging] = useState(false)
@@ -186,9 +179,8 @@ function UploadModal({ folder, onClose, onSaved }) {
   const [players, setPlayers] = useState([])
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
-  // Se cartella players e admin, permette di scegliere il calciatore
   useEffect(() => {
-    if (isAdmin && folder.permesso === 'players') {
+    if (isAdmin && ['players','players_parent','parent'].includes(folder.permesso)) {
       supabase.from('profiles').select('id,nome,cognome')
         .in('role', ['player_paid','player_volunteer']).eq('active', true).order('cognome')
         .then(({ data }) => setPlayers(data || []))
@@ -196,31 +188,28 @@ function UploadModal({ folder, onClose, onSaved }) {
   }, [])
 
   async function upload() {
-    if (!file) return toast.error('Seleziona un file')
+    if (!file)      return toast.error('Seleziona un file')
     if (!form.nome) return toast.error('Inserisci un nome')
     setUploading(true)
-
-    const ext = file.name.split('.').pop()
+    const ext  = file.name.split('.').pop()
     const path = `dms/${profile?.club_id || club?.id}/${folder.id}/${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage.from('soccerclub').upload(path, file)
     if (upErr) { toast.error(upErr.message); setUploading(false); return }
-
     const { data: { publicUrl } } = supabase.storage.from('soccerclub').getPublicUrl(path)
     const { error } = await supabase.from('dms_documents').insert([{
-      club_id: club?.id || profile?.club_id,
-      folder_id: folder.id,
-      nome: form.nome,
+      club_id:     club?.id || profile?.club_id,
+      folder_id:   folder.id,
+      nome:        form.nome,
       descrizione: form.descrizione || null,
-      file_url: publicUrl,
-      file_path: path,
-      file_size: file.size,
-      file_type: file.type,
-      scadenza: form.scadenza || null,
-      tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : null,
-      owner_id: form.owner_id || null,
-      created_by: profile?.id,
+      file_url:    publicUrl,
+      file_path:   path,
+      file_size:   file.size,
+      file_type:   file.type,
+      scadenza:    form.scadenza || null,
+      tags:        form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : null,
+      owner_id:    form.owner_id || null,
+      created_by:  profile?.id,
     }])
-
     if (error) { toast.error(error.message); setUploading(false); return }
     toast.success('Documento caricato!')
     onSaved()
@@ -263,22 +252,19 @@ function UploadModal({ folder, onClose, onSaved }) {
               if (f) { setFile(f); if (!form.nome) set('nome', f.name.replace(/\.[^.]+$/, '')) }
             }}/>
 
-          {/* Nome */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome documento *</label>
             <input value={form.nome} onChange={e => set('nome', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
-
-          {/* Descrizione */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Descrizione</label>
             <textarea value={form.descrizione} onChange={e => set('descrizione', e.target.value)}
               rows={2} className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] resize-none"/>
           </div>
 
-          {/* Assegna a calciatore (solo admin + cartella players) */}
-          {isAdmin && folder.permesso === 'players' && (
+          {/* Assegna a calciatore — solo admin + cartella players/parent */}
+          {isAdmin && ['players','players_parent','parent'].includes(folder.permesso) && (
             <div>
               <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
                 Assegna a calciatore <span className="text-[#999] font-normal">(lascia vuoto = tutti)</span>
@@ -291,7 +277,6 @@ function UploadModal({ folder, onClose, onSaved }) {
             </div>
           )}
 
-          {/* Scadenza */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
               <Calendar size={12} className="inline mr-1"/>Scadenza documento
@@ -299,8 +284,6 @@ function UploadModal({ folder, onClose, onSaved }) {
             <input type="date" value={form.scadenza} onChange={e => set('scadenza', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
-
-          {/* Tags */}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
               <Tag size={12} className="inline mr-1"/>Tag <span className="font-normal">(separati da virgola)</span>
@@ -323,26 +306,32 @@ function UploadModal({ folder, onClose, onSaved }) {
 }
 
 // ── Componente principale DMS ─────────────────────────────────
-export default function DMS() {
-  const { profile, isAdmin, isMister } = useAuth()
+export default function DMS({ modulo = 'ps' }) {
+  const { profile, isAdmin, isMister, club } = useAuth()
   const isPlayer = ['player_paid','player_volunteer'].includes(profile?.role)
+  const isParent = profile?.role === 'parent'
+  const isSegreteria = profile?.role === 'segreteria'
 
-  const [folders,       setFolders]       = useState([])
-  const [activeFolder,  setActiveFolder]  = useState(null)
-  const [documents,     setDocuments]     = useState([])
-  const [search,        setSearch]        = useState('')
-  const [folderModal,   setFolderModal]   = useState(null)
-  const [uploadModal,   setUploadModal]   = useState(null)
-  const [loading,       setLoading]       = useState(true)
-  const [docsLoading,   setDocsLoading]   = useState(false)
+  const [folders,      setFolders]      = useState([])
+  const [activeFolder, setActiveFolder] = useState(null)
+  const [documents,    setDocuments]    = useState([])
+  const [search,       setSearch]       = useState('')
+  const [filterPerm,   setFilterPerm]   = useState('')
+  const [folderModal,  setFolderModal]  = useState(null)
+  const [uploadModal,  setUploadModal]  = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [docsLoading,  setDocsLoading]  = useState(false)
 
-  useEffect(() => { loadFolders() }, [])
+  useEffect(() => { loadFolders() }, [modulo])
   useEffect(() => { if (activeFolder) loadDocuments(activeFolder.id) }, [activeFolder])
 
   async function loadFolders() {
     setLoading(true)
-    const { data } = await supabase.from('dms_folders')
-      .select('*').order('ordine').order('nome')
+    let q = supabase.from('dms_folders').select('*').order('ordine').order('nome')
+    // Filtra per modulo: cartelle SC iniziano con "SC -"
+    if (modulo === 'sc') q = q.ilike('nome', 'SC -%')
+    else                 q = q.not('nome', 'ilike', 'SC -%')
+    const { data } = await q
     setFolders(data || [])
     setLoading(false)
   }
@@ -350,7 +339,7 @@ export default function DMS() {
   async function loadDocuments(folderId) {
     setDocsLoading(true)
     const { data } = await supabase.from('dms_documents')
-      .select('*, profiles!dms_documents_created_by_fkey(nome,cognome), owner:profiles!dms_documents_owner_id_fkey(nome,cognome)')
+      .select('*, uploader:profiles!dms_documents_created_by_fkey(nome,cognome), owner:profiles!dms_documents_owner_id_fkey(nome,cognome)')
       .eq('folder_id', folderId)
       .order('created_at', { ascending: false })
     setDocuments(data || [])
@@ -359,11 +348,8 @@ export default function DMS() {
 
   async function deleteFolder(id) {
     if (!confirm('Eliminare la cartella e tutti i suoi documenti?')) return
-    // Elimina file da storage
     const { data: docs } = await supabase.from('dms_documents').select('file_path').eq('folder_id', id)
-    if (docs?.length) {
-      await supabase.storage.from('soccerclub').remove(docs.map(d => d.file_path))
-    }
+    if (docs?.length) await supabase.storage.from('soccerclub').remove(docs.map(d => d.file_path))
     await supabase.from('dms_documents').delete().eq('folder_id', id)
     await supabase.from('dms_folders').delete().eq('id', id)
     toast.success('Cartella eliminata')
@@ -379,6 +365,21 @@ export default function DMS() {
     loadDocuments(activeFolder.id)
   }
 
+  // Chi può caricare in questa cartella
+  function canUpload(folder) {
+    if (!folder) return false
+    if (isAdmin || isSegreteria) return true
+    if (isMister && folder.permesso === 'mister') return true
+    if (isPlayer && ['players','players_parent'].includes(folder.permesso)) return true
+    if (isParent && ['parent','players_parent'].includes(folder.permesso)) return true
+    return false
+  }
+
+  // Filtra cartelle per permesso (filtro UI)
+  const visibleFolders = folders.filter(f =>
+    !filterPerm || f.permesso === filterPerm
+  )
+
   // Filtra documenti per search
   const filteredDocs = documents.filter(d => {
     const q = search.toLowerCase()
@@ -390,24 +391,14 @@ export default function DMS() {
       || d.owner?.nome?.toLowerCase().includes(q)
   })
 
-  // Documenti in scadenza
   const expiringDocs = documents.filter(d => {
     if (!d.scadenza) return false
     const days = differenceInDays(new Date(d.scadenza), new Date())
     return days >= 0 && days <= 30
   })
-  const expiredDocs = documents.filter(d => {
-    if (!d.scadenza) return false
-    return differenceInDays(new Date(d.scadenza), new Date()) < 0
-  })
-
-  const canUpload = (folder) => {
-    if (!folder) return false
-    if (isAdmin) return true
-    if (isMister && folder.permesso === 'mister') return true
-    if (isPlayer && folder.permesso === 'players') return true
-    return false
-  }
+  const expiredDocs = documents.filter(d =>
+    d.scadenza && differenceInDays(new Date(d.scadenza), new Date()) < 0
+  )
 
   return (
     <div className="space-y-4">
@@ -415,7 +406,9 @@ export default function DMS() {
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#2f4050]">Documenti</h1>
-          <p className="text-sm text-[#999] mt-1">Archivio documenti della società</p>
+          <p className="text-sm text-[#999] mt-1">
+            {modulo === 'sc' ? 'Archivio documenti Scuola Calcio' : 'Archivio documenti Prima Squadra'}
+          </p>
         </div>
         {isAdmin && (
           <button onClick={() => setFolderModal({})}
@@ -428,16 +421,27 @@ export default function DMS() {
       <div className="flex gap-4 min-h-[600px]">
         {/* ── Sidebar cartelle ── */}
         <div className="w-64 flex-shrink-0 space-y-1">
-          {/* Tutti i documenti */}
-          <button
-            onClick={() => setActiveFolder(null)}
+          <button onClick={() => { setActiveFolder(null); setSearch('') }}
             className={clsx('w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors',
               !activeFolder ? 'bg-[#1ab394] text-white' : 'text-[#676a6c] hover:bg-gray-100')}>
             <Home size={16}/>
             <span className="font-medium">Tutte le cartelle</span>
           </button>
 
-          <div className="pt-1 pb-1">
+          {/* Filtro permesso — solo admin */}
+          {isAdmin && (
+            <div className="pt-2 pb-1 px-1">
+              <select value={filterPerm} onChange={e => setFilterPerm(e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]">
+                <option value="">Tutti i permessi</option>
+                {Object.entries(PERMESSI).map(([v, { label }]) => (
+                  <option key={v} value={v}>{label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="pt-1">
             <div className="text-xs font-semibold text-[#999] uppercase tracking-wide px-3 mb-1">Cartelle</div>
           </div>
 
@@ -445,31 +449,30 @@ export default function DMS() {
             <div className="flex items-center justify-center h-20">
               <div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
             </div>
-          ) : folders.length === 0 ? (
+          ) : visibleFolders.length === 0 ? (
             <div className="text-center text-[#999] text-xs py-6 px-3">
               {isAdmin ? 'Nessuna cartella. Creane una!' : 'Nessuna cartella disponibile.'}
             </div>
-          ) : folders.map(f => {
-            const P = PERMESSI[f.permesso]
+          ) : visibleFolders.map(f => {
+            const P = PERMESSI[f.permesso] || PERMESSI.admin_only
             const isActive = activeFolder?.id === f.id
             return (
               <div key={f.id}
                 className={clsx('group relative rounded transition-colors',
                   isActive ? 'bg-gray-100' : 'hover:bg-gray-50')}>
-                <button
-                  onClick={() => setActiveFolder(f)}
+                <button onClick={() => { setActiveFolder(f); setSearch('') }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
                   <span className="text-xl flex-shrink-0">{f.icona}</span>
                   <div className="flex-1 min-w-0">
                     <div className={clsx('text-sm font-medium truncate', isActive ? 'text-[#2f4050]' : 'text-[#676a6c]')}>
-                      {f.nome}
+                      {/* Rimuovi prefisso "SC - " nella sidebar SC */}
+                      {modulo === 'sc' ? f.nome.replace(/^SC - /, '') : f.nome}
                     </div>
                     <div className={clsx('text-xs px-1.5 py-0.5 rounded w-fit mt-0.5', P.color)}>
                       {P.label}
                     </div>
                   </div>
                 </button>
-                {/* Azioni admin */}
                 {isAdmin && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-1">
                     <button onClick={() => setFolderModal(f)}
@@ -490,16 +493,15 @@ export default function DMS() {
         {/* ── Area documenti ── */}
         <div className="flex-1 min-w-0">
           {!activeFolder ? (
-            /* Vista: tutte le cartelle */
             <div className="space-y-3">
               <div className="text-sm font-semibold text-[#2f4050]">
-                {folders.length} cartell{folders.length === 1 ? 'a' : 'e'} disponibil{folders.length === 1 ? 'e' : 'i'}
+                {visibleFolders.length} cartell{visibleFolders.length === 1 ? 'a' : 'e'} disponibil{visibleFolders.length === 1 ? 'e' : 'i'}
               </div>
               {loading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
                 </div>
-              ) : folders.length === 0 ? (
+              ) : visibleFolders.length === 0 ? (
                 <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-16 text-center">
                   <Folder size={48} className="mx-auto text-[#999] mb-4 opacity-50"/>
                   <p className="text-[#999]">Nessuna cartella disponibile</p>
@@ -512,10 +514,10 @@ export default function DMS() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {folders.map(f => {
-                    const P = PERMESSI[f.permesso]
+                  {visibleFolders.map(f => {
+                    const P = PERMESSI[f.permesso] || PERMESSI.admin_only
                     return (
-                      <button key={f.id} onClick={() => setActiveFolder(f)}
+                      <button key={f.id} onClick={() => { setActiveFolder(f); setSearch('') }}
                         className="bg-white border border-[#e7eaec] rounded shadow-sm p-5 text-left hover:shadow-md hover:border-[#1ab394]/40 transition-all group">
                         <div className="flex items-start justify-between mb-3">
                           <span className="text-3xl">{f.icona}</span>
@@ -523,11 +525,12 @@ export default function DMS() {
                             {P.label}
                           </span>
                         </div>
-                        <div className="font-semibold text-[#2f4050] text-sm mb-1">{f.nome}</div>
+                        <div className="font-semibold text-[#2f4050] text-sm mb-1">
+                          {modulo === 'sc' ? f.nome.replace(/^SC - /, '') : f.nome}
+                        </div>
                         {f.descrizione && <div className="text-xs text-[#999] line-clamp-2">{f.descrizione}</div>}
                         <div className="flex items-center gap-1 mt-3 text-xs text-[#1ab394] opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span>Apri</span>
-                          <ChevronRight size={12}/>
+                          <span>Apri</span><ChevronRight size={12}/>
                         </div>
                       </button>
                     )
@@ -536,16 +539,16 @@ export default function DMS() {
               )}
             </div>
           ) : (
-            /* Vista: documenti nella cartella */
             <div className="space-y-3">
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm">
-                <button onClick={() => setActiveFolder(null)} className="text-[#999] hover:text-[#1ab394] flex items-center gap-1">
+                <button onClick={() => { setActiveFolder(null); setSearch('') }}
+                  className="text-[#999] hover:text-[#1ab394] flex items-center gap-1">
                   <Home size={14}/> Documenti
                 </button>
                 <ChevronRight size={14} className="text-[#999]"/>
                 <span className="text-[#2f4050] font-semibold flex items-center gap-1">
-                  {activeFolder.icona} {activeFolder.nome}
+                  {activeFolder.icona} {modulo === 'sc' ? activeFolder.nome.replace(/^SC - /, '') : activeFolder.nome}
                 </span>
               </div>
 
@@ -553,7 +556,7 @@ export default function DMS() {
               {(expiredDocs.length > 0 || expiringDocs.length > 0) && (
                 <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">
                   <AlertTriangle size={15}/>
-                  {expiredDocs.length > 0 && <span><strong>{expiredDocs.length}</strong> documento/i scaduto/i.</span>}
+                  {expiredDocs.length > 0  && <span><strong>{expiredDocs.length}</strong> documento/i scaduto/i.</span>}
                   {expiringDocs.length > 0 && <span><strong>{expiringDocs.length}</strong> in scadenza entro 30 giorni.</span>}
                 </div>
               )}
@@ -583,7 +586,7 @@ export default function DMS() {
                 <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-12 text-center">
                   <FileText size={36} className="mx-auto text-[#999] mb-3 opacity-50"/>
                   <p className="text-[#999] text-sm">
-                    {search ? 'Nessun documento trovato per la ricerca.' : 'Nessun documento in questa cartella.'}
+                    {search ? 'Nessun documento trovato.' : 'Nessun documento in questa cartella.'}
                   </p>
                   {canUpload(activeFolder) && !search && (
                     <button onClick={() => setUploadModal(activeFolder)}
@@ -605,7 +608,10 @@ export default function DMS() {
                     <tbody>
                       {filteredDocs.map(doc => {
                         const ext = doc.file_path?.split('.').pop()?.toLowerCase()
-                        const icon = ext === 'pdf' ? '📄' : ['jpg','jpeg','png'].includes(ext) ? '🖼️' : ['doc','docx'].includes(ext) ? '📝' : ['xls','xlsx'].includes(ext) ? '📊' : '📁'
+                        const icon = ext === 'pdf' ? '📄'
+                          : ['jpg','jpeg','png'].includes(ext) ? '🖼️'
+                          : ['doc','docx'].includes(ext) ? '📝'
+                          : ['xls','xlsx'].includes(ext) ? '📊' : '📁'
                         const canDel = isAdmin || doc.created_by === profile?.id
                         return (
                           <tr key={doc.id} className="border-b border-[#e7eaec] hover:bg-gray-50 transition-colors">
@@ -623,10 +629,10 @@ export default function DMS() {
                               <span className="text-xs text-[#999] uppercase font-mono">{ext || '—'}</span>
                             </td>
                             <td className="px-4 py-3 text-xs text-[#999]">
-                              {doc.owner ? `${doc.owner.cognome} ${doc.owner.nome}` : <span className="text-[#999]">—</span>}
+                              {doc.owner ? `${doc.owner.cognome} ${doc.owner.nome}` : '—'}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 flex-wrap">
                                 {doc.scadenza && <span className="text-xs text-[#999]">{format(new Date(doc.scadenza), 'dd/MM/yyyy')}</span>}
                                 <ExpiryBadge date={doc.scadenza}/>
                               </div>
@@ -639,7 +645,7 @@ export default function DMS() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-xs text-[#999]">
-                              {doc.profiles ? `${doc.profiles.nome} ${doc.profiles.cognome}` : '—'}
+                              {doc.uploader ? `${doc.uploader.nome} ${doc.uploader.cognome}` : '—'}
                               <div className="text-xs text-[#999] mt-0.5">
                                 {format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: it })}
                               </div>
@@ -647,7 +653,7 @@ export default function DMS() {
                             <td className="px-4 py-3">
                               <div className="flex gap-2">
                                 <a href={doc.file_url} target="_blank" rel="noreferrer"
-                                  className="text-[#999] hover:text-[#1ab394]" title="Scarica/Apri">
+                                  className="text-[#999] hover:text-[#1ab394]" title="Apri/Scarica">
                                   <Download size={15}/>
                                 </a>
                                 {canDel && (
@@ -670,7 +676,6 @@ export default function DMS() {
         </div>
       </div>
 
-      {/* Modali */}
       {folderModal !== null && (
         <FolderModal folder={folderModal} onClose={() => setFolderModal(null)}
           onSaved={() => { setFolderModal(null); loadFolders() }}/>
