@@ -1,14 +1,4 @@
-
-// In cima al file, aggiungi useMemo all'import di React:
 import { useEffect, useRef, useState, useMemo } from 'react'
-
-// Poi nel componente Layout(), sostituisci:
-const theme = THEME[mode]
-
-// Con:
-const theme = useMemo(() => THEME[mode], [mode])
-
-import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -170,7 +160,7 @@ export default function Layout() {
   const [open,      setOpen]     = useState(false)
   const [modules,   setModules]  = useState({ modulo_prima_squadra: true, modulo_scuola_calcio: false })
   const [mode,      setMode]     = useState(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
-const theme = THEME[mode]   // ← aggiungi questa riga
+const theme = useMemo(() => THEME[mode], [mode])
 const [logoUrl,   setLogoUrl]  = useState(null)
   const [uploading, setUploading]= useState(false)
 
