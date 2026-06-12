@@ -1,3 +1,13 @@
+
+// In cima al file, aggiungi useMemo all'import di React:
+import { useEffect, useRef, useState, useMemo } from 'react'
+
+// Poi nel componente Layout(), sostituisci:
+const theme = THEME[mode]
+
+// Con:
+const theme = useMemo(() => THEME[mode], [mode])
+
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
