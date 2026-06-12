@@ -279,7 +279,7 @@ export default function Accounting({ modulo = 'ps' }) {
     setEntries(data || [])
     setLoading(false)
   }
-
+  
   async function loadChartData() {
     const months = Array.from({ length: 12 }, (_, i) => i)
     const rows = await Promise.all(months.map(async m => {
