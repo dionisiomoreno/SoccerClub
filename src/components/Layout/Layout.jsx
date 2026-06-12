@@ -160,7 +160,8 @@ export default function Layout() {
   const [open,      setOpen]     = useState(false)
   const [modules,   setModules]  = useState({ modulo_prima_squadra: true, modulo_scuola_calcio: false })
   const [mode,      setMode]     = useState(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
-  const [logoUrl,   setLogoUrl]  = useState(null)
+const theme = THEME[mode]   // ← aggiungi questa riga
+const [logoUrl,   setLogoUrl]  = useState(null)
   const [uploading, setUploading]= useState(false)
 
   const role          = profile?.role
