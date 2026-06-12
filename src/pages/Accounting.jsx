@@ -285,8 +285,9 @@ export default function Accounting({ modulo = 'ps' }) {
     const rows = await Promise.all(months.map(async m => {
       const start = startOfMonth(new Date(filterYear, m)).toISOString().split('T')[0]
       const end = endOfMonth(new Date(filterYear, m)).toISOString().split('T')[0]
-      const { data } = await supabase.from('accounting_entries')
-        .select('tipo, importo').gte('data', start).lte('data', end)
+     const { data } = await supabase.from('accounting_entries')
+  .select('tipo, importo').gte('data', start).lte('data', end)
+  .eq('modulo', modulo)
       const entrate = (data||[]).filter(e=>e.tipo==='entrata').reduce((s,e)=>s+(+e.importo),0)
       const uscite = (data||[]).filter(e=>e.tipo==='uscita').reduce((s,e)=>s+(+e.importo),0)
       return {
