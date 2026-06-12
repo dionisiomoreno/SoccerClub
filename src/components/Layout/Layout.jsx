@@ -221,7 +221,7 @@ const [logoUrl,   setLogoUrl]  = useState(null)
   const bothEnabled = modules.modulo_prima_squadra && modules.modulo_scuola_calcio
 
   async function handleLogout() { await signOut(); navigate('/login') }
-  function switchMode(m) { setMode(m); setOpen(false); navigate(m === 'sc' ? '/sc/atleti' : '/') }
+  function switchMode(m) { setMode(m); setOpen(false); navigate('/') }
 
   function groupedNav(items) {
     const result = []
