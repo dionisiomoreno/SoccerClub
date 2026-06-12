@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { Plus, Edit2, Trash2, X, Dumbbell, MapPin, Clock, RefreshCw, Settings } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, getDay, addDays } from 'date-fns'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, getDay } from 'date-fns'
 import { it } from 'date-fns/locale'
 import clsx from 'clsx'
 
@@ -13,6 +13,7 @@ const GIORNI = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'
 function TrainingModal({ training, onClose, onSaved, misterId }) {
   const isEdit = !!training?.id
   const [venues, setVenues] = useState([])
+  const [venueConflicts, setVenueConflicts] = useState([])
   const [form, setForm] = useState({
     titolo: 'Allenamento',
     data: format(new Date(), 'yyyy-MM-dd'),
@@ -26,20 +27,22 @@ function TrainingModal({ training, onClose, onSaved, misterId }) {
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   useEffect(() => {
-    supabase.from('venues').select('*').eq('active', true).order('nome').then(({ data }) => setVenues(data || []))
+    supabase.from('venues').select('*').eq('active', true).order('nome')
+      .then(({ data }) => setVenues(data || []))
   }, [])
 
-  const selectedVenue = venues.find(v => v.id === form.venue_id)
-
+  // Controlla conflitti struttura quando cambia data o venue
   useEffect(() => {
-  if (!form.venue_id || !form.data) { setVenueConflicts([]); return }
-  supabase.from('trainings')
-    .select('*, profiles(nome,cognome), categories(nome,colore)')
-    .eq('data', form.data)
-    .eq('venue_id', form.venue_id)
-    .neq('id', form.id || '00000000-0000-0000-0000-000000000000')
-    .then(({ data }) => setVenueConflicts(data || []))
-}, [form.venue_id, form.data])
+    if (!form.venue_id || !form.data) { setVenueConflicts([]); return }
+    supabase.from('trainings')
+      .select('*, profiles(nome,cognome), categories(nome,colore)')
+      .eq('data', form.data)
+      .eq('venue_id', form.venue_id)
+      .neq('id', form.id || '00000000-0000-0000-0000-000000000000')
+      .then(({ data }) => setVenueConflicts(data || []))
+  }, [form.venue_id, form.data])
+
+  const selectedVenue = venues.find(v => v.id === form.venue_id)
 
   async function save() {
     if (!form.data) return toast.error('Data obbligatoria')
@@ -109,6 +112,18 @@ function TrainingModal({ training, onClose, onSaved, misterId }) {
                   : 'GPS non configurato per questa struttura'}
               </div>
             )}
+            {/* Conflitti struttura */}
+            {venueConflicts.length > 0 && (
+              <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded p-3 space-y-1">
+                <p className="text-xs font-semibold text-yellow-700">⚠️ Struttura già occupata in questa data:</p>
+                {venueConflicts.map(c => (
+                  <div key={c.id} className="text-xs text-yellow-600">
+                    • {c.categories ? `🏫 SC ${c.categories.nome}` : '⚽ PS'} — {c.titolo} {c.ora_inizio?.slice(0,5)}{c.ora_fine ? ` → ${c.ora_fine.slice(0,5)}` : ''}
+                    {c.profiles && ` (${c.profiles.cognome})`}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Note</label>
@@ -134,7 +149,7 @@ function TemplateModal({ template, onClose, onSaved, misterId }) {
   const [venues, setVenues] = useState([])
   const [form, setForm] = useState({
     titolo: 'Allenamento',
-    giorno_settimana: 1, // Martedì
+    giorno_settimana: 1,
     ora_inizio: '18:00',
     ora_fine: '20:00',
     venue_id: '',
@@ -145,7 +160,8 @@ function TemplateModal({ template, onClose, onSaved, misterId }) {
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   useEffect(() => {
-    supabase.from('venues').select('*').eq('active', true).order('nome').then(({ data }) => setVenues(data || []))
+    supabase.from('venues').select('*').eq('active', true).order('nome')
+      .then(({ data }) => setVenues(data || []))
   }, [])
 
   async function save() {
@@ -234,16 +250,16 @@ function TemplateModal({ template, onClose, onSaved, misterId }) {
 // ── Componente principale ─────────────────────────────────────
 export default function Trainings() {
   const { profile, isAdmin, isMister } = useAuth()
-  const [trainings, setTrainings] = useState([])
-  const [allTrainings, setAllTrainings] = useState([])
-  const [templates, setTemplates]       = useState([])
-  const [currentDate, setCurrentDate]   = useState(new Date())
-  const [selectedDay, setSelectedDay]   = useState(null)
-  const [modal, setModal]               = useState(null)
-  const [templateModal, setTemplateModal] = useState(null)
-  const [showTemplates, setShowTemplates] = useState(false)
-  const [loading, setLoading]           = useState(true)
-  const [generating, setGenerating]     = useState(false)
+  const [trainings, setTrainings]           = useState([])
+  const [allTrainings, setAllTrainings]     = useState([]) // SC trainings per admin
+  const [templates, setTemplates]           = useState([])
+  const [currentDate, setCurrentDate]       = useState(new Date())
+  const [selectedDay, setSelectedDay]       = useState(null)
+  const [modal, setModal]                   = useState(null)
+  const [templateModal, setTemplateModal]   = useState(null)
+  const [showTemplates, setShowTemplates]   = useState(false)
+  const [loading, setLoading]               = useState(true)
+  const [generating, setGenerating]         = useState(false)
 
   useEffect(() => { load() }, [currentDate])
   useEffect(() => { loadTemplates() }, [])
@@ -252,72 +268,72 @@ export default function Trainings() {
     setLoading(true)
     const start = startOfMonth(currentDate).toISOString().split('T')[0]
     const end   = endOfMonth(currentDate).toISOString().split('T')[0]
+
+    // Allenamenti PS
     let q = supabase.from('trainings')
       .select('*, profiles(nome,cognome), venues(nome,indirizzo,citta,lat,lng,raggio_timbratura)')
       .gte('data', start).lte('data', end)
       .is('category_id', null)
       .order('data').order('ora_inizio')
     if (isMister && !isAdmin) q = q.eq('creato_da', profile.id)
-const { data } = await q
-setTrainings(data || [])
+    const { data } = await q
+    setTrainings(data || [])
 
-// Admin carica anche allenamenti SC per vedere disponibilità strutture
-if (isAdmin) {
-  const { data: scData } = await supabase.from('trainings')
-    .select('*, profiles(nome,cognome), categories(nome,colore), venues(nome,citta,lat,lng,raggio_timbratura)')
-    .gte('data', start).lte('data', end)
-    .not('category_id', 'is', null)
-    .order('data').order('ora_inizio')
-  setAllTrainings(scData || [])
-}
+    // Admin carica anche allenamenti SC per vedere disponibilità strutture
+    if (isAdmin) {
+      const { data: scData } = await supabase.from('trainings')
+        .select('*, profiles(nome,cognome), categories(nome,colore), venues(nome,citta,lat,lng,raggio_timbratura)')
+        .gte('data', start).lte('data', end)
+        .not('category_id', 'is', null)
+        .order('data').order('ora_inizio')
+      setAllTrainings(scData || [])
+    }
+
+    setLoading(false)
+  }
 
   async function loadTemplates() {
-    let q = supabase.from('training_templates').select('*, venues(nome,citta)').eq('active', true).order('giorno_settimana')
+    let q = supabase.from('training_templates')
+      .select('*, venues(nome,citta)')
+      .eq('active', true)
+      .is('category_id', null)
+      .order('giorno_settimana')
     if (isMister && !isAdmin) q = q.eq('creato_da', profile.id)
     const { data } = await q
     setTemplates(data || [])
   }
 
-  // Genera allenamenti dal template per il mese corrente
   async function generateFromTemplates() {
     if (templates.length === 0) return toast.error('Nessun template configurato')
     setGenerating(true)
-
     const start = startOfMonth(currentDate)
     const end   = endOfMonth(currentDate)
     const days  = eachDayOfInterval({ start, end })
-
     let created = 0
     for (const tmpl of templates) {
-      // getDay() ritorna 0=Dom, 1=Lun... noi usiamo 0=Lun, 6=Dom
       const targetDayJS = tmpl.giorno_settimana === 6 ? 0 : tmpl.giorno_settimana + 1
-
       for (const day of days) {
         if (getDay(day) !== targetDayJS) continue
         const dataStr = format(day, 'yyyy-MM-dd')
-
-        // Controlla se esiste già
         const { count } = await supabase.from('trainings')
           .select('id', { count: 'exact' })
           .eq('data', dataStr)
           .eq('creato_da', profile.id)
           .is('category_id', null)
         if (count > 0) continue
-
         await supabase.from('trainings').insert([{
-          titolo:    tmpl.titolo,
-          data:      dataStr,
-          ora_inizio: tmpl.ora_inizio,
-          ora_fine:   tmpl.ora_fine,
-          venue_id:   tmpl.venue_id,
-          note:       tmpl.note,
-          creato_da:  profile.id,
+          titolo:      tmpl.titolo,
+          data:        dataStr,
+          ora_inizio:  tmpl.ora_inizio,
+          ora_fine:    tmpl.ora_fine,
+          venue_id:    tmpl.venue_id,
+          note:        tmpl.note,
+          creato_da:   profile.id,
           category_id: null,
         }])
         created++
       }
     }
-
     if (created === 0) toast('Tutti gli allenamenti erano già presenti', { icon: 'ℹ️' })
     else toast.success(`${created} allenamenti generati!`)
     setGenerating(false)
@@ -341,7 +357,9 @@ if (isAdmin) {
   const days = eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) })
   const firstDayOfMonth = getDay(startOfMonth(currentDate))
   const emptyDays = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1
-  const selectedDayTrainings = selectedDay ? trainings.filter(t => isSameDay(new Date(t.data), selectedDay)) : []
+  const selectedDayTrainings = selectedDay
+    ? [...trainings, ...(isAdmin ? allTrainings : [])].filter(t => isSameDay(new Date(t.data), selectedDay))
+    : []
   const canEdit = isAdmin || isMister
 
   return (
@@ -353,19 +371,16 @@ if (isAdmin) {
         </div>
         {canEdit && (
           <div className="flex gap-2">
-            {/* Genera dal template */}
             <button onClick={generateFromTemplates} disabled={generating}
               className="flex items-center gap-2 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
               <RefreshCw size={14} className={generating ? 'animate-spin' : ''}/>
               Genera mese
             </button>
-            {/* Gestione template */}
             <button onClick={() => setShowTemplates(s => !s)}
               className={clsx('flex items-center gap-2 border px-3 py-2 rounded text-sm',
                 showTemplates ? 'border-[#1ab394] text-[#1ab394] bg-[#1ab394]/5' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
               <Settings size={14}/> Template fissi
             </button>
-            {/* Nuovo allenamento singolo */}
             <button onClick={() => setModal({ data: selectedDay ? format(selectedDay, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd') })}
               className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
               <Plus size={16}/> Nuovo
@@ -374,7 +389,19 @@ if (isAdmin) {
         )}
       </div>
 
-      {/* ── Sezione template fissi ── */}
+      {/* Legenda colori — solo admin */}
+      {isAdmin && (
+        <div className="flex items-center gap-4 text-xs text-[#999]">
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-[#1ab394] inline-block"/>⚽ Prima Squadra
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 rounded-full bg-[#27ae60] inline-block"/>🏫 Scuola Calcio (colore categoria)
+          </span>
+        </div>
+      )}
+
+      {/* Template fissi */}
       {showTemplates && canEdit && (
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -385,7 +412,7 @@ if (isAdmin) {
             </button>
           </div>
           {templates.length === 0 ? (
-            <p className="text-xs text-[#999]">Nessun allenamento fisso configurato. Aggiungine uno per generare automaticamente gli allenamenti mensili.</p>
+            <p className="text-xs text-[#999]">Nessun allenamento fisso configurato.</p>
           ) : (
             <div className="space-y-2">
               {templates.map(t => (
@@ -395,9 +422,7 @@ if (isAdmin) {
                       {GIORNI[t.giorno_settimana]?.slice(0,2)}
                     </div>
                     <div>
-                      <div className="text-[#2f4050] font-medium text-sm">
-                        {GIORNI[t.giorno_settimana]} — {t.titolo}
-                      </div>
+                      <div className="text-[#2f4050] font-medium text-sm">{GIORNI[t.giorno_settimana]} — {t.titolo}</div>
                       <div className="text-xs text-[#999]">
                         {t.ora_inizio?.slice(0,5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0,5)}` : ''}
                         {t.venues && ` @ ${t.venues.nome}`}
@@ -413,7 +438,7 @@ if (isAdmin) {
             </div>
           )}
           <p className="text-xs text-[#999] border-t border-[#e7eaec] pt-2">
-            💡 Clicca <strong>"Genera mese"</strong> per creare automaticamente gli allenamenti del mese corrente basandoti su questi template.
+            💡 Clicca <strong>"Genera mese"</strong> per creare automaticamente gli allenamenti del mese corrente.
           </p>
         </div>
       )}
@@ -421,16 +446,12 @@ if (isAdmin) {
       {/* Navigazione mese */}
       <div className="flex items-center justify-between bg-white border border-[#e7eaec] rounded shadow-sm px-4 py-3">
         <button onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">
-          ← Prec
-        </button>
+          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">← Prec</button>
         <h2 className="text-[#2f4050] font-bold capitalize">
           {format(currentDate, 'MMMM yyyy', { locale: it })}
         </h2>
         <button onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">
-          Succ →
-        </button>
+          className="text-[#999] hover:text-[#2f4050] text-sm font-medium px-3 py-1 rounded hover:bg-gray-50">Succ →</button>
       </div>
 
       {/* Calendario */}
@@ -445,10 +466,9 @@ if (isAdmin) {
             <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-[#e7eaec] bg-gray-50"/>
           ))}
           {days.map(day => {
-            const dayTrainings = [
-  ...trainings.filter(t => isSameDay(new Date(t.data), day)),
-  ...(isAdmin ? allTrainings.filter(t => isSameDay(new Date(t.data), day)) : [])
-]
+            const psTrainings = trainings.filter(t => isSameDay(new Date(t.data), day))
+            const scTrainings = isAdmin ? allTrainings.filter(t => isSameDay(new Date(t.data), day)) : []
+            const dayTrainings = [...psTrainings, ...scTrainings]
             const isSelected = selectedDay && isSameDay(day, selectedDay)
             const today = isToday(day)
             return (
@@ -466,11 +486,11 @@ if (isAdmin) {
                 </div>
                 {dayTrainings.map(t => (
                   <div key={t.id}
-  className="text-xs rounded px-1 py-0.5 mb-0.5 truncate font-medium text-white"
-  style={{ background: t.categories?.colore || '#1ab394', opacity: 0.9 }}
-  title={t.categories ? `SC - ${t.categories.nome}` : 'PS'}>
-  {t.ora_inizio ? t.ora_inizio.slice(0,5) : ''} {t.titolo}
-</div>
+                    className="text-xs rounded px-1 py-0.5 mb-0.5 truncate font-medium text-white"
+                    style={{ background: t.categories?.colore || '#1ab394', opacity: 0.9 }}
+                    title={t.categories ? `🏫 SC - ${t.categories.nome}` : '⚽ PS'}>
+                    {t.ora_inizio ? t.ora_inizio.slice(0,5) : ''} {t.titolo}
+                  </div>
                 ))}
               </div>
             )
@@ -478,7 +498,7 @@ if (isAdmin) {
         </div>
       </div>
 
-      {/* Dettaglio giorno selezionato */}
+      {/* Dettaglio giorno */}
       {selectedDay && (
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
@@ -499,11 +519,17 @@ if (isAdmin) {
               {selectedDayTrainings.map(t => (
                 <div key={t.id} className="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded border border-[#e7eaec]">
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#1ab394]/20 text-[#1ab394] flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white"
+                      style={{ background: t.categories?.colore || '#1ab394' }}>
                       <Dumbbell size={15}/>
                     </div>
                     <div>
-                      <div className="text-[#2f4050] font-semibold text-sm">{t.titolo}</div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <div className="text-[#2f4050] font-semibold text-sm">{t.titolo}</div>
+                        {t.categories
+                          ? <span className="text-xs text-white px-1.5 py-0.5 rounded" style={{ background: t.categories.colore }}>🏫 {t.categories.nome}</span>
+                          : <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">⚽ PS</span>}
+                      </div>
                       {(t.ora_inizio || t.ora_fine) && (
                         <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
                           <Clock size={11}/>
@@ -521,13 +547,12 @@ if (isAdmin) {
                       )}
                       {t.note && <div className="text-xs text-[#999] mt-1 italic">{t.note}</div>}
                       {isAdmin && t.profiles && (
-                        <div className="text-xs text-[#999] mt-0.5">
-                          Mister: {t.profiles.nome} {t.profiles.cognome}
-                        </div>
+                        <div className="text-xs text-[#999] mt-0.5">Mister: {t.profiles.nome} {t.profiles.cognome}</div>
                       )}
                     </div>
                   </div>
-                  {canEdit && (profile.id === t.creato_da || isAdmin) && (
+                  {/* Solo allenamenti PS modificabili da qui */}
+                  {canEdit && !t.categories && (profile.id === t.creato_da || isAdmin) && (
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => setModal(t)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={14}/></button>
                       <button onClick={() => deleteTraining(t.id)} className="text-[#999] hover:text-red-500"><Trash2 size={14}/></button>
