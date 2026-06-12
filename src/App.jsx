@@ -161,6 +161,7 @@ function AppRoutes() {
         <Route path="chat"         element={<ChatPS />} />
         <Route path="contabilita"  element={<PrivateRoute roles={['admin','segreteria']}><Accounting /></PrivateRoute>} />
         <Route path="impostazioni" element={<Settings />} />
+        <Route path="bacheca-ps" element={<BachecaPS />} />
 
         {/* Scuola Calcio */}
         <Route path="sc/atleti"       element={<PrivateRoute roles={['admin','segreteria','mister']}><YouthPlayers /></PrivateRoute>} />
