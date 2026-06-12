@@ -168,7 +168,7 @@ export default function Layout() {
   const isMister      = role === 'mister'
   const isAdmin       = role === 'admin'
   const canSwitchMode = !isPlayer && !isMister
-  const theme         = THEME[mode]
+  const { dark, toggleTheme } = useTheme()
 
   useEffect(() => {
     supabase.from('team_settings').select('logo_url').single()
