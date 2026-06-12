@@ -47,7 +47,7 @@ const NAV_SCUOLA_CALCIO = [
   { to: '/sc/magazzino',   label: 'Magazzino',    icon: ShoppingBag,     roles: ['admin','segreteria'],            group: 'Gestione' },
   { to: '/documenti',      label: 'Documenti',    icon: FileText,        roles: null,                              group: 'Gestione' },
   { to: '/sc/pagamenti',   label: 'Pagamenti',    icon: Wallet,          roles: ['admin','segreteria'],            group: 'Economico' },
-  { to: '/contabilita',    label: 'Contabilità',  icon: BookOpen,        roles: ['admin','segreteria'],            group: 'Economico' },
+  { to: '/sc/contabilita', label: 'Contabilità', icon: BookOpen, roles: ['admin','segreteria'], group: 'Economico' },
   { to: '/sc/bacheca',     label: 'Bacheca',      icon: Megaphone,       roles: ['admin','segreteria','mister'],   group: 'Comunicazioni' },
   { to: '/sc/chat',        label: 'Chat',         icon: MessageCircle,   roles: null,                              group: 'Comunicazioni' },
   { to: '/impostazioni',   label: 'Impostazioni', icon: Settings,        roles: ['admin'],                         group: null },
