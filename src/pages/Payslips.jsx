@@ -220,11 +220,11 @@ export default function Payslips() {
           <h1 className="text-2xl font-bold text-[#2f4050]">Cedolini Calciatori</h1>
           <p className="text-sm text-[#999] mt-1">Rimborsi mensili calciatori</p>
         </div>
-        {(isAdmin || isMister) && (
-          <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
-            <Plus size={16}/> Genera
-          </button>
-        )}
+       {isAdmin && (
+  <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
+    <Plus size={16}/> Genera
+  </button>
+)}
       </div>
 
       <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
