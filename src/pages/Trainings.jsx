@@ -248,10 +248,18 @@ export default function Trainings() {
       .is('category_id', null)
       .order('data').order('ora_inizio')
     if (isMister && !isAdmin) q = q.eq('creato_da', profile.id)
-    const { data } = await q
-    setTrainings(data || [])
-    setLoading(false)
-  }
+const { data } = await q
+setTrainings(data || [])
+
+// Admin carica anche allenamenti SC per vedere disponibilità strutture
+if (isAdmin) {
+  const { data: scData } = await supabase.from('trainings')
+    .select('*, profiles(nome,cognome), categories(nome,colore), venues(nome,citta,lat,lng,raggio_timbratura)')
+    .gte('data', start).lte('data', end)
+    .not('category_id', 'is', null)
+    .order('data').order('ora_inizio')
+  setAllTrainings(scData || [])
+}
 
   async function loadTemplates() {
     let q = supabase.from('training_templates').select('*, venues(nome,citta)').eq('active', true).order('giorno_settimana')
