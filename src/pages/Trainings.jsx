@@ -224,7 +224,8 @@ function TemplateModal({ template, onClose, onSaved, misterId }) {
 // ── Componente principale ─────────────────────────────────────
 export default function Trainings() {
   const { profile, isAdmin, isMister } = useAuth()
-  const [trainings, setTrainings]       = useState([])
+  const [trainings, setTrainings] = useState([])
+  const [allTrainings, setAllTrainings] = useState([])
   const [templates, setTemplates]       = useState([])
   const [currentDate, setCurrentDate]   = useState(new Date())
   const [selectedDay, setSelectedDay]   = useState(null)
