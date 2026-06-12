@@ -21,6 +21,7 @@ import NotFound from './pages/NotFound'
 import ChatPS from './pages/ChatPS'
 import Accounting from './pages/Accounting'
 import BachecaPS from './pages/BachecaPS'
+import DMS from './pages/DMS'
 // Scuola Calcio
 import YouthPlayers from './pages/sc/YouthPlayers'
 import SCPayments from './pages/sc/SCPayments'
@@ -153,7 +154,7 @@ function AppRoutes() {
         <Route path="allenamenti"  element={<PrivateRoute roles={['admin','mister']}><Trainings /></PrivateRoute>} />
         <Route path="convocazioni" element={<Callups />} />
         <Route path="materiale"    element={<Materials />} />
-        <Route path="documenti"    element={<Documents />} />
+       <Route path="documenti" element={<DMS />} />
         <Route path="cedolini"     element={<PrivateRoute roles={['admin','mister','player_paid']}><Payslips /></PrivateRoute>} />
         <Route path="sanzioni"     element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
         <Route path="mister"       element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
