@@ -17,7 +17,6 @@ export function AuthProvider({ children }) {
       .single()
     setProfile(prof)
 
-    // Carica il club associato (tranne superadmin che non ha club reale)
     if (prof?.club_id && prof.role !== 'superadmin') {
       const { data: clubData } = await supabase
         .from('clubs')
@@ -56,15 +55,16 @@ export function AuthProvider({ children }) {
   const isPlayer     = isPaid || isVolunteer
   const isParent     = profile?.role === 'parent'
   const isSuperAdmin = profile?.role === 'superadmin'
+  const isPlayerSC   = profile?.role === 'player_sc'
 
   // Stato licenza
   const licenseActive  = club?.stato === 'active' || club?.stato === 'trial'
   const licenseExpired = club?.stato === 'expired' || club?.stato === 'suspended'
 
   // Moduli abilitati in base al piano
-  const canUsePS       = licenseActive && (club?.piano === 'starter' || club?.piano === 'pro' || club?.piano === 'full')
-  const canUseSC       = licenseActive && (club?.piano === 'pro' || club?.piano === 'full')
-  const canUseParents  = licenseActive && club?.piano === 'full'
+  const canUsePS      = licenseActive && (club?.piano === 'starter' || club?.piano === 'pro' || club?.piano === 'full')
+  const canUseSC      = licenseActive && (club?.piano === 'pro' || club?.piano === 'full')
+  const canUseParents = licenseActive && club?.piano === 'full'
 
   return (
     <AuthContext.Provider value={{
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
       signIn, signOut,
       isAdmin, isMister, isSegreteria,
       isPaid, isVolunteer, isPlayer,
-      isParent, isSuperAdmin,
+      isParent, isSuperAdmin, isPlayerSC,
       licenseActive, licenseExpired,
       canUsePS, canUseSC, canUseParents,
     }}>
