@@ -62,7 +62,7 @@ function RequestModal({ materials, onClose, onSaved, playerId }) {
   async function save() {
     if (!form.material_id) return toast.error('Seleziona un materiale')
     setLoading(true)
-    const { error } = await supabase.from('material_requests').insert([{ ...form, player_id: playerId, status: 'pending' }])
+    const { error } = await supabase.from('material_requests').insert([{ ...form, player_id: playerId, status: 'pending', club_id: profile?.club_id }])
     if (error) toast.error(error.message)
     else { toast.success('Richiesta inviata'); onSaved() }
     setLoading(false)
