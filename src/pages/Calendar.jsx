@@ -118,95 +118,113 @@ function ImportPDFModal({ onClose, onSaved, nomeSquadra }) {
   }
 
   // Parser testo estratto dal PDF
+  // Il PDF FIGC ha 3 giornate per riga separate da tab/spazi multipli
   function parsePDF(text) {
     const found = []
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
 
-    // Unisci tutto il testo e normalizza spazi
-    const fullText = text.replace(/\r/g, '\n')
-    const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean)
+    // Struttura dati per le 3 colonne correnti
+    // giornate[0..2] = { num, dateA, dateR, oraA, oraR }
+    let giornate = []
 
-    let giornata = null
-    let dateA    = null
-    let dateR    = null
-    let oraA     = null
-    let oraR     = null
+    const reGiornata = /(\d+)\s*[aª°]\s*(?:GIORNATA)?/gi
+    const reDate     = /(\d{2}\/\d{2}\/\d{4})/g
+    const reOra      = /ore\s+(\d{2}[.:]\d{2})/gi
 
-    const reGiornata = /(\d+)[aª°]\s*GIORNATA/i
-    const rePartita  = /^(.+?)\s+-\s+(.+)$/
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-
-      // ── Giornata ──
-      const gm = line.match(reGiornata)
-      if (gm) {
-        giornata = parseInt(gm[1])
-        continue
-      }
-
-      // ── Date: cerca pattern "21/09/2025" e "R18/01/2026" nella riga
-      const dateMatches = line.match(/(\d{2}\/\d{2}\/\d{4})/g)
-      if (dateMatches) {
-        // Andata: prima data nella riga (preceduta da A o senza prefisso)
-        if (line.match(/\bA\b/) || (!line.match(/\bR\b/) && dateMatches[0])) {
-          dateA = parseDate(dateMatches[0])
-        }
-        // Ritorno: data dopo R
-        const rMatch = line.match(/R\s*(\d{2}\/\d{2}\/\d{4})/)
-        if (rMatch) dateR = parseDate(rMatch[1])
-        // Se ci sono due date nella stessa riga (formato "A data R data")
-        if (dateMatches.length >= 2 && line.includes('R')) {
-          dateA = parseDate(dateMatches[0])
-          dateR = parseDate(dateMatches[1])
+    for (const line of lines) {
+      // ── Riga giornate: "1a GIORNATA  2a GIORNATA  3a GIORNATA" ──
+      // oppure "1a  2a  3a" su una riga e "GIORNATA GIORNATA GIORNATA" sulla successiva
+      if (/GIORNATA/i.test(line) || /^\s*\d+[aª°]\s+\d+[aª°]\s+\d+[aª°]\s*$/.test(line)) {
+        const nums = [...line.matchAll(/(\d+)\s*[aª°]/gi)].map(m => parseInt(m[1]))
+        if (nums.length > 0) {
+          giornate = nums.map(n => ({ num: n, dateA: null, dateR: null, oraA: null, oraR: null }))
         }
         continue
       }
 
-      // ── Orari ──
-      if (/\bore\b/i.test(line)) {
-        const oreArr = [...line.matchAll(/ore\s+(\d{2}[.:]\d{2})/gi)]
-        if (oreArr[0]) oraA = oreArr[0][1].replace('.', ':')
-        if (oreArr[1]) oraR = oreArr[1][1].replace('.', ':')
-        else oraR = oraA
+      // ── Riga solo numeri giornata (es: "4a  5a  6a") ──
+      if (/^\d+[aª°]\s+\d+[aª°]/.test(line)) {
+        const nums = [...line.matchAll(/(\d+)[aª°]/g)].map(m => parseInt(m[1]))
+        if (nums.length > 0) {
+          giornate = nums.map(n => ({ num: n, dateA: null, dateR: null, oraA: null, oraR: null }))
+        }
         continue
       }
 
-      // ── Partita: "Squadra Casa - Squadra Ospite" ──
-      const pm = line.match(rePartita)
-      if (pm && giornata) {
-        const casa   = pm[1].trim()
-        const ospite = pm[2].trim()
+      // ── Riga date: "21/09/2025  18/01/2026  28/09/2025  25/01/2026  05/10/2025  08/02/2026" ──
+      // 6 date = 3 coppie (dateA, dateR) per le 3 giornate
+      const allDates = [...line.matchAll(reDate)].map(m => m[1])
+      if (allDates.length >= 2 && giornate.length > 0) {
+        // Coppie: [A0,R0, A1,R1, A2,R2]
+        for (let i = 0; i < giornate.length; i++) {
+          if (allDates[i * 2])     giornate[i].dateA = parseDate(allDates[i * 2])
+          if (allDates[i * 2 + 1]) giornate[i].dateR = parseDate(allDates[i * 2 + 1])
+        }
+        continue
+      }
 
-        // Ignora righe che sono intestazioni o note
-        if (casa.match(/giornata|campionato|figc|f\.i\.g/i)) continue
+      // ── Riga orari: "ore 15.30  ore 15.00  ore 15.30  ore 15.00  ore 15.30  ore 15.00" ──
+      if (/ore\s+\d{2}[.:]\d{2}/i.test(line)) {
+        const oreArr = [...line.matchAll(/ore\s+(\d{2}[.:]\d{2})/gi)].map(m => m[1].replace('.', ':'))
+        for (let i = 0; i < giornate.length; i++) {
+          if (oreArr[i * 2])     giornate[i].oraA = oreArr[i * 2]
+          if (oreArr[i * 2 + 1]) giornate[i].oraR = oreArr[i * 2 + 1]
+        }
+        continue
+      }
 
-        const isCasa   = squadraMatch(casa, nomeSquadra)
-        const isOspite = squadraMatch(ospite, nomeSquadra)
+      // ── Riga partite: 3 partite separate da spazi/tab ──
+      // Es: " Aurora Ururi 1924   -   Polisportiva Civitate   Biccari   -   Casali Dauni   Aurora ..."
+      // Splitta per " - " e raggruppa in coppie
+      if (line.includes(' - ') && giornate.length > 0) {
+        // Divide la riga nelle 3 partite usando multipli spazi come separatore di colonna
+        // Strategia: splitta per 3+ spazi
+        const colonne = line.split(/\s{3,}/).map(s => s.trim()).filter(Boolean)
 
-        if ((isCasa || isOspite) && dateA) {
-          // Andata
-          if (!found.find(f => f.id === `${giornata}-A`)) {
-            found.push({
-              id:         `${giornata}-A`,
-              giornata,
-              tipo:       'A',
-              date:       dateA,
-              time:       oraA || '',
-              avversario: isCasa ? ospite : casa,
-              casa:       isCasa,
-            })
-          }
-          // Ritorno
-          if (dateR && !found.find(f => f.id === `${giornata}-R`)) {
-            found.push({
-              id:         `${giornata}-R`,
-              giornata,
-              tipo:       'R',
-              date:       dateR,
-              time:       oraR || oraA || '',
-              avversario: isCasa ? ospite : casa,
-              casa:       !isCasa,
-            })
+        // Ogni colonna dovrebbe essere "Squadra A - Squadra B"
+        for (let i = 0; i < Math.min(colonne.length, giornate.length); i++) {
+          const col = colonne[i]
+          const parts = col.split(/\s+-\s+/)
+          if (parts.length < 2) continue
+
+          const casa   = parts[0].trim()
+          const ospite = parts.slice(1).join(' - ').trim()
+
+          if (!casa || !ospite) continue
+          if (/giornata|campionato|figc|categoria/i.test(casa)) continue
+
+          const isCasa   = squadraMatch(casa, nomeSquadra)
+          const isOspite = squadraMatch(ospite, nomeSquadra)
+
+          if (isCasa || isOspite) {
+            const g = giornate[i]
+            if (!g || !g.dateA) continue
+
+            const idA = `${g.num}-A`
+            const idR = `${g.num}-R`
+
+            if (!found.find(f => f.id === idA)) {
+              found.push({
+                id:         idA,
+                giornata:   g.num,
+                tipo:       'A',
+                date:       g.dateA,
+                time:       g.oraA || '',
+                avversario: isCasa ? ospite : casa,
+                casa:       isCasa,
+              })
+            }
+            if (g.dateR && !found.find(f => f.id === idR)) {
+              found.push({
+                id:         idR,
+                giornata:   g.num,
+                tipo:       'R',
+                date:       g.dateR,
+                time:       g.oraR || g.oraA || '',
+                avversario: isCasa ? ospite : casa,
+                casa:       !isCasa,
+              })
+            }
           }
         }
       }
