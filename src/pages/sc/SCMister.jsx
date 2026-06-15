@@ -179,6 +179,7 @@ function MisterModal({ mister, categories, onClose, onSaved }) {
 
 // ── Modal cedolino mister SC ─────────────────────────────────
 function PayslipModal({ mister, teamSettings, onClose, onSaved }) {
+  const { profile } = useAuth()   // ← aggiunto
   const [form, setForm] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
@@ -190,7 +191,7 @@ function PayslipModal({ mister, teamSettings, onClose, onSaved }) {
   async function save() {
     setLoading(true)
     const { data: ps, error } = await supabase.from('coach_payslips')
-      .upsert([{ player_id: mister.id, ...form }], { onConflict: 'player_id,month,year' })
+      .upsert([{ player_id: mister.id, club_id: profile?.club_id, ...form }], { onConflict: 'player_id,month,year' })
       .select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
     await supabase.from('notifications').insert([{
@@ -199,19 +200,19 @@ function PayslipModal({ mister, teamSettings, onClose, onSaved }) {
     }])
     generateMisterPDF({ ...form }, mister, teamSettings)
     if (form.compenso > 0) {
-  await registraCedolinoInContabilita({
-    club_id:    profile?.club_id,
-    created_by: profile?.id,
-    modulo:     'sc',
-    tipo:       'mister_sc',
-    cognome:    mister?.cognome || '',
-    nome:       mister?.nome || '',
-    importo:    form.compenso,
-    month:      form.month,
-    year:       form.year,
-    riferimento: `CED-SC-${ps.id?.slice(0,8)}`,
-  })
-}   
+      await registraCedolinoInContabilita({
+        club_id:     profile?.club_id,
+        created_by:  profile?.id,
+        modulo:      'sc',
+        tipo:        'mister_sc',
+        cognome:     mister?.cognome || '',
+        nome:        mister?.nome || '',
+        importo:     form.compenso,
+        month:       form.month,
+        year:        form.year,
+        riferimento: `CED-SC-${ps.id?.slice(0,8)}`,
+      })
+    }
     toast.success('Cedolino generato!')
     onSaved()
     setLoading(false)
