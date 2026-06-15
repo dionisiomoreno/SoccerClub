@@ -8,6 +8,7 @@ import { it } from 'date-fns/locale'
 import clsx from 'clsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { registraCedolinoInContabilita } from '../lib/contabilitaHelper'
 
 const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
 const YEARS = [2024, 2025, 2026]
@@ -224,6 +225,20 @@ function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
       message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} disponibile — €${form.compenso}`, read: false
     }])
     generateMisterPDF({ ...form }, mister, teamSettings)
+    if (form.compenso > 0) {
+  await registraCedolinoInContabilita({
+    club_id:    profile?.club_id,
+    created_by: profile?.id,
+    modulo:     'ps',
+    tipo:       'mister_ps',
+    cognome:    mister?.cognome || '',
+    nome:       mister?.nome || '',
+    importo:    form.compenso,
+    month:      form.month,
+    year:       form.year,
+    riferimento: `CED-MIST-${ps.id?.slice(0,8)}`,
+  })
+}
     toast.success('Cedolino generato!')
     onSaved()
     setLoading(false)
