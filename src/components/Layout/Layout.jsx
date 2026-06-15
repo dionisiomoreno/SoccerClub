@@ -16,7 +16,8 @@ import { useTheme } from '../../context/ThemeContext'
 
 const ROLE_LABELS = {
   admin: 'Società', mister: 'Mister',
-  player_paid: 'Calciatore', player_volunteer: 'Volontario', segreteria: 'Segreteria'
+  player_paid: 'Calciatore', player_volunteer: 'Volontario',
+  segreteria: 'Segreteria', player_sc: 'Atleta SC'
 }
 
 const NAV_PRIMA_SQUADRA = [
@@ -39,19 +40,28 @@ const NAV_PRIMA_SQUADRA = [
 ]
 
 const NAV_SCUOLA_CALCIO = [
-  { to: '/',               label: 'Dashboard',    icon: LayoutDashboard, roles: null,                              group: null },
-  { to: '/sc/atleti',      label: 'Atleti',       icon: Baby,            roles: ['admin','segreteria','mister'],   group: 'Squadra' },
-  { to: '/sc/mister',      label: 'Mister SC',    icon: UserCog,         roles: ['admin','segreteria'],            group: 'Squadra' },
-  { to: '/sc/presenze',    label: 'Presenze SC',  icon: ClipboardList,   roles: ['admin','segreteria','mister'],   group: 'Squadra' },
-  { to: '/sc/allenamenti', label: 'Allenamenti',  icon: Dumbbell,        roles: ['admin','segreteria','mister'],   group: 'Squadra' },
-  { to: '/calendario',     label: 'Calendario',   icon: Calendar,        roles: null,                              group: 'Gare' },
-  { to: '/sc/magazzino',   label: 'Magazzino',    icon: ShoppingBag,     roles: ['admin','segreteria'],            group: 'Gestione' },
-  { to: '/documenti',      label: 'Documenti',    icon: FileText,        roles: null,                              group: 'Gestione' },
-  { to: '/sc/pagamenti',   label: 'Pagamenti',    icon: Wallet,          roles: ['admin','segreteria'],            group: 'Economico' },
-  { to: '/sc/contabilita', label: 'Contabilità', icon: BookOpen, roles: ['admin','segreteria'], group: 'Economico' },
-  { to: '/sc/bacheca',     label: 'Bacheca',      icon: Megaphone,       roles: ['admin','segreteria','mister'],   group: 'Comunicazioni' },
-  { to: '/sc/chat',        label: 'Chat',         icon: MessageCircle,   roles: null,                              group: 'Comunicazioni' },
-  { to: '/impostazioni',   label: 'Impostazioni', icon: Settings,        roles: ['admin'],                         group: null },
+  { to: '/',                  label: 'Dashboard',     icon: LayoutDashboard, roles: null,                              group: null },
+  { to: '/sc/atleti',         label: 'Atleti',        icon: Baby,            roles: ['admin','segreteria','mister'],   group: 'Squadra' },
+  { to: '/sc/mister',         label: 'Mister SC',     icon: UserCog,         roles: ['admin','segreteria'],            group: 'Squadra' },
+  { to: '/sc/presenze',       label: 'Presenze SC',   icon: ClipboardList,   roles: ['admin','segreteria','mister'],   group: 'Squadra' },
+  { to: '/sc/allenamenti',    label: 'Allenamenti',   icon: Dumbbell,        roles: ['admin','segreteria','mister'],   group: 'Squadra' },
+  { to: '/sc/convocazioni',   label: 'Convocazioni',  icon: Bell,            roles: ['admin','segreteria','mister','player_sc'], group: 'Squadra' },
+  { to: '/sc/calendario',     label: 'Calendario',    icon: Calendar,        roles: ['admin','segreteria','mister','player_sc'], group: 'Gare' },
+  { to: '/sc/magazzino',      label: 'Magazzino',     icon: ShoppingBag,     roles: ['admin','segreteria'],            group: 'Gestione' },
+  { to: '/sc/documenti',      label: 'Documenti',     icon: FileText,        roles: null,                              group: 'Gestione' },
+  { to: '/sc/pagamenti',      label: 'Pagamenti',     icon: Wallet,          roles: ['admin','segreteria'],            group: 'Economico' },
+  { to: '/sc/contabilita',    label: 'Contabilità',   icon: BookOpen,        roles: ['admin','segreteria'],            group: 'Economico' },
+  { to: '/sc/bacheca',        label: 'Bacheca',       icon: Megaphone,       roles: ['admin','segreteria','mister','player_sc'], group: 'Comunicazioni' },
+  { to: '/sc/chat',           label: 'Chat',          icon: MessageCircle,   roles: ['admin','segreteria','mister','player_sc'], group: 'Comunicazioni' },
+  { to: '/impostazioni',      label: 'Impostazioni',  icon: Settings,        roles: ['admin'],                         group: null },
+]
+
+// Navigazione dedicata per player_sc — solo le voci che può vedere
+const NAV_PLAYER_SC = [
+  { to: '/sc/bacheca',      label: 'Bacheca',      icon: Megaphone,   group: 'Comunicazioni' },
+  { to: '/sc/chat',         label: 'Chat',         icon: MessageCircle, group: 'Comunicazioni' },
+  { to: '/sc/convocazioni', label: 'Convocazioni', icon: Bell,        group: 'Squadra' },
+  { to: '/sc/calendario',   label: 'Calendario',   icon: Calendar,    group: 'Gare' },
 ]
 
 const TYPE_ICONS = {
@@ -59,7 +69,6 @@ const TYPE_ICONS = {
   match_time_changed:'🕐', callup_published:'📋', new_announcement:'📢',
 }
 
-// Colori distinti per modalità
 const THEME = {
   ps: { primary: '#1c3d6b', accent: '#2563eb', bg: '#0f2340', label: '⚽ Prima Squadra' },
   sc: { primary: '#166534', accent: '#16a34a', bg: '#0f3320', label: '🏫 Scuola Calcio'  },
@@ -160,15 +169,17 @@ export default function Layout() {
   const [open,      setOpen]     = useState(false)
   const [modules,   setModules]  = useState({ modulo_prima_squadra: true, modulo_scuola_calcio: false })
   const [mode,      setMode]     = useState(location.pathname.startsWith('/sc/') ? 'sc' : 'ps')
-const theme = useMemo(() => THEME[mode], [mode])
-const [logoUrl,   setLogoUrl]  = useState(null)
+  const theme = useMemo(() => THEME[mode], [mode])
+  const [logoUrl,   setLogoUrl]  = useState(null)
   const [uploading, setUploading]= useState(false)
 
   const role          = profile?.role
   const isPlayer      = role === 'player_paid' || role === 'player_volunteer'
   const isMister      = role === 'mister'
   const isAdmin       = role === 'admin'
-  const canSwitchMode = !isPlayer && !isMister
+  const isPlayerSC    = role === 'player_sc'
+  // player_sc non può cambiare modalità e vede solo la SC
+  const canSwitchMode = !isPlayer && !isMister && !isPlayerSC
   const { dark, toggleTheme } = useTheme()
 
   useEffect(() => {
@@ -182,6 +193,14 @@ const [logoUrl,   setLogoUrl]  = useState(null)
       .then(({ data }) => {
         if (data) {
           setModules(data)
+
+          // player_sc → sempre in modalità SC, redirect a bacheca SC
+          if (isPlayerSC) {
+            setMode('sc')
+            if (!location.pathname.startsWith('/sc/')) navigate('/sc/bacheca')
+            return
+          }
+
           if (isPlayer || isMister) {
             if (profile?.category_id) { setMode('sc'); if (!location.pathname.startsWith('/sc/')) navigate('/sc/chat') }
             else { setMode('ps'); if (location.pathname.startsWith('/sc/')) navigate('/') }
@@ -194,6 +213,7 @@ const [logoUrl,   setLogoUrl]  = useState(null)
   }, [profile])
 
   useEffect(() => {
+    if (isPlayerSC) return // player_sc rimane sempre su SC
     const sharedPaths = ['/impostazioni', '/calendario', '/materiale', '/documenti', '/presenze']
     if (sharedPaths.includes(location.pathname)) return
     if (isPlayer || (isMister && profile?.category_id)) return
@@ -216,8 +236,19 @@ const [logoUrl,   setLogoUrl]  = useState(null)
   }
 
   const initials    = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
-  const navItems    = mode === 'sc' ? NAV_SCUOLA_CALCIO : NAV_PRIMA_SQUADRA
-  const filtered    = navItems.filter(item => !item.roles || item.roles.includes(role))
+
+  // Scegli la navigazione giusta
+  let navItems
+  if (isPlayerSC) {
+    navItems = NAV_PLAYER_SC
+  } else {
+    navItems = mode === 'sc' ? NAV_SCUOLA_CALCIO : NAV_PRIMA_SQUADRA
+  }
+
+  const filtered = isPlayerSC
+    ? navItems  // NAV_PLAYER_SC non ha campo roles, mostra tutto
+    : navItems.filter(item => !item.roles || item.roles.includes(role))
+
   const bothEnabled = modules.modulo_prima_squadra && modules.modulo_scuola_calcio
 
   async function handleLogout() { await signOut(); navigate('/login') }
@@ -236,17 +267,17 @@ const [logoUrl,   setLogoUrl]  = useState(null)
   const Sidebar = () => (
     <div className="flex flex-col h-full" style={{ background: theme.bg }}>
 
-{/* ── Logo ── */}
-<div className="flex items-center gap-3 px-4 py-4" style={{ background: theme.primary }}>
-  <div className="relative flex-shrink-0">
-    {logoUrl
-      ? <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 bg-white">
-          <img src={logoUrl} alt="Logo" className="w-full h-full object-contain"/>
-        </div>
-      : <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
-          {mode === 'sc' ? '🏫' : 'SC'}
-        </div>
-    }
+      {/* ── Logo ── */}
+      <div className="flex items-center gap-3 px-4 py-4" style={{ background: theme.primary }}>
+        <div className="relative flex-shrink-0">
+          {logoUrl
+            ? <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/40 bg-white">
+                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain"/>
+              </div>
+            : <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg border-2 border-white/20">
+                {mode === 'sc' ? '🏫' : 'SC'}
+              </div>
+          }
           {isAdmin && (
             <>
               <button onClick={() => logoInputRef.current?.click()}
@@ -263,7 +294,7 @@ const [logoUrl,   setLogoUrl]  = useState(null)
         <div>
           <div className="text-white font-bold text-base leading-tight">SoccerClub</div>
           <div className="text-white/60 text-xs mt-0.5">
-            {mode === 'sc' ? '🏫 Scuola Calcio' : '⚽ Prima Squadra'}
+            {isPlayerSC ? '🏫 Scuola Calcio' : mode === 'sc' ? '🏫 Scuola Calcio' : '⚽ Prima Squadra'}
           </div>
         </div>
       </div>
@@ -290,7 +321,7 @@ const [logoUrl,   setLogoUrl]  = useState(null)
               </div>
             )}
             {items.map(({ to, label: lbl, icon: Icon }) => (
-              <NavLink key={to} to={to} end={to === '/'}
+              <NavLink key={to} to={to} end={to === '/' || to === '/sc/bacheca'}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) => clsx(
                   'flex items-center gap-3 px-4 py-2 text-sm transition-all border-l-4',
@@ -333,15 +364,14 @@ const [logoUrl,   setLogoUrl]  = useState(null)
             {open ? <X size={20}/> : <Menu size={20}/>}
           </button>
 
-          {/* Badge modalità */}
           <div className="flex-1">
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full text-white"
               style={{ background: theme.accent }}>
-              {theme.label}
+              {isPlayerSC ? '🏫 Scuola Calcio' : theme.label}
             </span>
           </div>
 
-          {/* Switch PS/SC — in alto a destra */}
+          {/* Switch PS/SC — nascosto per player_sc */}
           {bothEnabled && canSwitchMode && (
             <div className="flex rounded-lg overflow-hidden border border-[#e7eaec]">
               <button onClick={() => switchMode('ps')}
@@ -359,7 +389,6 @@ const [logoUrl,   setLogoUrl]  = useState(null)
             </div>
           )}
 
-          
           {profile?.id && <NotificationBell userId={profile.id}/>}
           <div className="flex items-center gap-2">
             <span className="text-sm text-[#676a6c] hidden sm:block">{profile?.nome} {profile?.cognome}</span>
