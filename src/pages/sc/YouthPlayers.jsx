@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { UserPlus, Search, Edit2, Trash2, Eye, Download, X, AlertTriangle, Upload } from 'lucide-react'
+import { UserPlus, Search, Edit2, Trash2, Eye, Download, X, AlertTriangle, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { format, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { FileText } from 'lucide-react'
 
 const MONTHS_FULL = [
   'Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -32,6 +31,7 @@ function MedicalBadge({ date }) {
 
 // ── Modal atleta ───────────────────────────────────────────────
 function PlayerModal({ player, categories, onClose, onSaved }) {
+  const { profile } = useAuth()
   const isEdit = !!player?.id
   const [form, setForm] = useState({
     nome: '', cognome: '', data_nascita: '', luogo_nascita: '',
@@ -47,29 +47,27 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
     { tipo: 'madre', nome: '', cognome: '', telefono: '', email: '' }
   ])
   const [retta, setRetta] = useState({
-    importo: '',
-    giorno_scadenza: 10,
+    importo: '', giorno_scadenza: 10,
     mese_inizio: new Date().getMonth() < 8 ? 9 : new Date().getMonth() + 1,
     anno_inizio: new Date().getFullYear(),
-    mese_fine: 6,
-    anno_fine: new Date().getFullYear() + 1,
-    note: '',
-    abilitata: false,
+    mese_fine: 6, anno_fine: new Date().getFullYear() + 1,
+    note: '', abilitata: false,
   })
   const [cattDefRetta, setCattDefRetta] = useState(null)
+  const [account, setAccount] = useState({
+    email: player?.email || '', password: '', crea: false,
+  })
+  const [accountEsistente, setAccountEsistente] = useState(!!player?.user_id)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (isEdit) {
-      loadParents()
-      loadRetta()
-    }
+    if (isEdit) { loadParents(); loadRetta() }
     loadCategoryDefaults(form.category_id || categories[0]?.id)
   }, [])
 
   async function loadParents() {
     const { data } = await supabase.from('parents').select('*').eq('youth_player_id', player.id)
-    if (data && data.length > 0) {
+    if (data?.length > 0) {
       const padre = data.find(p => p.tipo === 'padre') || { tipo: 'padre', nome: '', cognome: '', telefono: '', email: '' }
       const madre = data.find(p => p.tipo === 'madre') || { tipo: 'madre', nome: '', cognome: '', telefono: '', email: '' }
       setParents([padre, madre])
@@ -99,6 +97,7 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
     let playerId = form.id
 
     try {
+      // Salva atleta
       if (isEdit) {
         const { error } = await supabase.from('youth_players')
           .update({ ...form, updated_at: new Date().toISOString() }).eq('id', form.id)
@@ -113,14 +112,11 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
       // Salva genitori
       for (const p of parents) {
         if (!p.nome) continue
-        if (p.id) {
-          await supabase.from('parents').update(p).eq('id', p.id)
-        } else {
-          await supabase.from('parents').insert([{ ...p, youth_player_id: playerId }])
-        }
+        if (p.id) await supabase.from('parents').update(p).eq('id', p.id)
+        else await supabase.from('parents').insert([{ ...p, youth_player_id: playerId }])
       }
 
-      // Salva/aggiorna configurazione retta
+      // Salva retta
       if (retta.abilitata && retta.importo) {
         const rettaPayload = {
           youth_player_id:  playerId,
@@ -137,8 +133,33 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
         await supabase.from('rette_config')
           .upsert([rettaPayload], { onConflict: 'youth_player_id' })
       } else if (!retta.abilitata && retta.id) {
-        await supabase.from('rette_config')
-          .update({ active: false }).eq('id', retta.id)
+        await supabase.from('rette_config').update({ active: false }).eq('id', retta.id)
+      }
+
+      // Crea account player_sc se richiesto
+      if (account.crea && account.email && account.password.length >= 8 && !accountEsistente) {
+        const { data: authData, error: authErr } = await supabase.auth.signUp({
+          email: account.email,
+          password: account.password,
+        })
+        if (authErr) throw new Error('Errore creazione account: ' + authErr.message)
+        const userId = authData.user?.id
+        if (!userId) throw new Error('ID utente non disponibile')
+
+        const { error: profErr } = await supabase.from('profiles').upsert([{
+          id:      userId,
+          club_id: profile?.club_id,
+          role:    'player_sc',
+          nome:    form.nome,
+          cognome: form.cognome,
+          email:   account.email,
+          active:  true,
+        }])
+        if (profErr) throw new Error('Errore profilo: ' + profErr.message)
+
+        await supabase.from('youth_players').update({ user_id: userId }).eq('id', playerId)
+        toast.success('Account atleta creato!')
+        setAccountEsistente(true)
       }
 
       toast.success(isEdit ? 'Atleta aggiornato' : 'Atleta aggiunto')
@@ -187,17 +208,12 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-[#999] mb-1">Categoria</label>
-                <select value={form.category_id||''} onChange={e => {
-                  set('category_id', e.target.value)
-                  loadCategoryDefaults(e.target.value)
-                }}
+                <select value={form.category_id||''} onChange={e => { set('category_id', e.target.value); loadCategoryDefaults(e.target.value) }}
                   className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
                   {categories.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
-              {[
-                ['squadra','Squadra'], ['numero_maglia','N° maglia'], ['numero_tessera','N° tessera FIGC']
-              ].map(([k,l]) => (
+              {[['squadra','Squadra'],['numero_maglia','N° maglia'],['numero_tessera','N° tessera FIGC']].map(([k,l]) => (
                 <div key={k}>
                   <label className="block text-xs text-[#999] mb-1">{l}</label>
                   <input value={form[k]||''} onChange={e => set(k, e.target.value)}
@@ -236,12 +252,10 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* ── Retta mensile ── */}
+          {/* Retta mensile */}
           <div className="border-t border-[#e7eaec] pt-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide">
-                💶 Retta mensile
-              </h3>
+              <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide">💶 Retta mensile</h3>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={retta.abilitata}
                   onChange={e => {
@@ -255,18 +269,14 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
                 <span className="text-sm text-[#676a6c]">Abilita retta mensile</span>
               </label>
             </div>
-
             {retta.abilitata && (
               <div className="space-y-3">
-                {/* Importo e giorno scadenza */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-[#999] mb-1">
                       Importo mensile (€)
                       {cattDefRetta?.importo_retta > 0 && (
-                        <span className="ml-1 text-[#1ab394]">
-                          — default: €{cattDefRetta.importo_retta}
-                        </span>
+                        <span className="ml-1 text-[#1ab394]">— default: €{cattDefRetta.importo_retta}</span>
                       )}
                     </label>
                     <input type="number" min="0" step="0.01"
@@ -277,18 +287,14 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
                   </div>
                   <div>
                     <label className="block text-xs text-[#999] mb-1">Giorno scadenza</label>
-                    <input type="number" min="1" max="28"
-                      value={retta.giorno_scadenza}
+                    <input type="number" min="1" max="28" value={retta.giorno_scadenza}
                       onChange={e => setR('giorno_scadenza', e.target.value)}
                       className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                   </div>
                 </div>
-
-                {/* Periodo */}
                 <div>
                   <label className="block text-xs text-[#999] mb-2">Periodo di validità</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {/* Inizio */}
                     <div className="bg-gray-50 rounded p-3 space-y-2">
                       <div className="text-xs font-semibold text-[#676a6c]">Inizio</div>
                       <div className="grid grid-cols-2 gap-2">
@@ -301,13 +307,11 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
                         </div>
                         <div>
                           <label className="block text-xs text-[#999] mb-1">Anno</label>
-                          <input type="number" value={retta.anno_inizio}
-                            onChange={e => setR('anno_inizio', +e.target.value)}
+                          <input type="number" value={retta.anno_inizio} onChange={e => setR('anno_inizio', +e.target.value)}
                             className="w-full border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]"/>
                         </div>
                       </div>
                     </div>
-                    {/* Fine */}
                     <div className="bg-gray-50 rounded p-3 space-y-2">
                       <div className="text-xs font-semibold text-[#676a6c]">Fine</div>
                       <div className="grid grid-cols-2 gap-2">
@@ -320,16 +324,13 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
                         </div>
                         <div>
                           <label className="block text-xs text-[#999] mb-1">Anno</label>
-                          <input type="number" value={retta.anno_fine}
-                            onChange={e => setR('anno_fine', +e.target.value)}
+                          <input type="number" value={retta.anno_fine} onChange={e => setR('anno_fine', +e.target.value)}
                             className="w-full border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]"/>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                {/* Riepilogo */}
                 {retta.importo > 0 && (
                   <div className="bg-[#1ab394]/5 border border-[#1ab394]/20 rounded p-3 text-xs text-[#676a6c] space-y-1">
                     <div className="flex justify-between">
@@ -346,12 +347,56 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
                     </div>
                   </div>
                 )}
-
                 <div>
                   <label className="block text-xs text-[#999] mb-1">Note retta</label>
                   <input value={retta.note||''} onChange={e => setR('note', e.target.value)}
                     placeholder="Es. riduzione fratelli, borsa di studio..."
                     className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Account atleta SC */}
+          <div className="border-t border-[#e7eaec] pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-[#999] uppercase tracking-wide">🔐 Account atleta</h3>
+              {accountEsistente ? (
+                <span className="px-2 py-0.5 rounded text-xs bg-green-100 text-green-600 font-medium">✓ Account attivo</span>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={account.crea}
+                    onChange={e => setAccount(a => ({ ...a, crea: e.target.checked }))}
+                    className="accent-[#1ab394]"/>
+                  <span className="text-sm text-[#676a6c]">Crea account di accesso</span>
+                </label>
+              )}
+            </div>
+            {accountEsistente ? (
+              <div className="bg-green-50 border border-green-200 rounded p-3 text-xs text-green-700">
+                L'atleta ha già un account. Può accedere all'app e vedere bacheca SC, chat SC, calendario e convocazioni.
+              </div>
+            ) : account.crea && (
+              <div className="space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-700">
+                  💡 L'atleta potrà accedere all'app e vedere bacheca SC, chat SC, calendario e convocazioni SC.
+                </div>
+                <div>
+                  <label className="block text-xs text-[#999] mb-1">Email accesso *</label>
+                  <input type="email" value={account.email}
+                    onChange={e => setAccount(a => ({ ...a, email: e.target.value }))}
+                    placeholder="es. mario.rossi@email.it"
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#999] mb-1">Password *</label>
+                  <input type="password" value={account.password}
+                    onChange={e => setAccount(a => ({ ...a, password: e.target.value }))}
+                    placeholder="Minimo 8 caratteri"
+                    className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+                  {account.password && account.password.length < 8 && (
+                    <p className="text-xs text-red-400 mt-1">Minimo 8 caratteri</p>
+                  )}
                 </div>
               </div>
             )}
@@ -400,9 +445,9 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
 
 // ── Scheda dettaglio atleta ────────────────────────────────────
 function PlayerDetail({ player, categories, onClose, onEdit }) {
-  const [parents,  setParents]  = useState([])
-  const [docs,     setDocs]     = useState([])
-  const [retta,    setRettaD]   = useState(null)
+  const [parents, setParents] = useState([])
+  const [docs,    setDocs]    = useState([])
+  const [retta,   setRettaD]  = useState(null)
   const cat = categories.find(c => c.id === player.category_id)
 
   useEffect(() => {
@@ -437,6 +482,9 @@ function PlayerDetail({ player, categories, onClose, onEdit }) {
                 <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', player.active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
                   {player.active ? 'Attivo' : 'Non attivo'}
                 </span>
+                {player.user_id && (
+                  <span className="px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-600 font-medium">🔐 Account attivo</span>
+                )}
               </div>
             </div>
           </div>
@@ -471,9 +519,7 @@ function PlayerDetail({ player, categories, onClose, onEdit }) {
               <div>
                 <div className="text-xs text-[#999]">Scadenza</div>
                 <div className="text-[#2f4050] font-medium text-sm">
-                  {player.scadenza_certificato_medico
-                    ? format(new Date(player.scadenza_certificato_medico), 'dd/MM/yyyy')
-                    : '—'}
+                  {player.scadenza_certificato_medico ? format(new Date(player.scadenza_certificato_medico), 'dd/MM/yyyy') : '—'}
                 </div>
               </div>
               <MedicalBadge date={player.scadenza_certificato_medico}/>
@@ -499,12 +545,6 @@ function PlayerDetail({ player, categories, onClose, onEdit }) {
                     {MONTHS_FULL[retta.mese_inizio-1]} {retta.anno_inizio} → {MONTHS_FULL[retta.mese_fine-1]} {retta.anno_fine}
                   </div>
                 </div>
-                {retta.note && (
-                  <div>
-                    <div className="text-xs text-[#999]">Note</div>
-                    <div className="text-[#676a6c] text-xs italic">{retta.note}</div>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -563,7 +603,7 @@ function exportPDF(players, categories) {
   doc.text(`ASD Castelmauro Calcio 1986 — ${new Date().toLocaleDateString('it-IT')}`, 14, 22)
   autoTable(doc, {
     startY: 35,
-    head: [['#', 'Cognome e Nome', 'Categoria', 'Data Nascita', 'N° Tessera', 'Cert. Medico']],
+    head: [['#','Cognome e Nome','Categoria','Data Nascita','N° Tessera','Cert. Medico']],
     body: players.map((p, i) => [
       i + 1,
       `${p.cognome} ${p.nome}`,
@@ -582,14 +622,14 @@ function exportPDF(players, categories) {
 // ── Componente principale ──────────────────────────────────────
 export default function YouthPlayers() {
   const { profile, isAdmin, isMister } = useAuth()
-  const [players,     setPlayers]     = useState([])
-  const [categories,  setCategories]  = useState([])
-  const [search,      setSearch]      = useState('')
-  const [filterCat,   setFilterCat]   = useState('')
-  const [filterActive,setFilterActive]= useState('1')
-  const [modal,       setModal]       = useState(null)
-  const [detail,      setDetail]      = useState(null)
-  const [loading,     setLoading]     = useState(true)
+  const [players,      setPlayers]      = useState([])
+  const [categories,   setCategories]   = useState([])
+  const [search,       setSearch]       = useState('')
+  const [filterCat,    setFilterCat]    = useState('')
+  const [filterActive, setFilterActive] = useState('1')
+  const [modal,        setModal]        = useState(null)
+  const [detail,       setDetail]       = useState(null)
+  const [loading,      setLoading]      = useState(true)
 
   useEffect(() => { loadCategories(); loadPlayers() }, [])
 
@@ -600,10 +640,10 @@ export default function YouthPlayers() {
 
   async function loadPlayers() {
     setLoading(true)
-    let q = supabase.from('youth_players').select('*, categories(nome,colore)').order('cognome')
-    if (isMister && profile?.category_id) {
-      q = q.eq('category_id', profile.category_id)
-    }
+    let q = supabase.from('youth_players')
+      .select('*, categories(nome,colore)')
+      .order('cognome')
+    if (isMister && profile?.category_id) q = q.eq('category_id', profile.category_id)
     const { data } = await q
     setPlayers(data || [])
     setLoading(false)
@@ -674,7 +714,6 @@ export default function YouthPlayers() {
         </div>
       </div>
 
-      {/* Alert */}
       {(medicalExpired > 0 || medicalExpiring > 0) && (
         <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">
           <AlertTriangle size={16}/>
@@ -718,7 +757,7 @@ export default function YouthPlayers() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#e7eaec] bg-gray-50">
-                  {['Atleta','Categoria','Data Nascita','Telefono','Retta','Cert. Medico','Stato','Azioni'].map(h => (
+                  {['Atleta','Categoria','Data Nascita','Telefono','Retta','Account','Cert. Medico','Stato','Azioni'].map(h => (
                     <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -754,6 +793,11 @@ export default function YouthPlayers() {
                           : <span className="text-[#999] text-xs">—</span>}
                       </td>
                       <td className="px-4 py-3">
+                        {p.user_id
+                          ? <span className="text-blue-500 text-xs">🔐 attivo</span>
+                          : <span className="text-[#999] text-xs">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
                         <MedicalBadge date={p.scadenza_certificato_medico}/>
                       </td>
                       <td className="px-4 py-3">
@@ -785,20 +829,14 @@ export default function YouthPlayers() {
       </div>
 
       {modal !== null && (
-        <PlayerModal
-          player={modal}
-          categories={categories}
+        <PlayerModal player={modal} categories={categories}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); loadPlayers() }}
-        />
+          onSaved={() => { setModal(null); loadPlayers() }}/>
       )}
       {detail && (
-        <PlayerDetail
-          player={detail}
-          categories={categories}
+        <PlayerDetail player={detail} categories={categories}
           onClose={() => setDetail(null)}
-          onEdit={() => { setModal(detail); setDetail(null) }}
-        />
+          onEdit={() => { setModal(detail); setDetail(null) }}/>
       )}
     </div>
   )
