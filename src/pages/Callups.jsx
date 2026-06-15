@@ -24,7 +24,7 @@ function CallupsModal({ onClose, onSaved }) {
   async function save() {
     if (!form.match_id) return toast.error('Seleziona una partita')
     setLoading(true)
-    const { data: callup, error } = await supabase.from('callups').insert([{ ...form }]).select().single()
+    const { data: callup, error } = await supabase.from('callups').insert([{ ...form, club_id: profile?.club_id }]).select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
     if (selected.length > 0) {
       await supabase.from('callup_players').insert(selected.map(pid => ({ callup_id: callup.id, player_id: pid })))
