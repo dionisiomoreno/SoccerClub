@@ -120,6 +120,20 @@ function GenerateModal({ onClose, onSaved }) {
       message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} — Netto: €${preview.netto}`, read: false
     }])
     generatePDF({ ...payslipData, ...ps }, player, preview.att, preview.san, teamSettings)
+    if (preview.netto > 0) {
+  await registraCedolinoInContabilita({
+    club_id:    profile?.club_id,
+    created_by: profile?.id,
+    modulo:     'ps',
+    tipo:       'calciatore',
+    cognome:    player?.cognome || '',
+    nome:       player?.nome || '',
+    importo:    preview.netto,
+    month:      form.month,
+    year:       form.year,
+    riferimento: `CED-${ps.id?.slice(0,8)}`,
+  })
+}
     toast.success('Cedolino generato!')
     onSaved()
     setLoading(false)
