@@ -93,21 +93,22 @@ function ImportPDFModal({ onClose, onSaved, nomeSquadra }) {
   const [step,      setStep]      = useState(1)
   const fileRef = useRef()
 
-  // Normalizza nome squadra per confronto
-  // Prende le prime due parole significative
-  function normalizeNome(nome) {
-    return (nome || '').toLowerCase()
-      .replace(/\s+/g, ' ').trim()
-  }
-
   function squadraMatch(lineaNome, squadraNome) {
-    const a = normalizeNome(lineaNome)
-    const b = normalizeNome(squadraNome)
-    // Match esatto o contiene almeno la prima parola significativa
-    if (a.includes(b) || b.includes(a)) return true
-    // Match sulla prima parola con almeno 4 caratteri
-    const parole = b.split(' ').filter(p => p.length >= 4)
-    return parole.some(p => a.includes(p))
+    const a = (lineaNome || '').toLowerCase().replace(/\s+/g, ' ').trim()
+    const b = (squadraNome || '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+    // Match esatto
+    if (a === b || a.includes(b) || b.includes(a)) return true
+
+    // Match sulla prima parola con almeno 4 caratteri (es. "Castelmauro")
+    const paroleB = b.split(' ').filter(p => p.length >= 4)
+    if (paroleB.some(p => a.includes(p))) return true
+
+    // Match con abbreviazioni tipo "Castelmauro C. 1986" vs "Castelmauro Calcio 1986"
+    // Prende solo parole >= 4 chars da entrambi e confronta
+    const paroleA = a.split(' ').filter(p => p.length >= 4)
+    const comuni  = paroleB.filter(p => paroleA.some(pa => pa.startsWith(p.slice(0,4))))
+    return comuni.length >= 1
   }
 
   // Converte "dd/mm/yyyy" → "yyyy-mm-dd"
@@ -119,33 +120,50 @@ function ImportPDFModal({ onClose, onSaved, nomeSquadra }) {
   // Parser testo estratto dal PDF
   function parsePDF(text) {
     const found = []
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
 
-    let giornata    = null
-    let dateA       = null
-    let dateR       = null
-    let oraA        = null
-    let oraR        = null
+    // Unisci tutto il testo e normalizza spazi
+    const fullText = text.replace(/\r/g, '\n')
+    const lines = fullText.split('\n').map(l => l.trim()).filter(Boolean)
+
+    let giornata = null
+    let dateA    = null
+    let dateR    = null
+    let oraA     = null
+    let oraR     = null
 
     const reGiornata = /(\d+)[aª°]\s*GIORNATA/i
-    const reDateA    = /(?:^|\bA\s*)(\d{2}\/\d{2}\/\d{4})/
-    const reDateR    = /\bR\s*(\d{2}\/\d{2}\/\d{4})/
-    const reOra      = /ore\s+(\d{2}[.:]\d{2})/gi
     const rePartita  = /^(.+?)\s+-\s+(.+)$/
 
-    for (const line of lines) {
-      // Giornata
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+
+      // ── Giornata ──
       const gm = line.match(reGiornata)
-      if (gm) { giornata = parseInt(gm[1]); continue }
+      if (gm) {
+        giornata = parseInt(gm[1])
+        continue
+      }
 
-      // Date andata/ritorno
-      const dam = line.match(reDateA)
-      const drm = line.match(reDateR)
-      if (dam) dateA = parseDate(dam[1])
-      if (drm) dateR = parseDate(drm[1])
+      // ── Date: cerca pattern "21/09/2025" e "R18/01/2026" nella riga
+      const dateMatches = line.match(/(\d{2}\/\d{2}\/\d{4})/g)
+      if (dateMatches) {
+        // Andata: prima data nella riga (preceduta da A o senza prefisso)
+        if (line.match(/\bA\b/) || (!line.match(/\bR\b/) && dateMatches[0])) {
+          dateA = parseDate(dateMatches[0])
+        }
+        // Ritorno: data dopo R
+        const rMatch = line.match(/R\s*(\d{2}\/\d{2}\/\d{4})/)
+        if (rMatch) dateR = parseDate(rMatch[1])
+        // Se ci sono due date nella stessa riga (formato "A data R data")
+        if (dateMatches.length >= 2 && line.includes('R')) {
+          dateA = parseDate(dateMatches[0])
+          dateR = parseDate(dateMatches[1])
+        }
+        continue
+      }
 
-      // Orari
-      if (/ore\s+\d{2}[.:]\d{2}/i.test(line)) {
+      // ── Orari ──
+      if (/\bore\b/i.test(line)) {
         const oreArr = [...line.matchAll(/ore\s+(\d{2}[.:]\d{2})/gi)]
         if (oreArr[0]) oraA = oreArr[0][1].replace('.', ':')
         if (oreArr[1]) oraR = oreArr[1][1].replace('.', ':')
@@ -153,33 +171,39 @@ function ImportPDFModal({ onClose, onSaved, nomeSquadra }) {
         continue
       }
 
-      // Partita
+      // ── Partita: "Squadra Casa - Squadra Ospite" ──
       const pm = line.match(rePartita)
-      if (pm && dateA && giornata) {
+      if (pm && giornata) {
         const casa   = pm[1].trim()
         const ospite = pm[2].trim()
+
+        // Ignora righe che sono intestazioni o note
+        if (casa.match(/giornata|campionato|figc|f\.i\.g/i)) continue
+
         const isCasa   = squadraMatch(casa, nomeSquadra)
         const isOspite = squadraMatch(ospite, nomeSquadra)
 
-        if (isCasa || isOspite) {
+        if ((isCasa || isOspite) && dateA) {
           // Andata
-          found.push({
-            id:         `${giornata}-A`,
-            giornata,
-            tipo:       'A',
-            date:       dateA,
-            time:       oraA || '',
-            avversario: isCasa ? ospite : casa,
-            casa:       isCasa,
-          })
+          if (!found.find(f => f.id === `${giornata}-A`)) {
+            found.push({
+              id:         `${giornata}-A`,
+              giornata,
+              tipo:       'A',
+              date:       dateA,
+              time:       oraA || '',
+              avversario: isCasa ? ospite : casa,
+              casa:       isCasa,
+            })
+          }
           // Ritorno
-          if (dateR) {
+          if (dateR && !found.find(f => f.id === `${giornata}-R`)) {
             found.push({
               id:         `${giornata}-R`,
               giornata,
               tipo:       'R',
               date:       dateR,
-              time:       oraR || '',
+              time:       oraR || oraA || '',
               avversario: isCasa ? ospite : casa,
               casa:       !isCasa,
             })
@@ -188,9 +212,7 @@ function ImportPDFModal({ onClose, onSaved, nomeSquadra }) {
       }
     }
 
-    // Deduplica per id e ordina per data
-    const unique = [...new Map(found.map(m => [m.id, m])).values()]
-    return unique.sort((a, b) => new Date(a.date) - new Date(b.date))
+    return found.sort((a, b) => new Date(a.date) - new Date(b.date))
   }
 
   async function handleFile(f) {
