@@ -57,6 +57,7 @@ function MaterialModal({ material, onClose, onSaved }) {
 }
 
 function RequestModal({ materials, onClose, onSaved, playerId }) {
+  const { profile } = useAuth() 
   const [form, setForm] = useState({ material_id: '', quantita: 1, note: '' })
   const [loading, setLoading] = useState(false)
   async function save() {
