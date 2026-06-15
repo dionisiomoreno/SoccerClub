@@ -30,6 +30,7 @@ import SCChat from './pages/sc/SCChat'
 import SCMister from './pages/sc/SCMister'
 import SCTrainings from './pages/sc/SCTrainings'
 import SCAttendances from './pages/sc/SCAttendances'
+import SCCallups from './pages/sc/SCCallups'
 import Trainings from './pages/Trainings'
 // Area Genitori
 import ParentLayout from './pages/parent/ParentLayout'
@@ -74,7 +75,7 @@ function LicenseExpired() {
 
 // ── Route privata con controllo ruolo e licenza ────────────────
 function PrivateRoute({ children, roles }) {
-  const { user, profile, club, loading, licenseExpired, isSuperAdmin } = useAuth()
+  const { user, profile, club, loading, licenseExpired, isSuperAdmin, isPlayerSC } = useAuth()
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-[#f3f3f4]">
@@ -91,6 +92,9 @@ function PrivateRoute({ children, roles }) {
   if (profile?.role === 'parent' && !roles?.includes('parent')) {
     return <Navigate to="/genitore" replace />
   }
+
+  // player_sc usa la layout principale (non viene reindirizzato ad aree speciali)
+  // se tenta di accedere a route non consentite verrà bloccato dal controllo roles sotto
 
   if (!isSuperAdmin && licenseExpired) {
     return <LicenseExpired />
@@ -153,27 +157,31 @@ function AppRoutes() {
         <Route path="allenamenti"  element={<PrivateRoute roles={['admin','mister']}><Trainings /></PrivateRoute>} />
         <Route path="convocazioni" element={<Callups />} />
         <Route path="materiale"    element={<Materials />} />
-       <Route path="documenti" element={<DMS modulo="ps" />} />
+        <Route path="documenti"    element={<DMS modulo="ps" />} />
         <Route path="cedolini"     element={<PrivateRoute roles={['admin','mister','player_paid']}><Payslips /></PrivateRoute>} />
         <Route path="sanzioni"     element={<PrivateRoute roles={['admin']}><Sanctions /></PrivateRoute>} />
         <Route path="mister"       element={<PrivateRoute roles={['admin']}><Mister /></PrivateRoute>} />
         <Route path="distinta"     element={<PrivateRoute roles={['admin']}><MatchReport /></PrivateRoute>} />
         <Route path="chat"         element={<ChatPS />} />
-       <Route path="contabilita" element={<PrivateRoute roles={['admin','segreteria']}><Accounting modulo="ps" /></PrivateRoute>} />
+        <Route path="contabilita"  element={<PrivateRoute roles={['admin','segreteria']}><Accounting modulo="ps" /></PrivateRoute>} />
         <Route path="sc/contabilita" element={<PrivateRoute roles={['admin','segreteria']}><Accounting modulo="sc" /></PrivateRoute>} />
         <Route path="impostazioni" element={<Settings />} />
-        <Route path="bacheca-ps" element={<BachecaPS />} />
+        <Route path="bacheca-ps"   element={<BachecaPS />} />
 
-        {/* Scuola Calcio */}
-        <Route path="sc/atleti"       element={<PrivateRoute roles={['admin','segreteria','mister']}><YouthPlayers /></PrivateRoute>} />
-        <Route path="sc/pagamenti"    element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
-        <Route path="sc/magazzino"    element={<PrivateRoute roles={['admin','segreteria']}><SCWarehouse /></PrivateRoute>} />
-        <Route path="sc/bacheca"      element={<PrivateRoute roles={['admin','segreteria','mister']}><SCBacheca /></PrivateRoute>} />
-        <Route path="sc/mister"       element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
-        <Route path="sc/allenamenti"  element={<PrivateRoute roles={['admin','segreteria','mister']}><SCTrainings /></PrivateRoute>} />
-        <Route path="sc/presenze"     element={<PrivateRoute roles={['admin','segreteria','mister']}><SCAttendances /></PrivateRoute>} />
-        <Route path="sc/chat"         element={<SCChat />} />
-        <Route path="sc/documenti" element={<DMS modulo="sc" />} />
+        {/* Scuola Calcio — staff */}
+        <Route path="sc/atleti"      element={<PrivateRoute roles={['admin','segreteria','mister']}><YouthPlayers /></PrivateRoute>} />
+        <Route path="sc/pagamenti"   element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
+        <Route path="sc/magazzino"   element={<PrivateRoute roles={['admin','segreteria']}><SCWarehouse /></PrivateRoute>} />
+        <Route path="sc/mister"      element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
+        <Route path="sc/allenamenti" element={<PrivateRoute roles={['admin','segreteria','mister']}><SCTrainings /></PrivateRoute>} />
+        <Route path="sc/presenze"    element={<PrivateRoute roles={['admin','segreteria','mister']}><SCAttendances /></PrivateRoute>} />
+
+        {/* Scuola Calcio — accessibili anche a player_sc */}
+        <Route path="sc/bacheca"      element={<PrivateRoute roles={['admin','segreteria','mister','player_sc']}><SCBacheca /></PrivateRoute>} />
+        <Route path="sc/chat"         element={<PrivateRoute roles={['admin','segreteria','mister','player_sc','parent']}><SCChat /></PrivateRoute>} />
+        <Route path="sc/convocazioni" element={<PrivateRoute roles={['admin','segreteria','mister','player_sc','parent']}><SCCallups /></PrivateRoute>} />
+        <Route path="sc/calendario"   element={<PrivateRoute roles={['admin','segreteria','mister','player_sc']}><Calendar /></PrivateRoute>} />
+        <Route path="sc/documenti"    element={<DMS modulo="sc" />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
