@@ -261,6 +261,11 @@ function ImportPDFModal({ onClose, onSaved, nomeSquadra }) {
             }
           }
 
+          // DEBUG — rimuovi dopo il test
+          console.log('=== TESTO ESTRATTO PDF ===')
+          console.log(fullText.slice(0, 3000))
+          console.log('=== FINE DEBUG ===')
+
           const found = parsePDF(fullText)
           if (found.length === 0) {
             setError(`Nessuna partita trovata per "${nomeSquadra}". Verifica il nome squadra nelle Impostazioni.`)
