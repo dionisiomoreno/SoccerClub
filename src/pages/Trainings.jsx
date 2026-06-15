@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { Plus, Edit2, Trash2, X, Dumbbell, MapPin, Clock, RefreshCw, Settings } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Dumbbell, MapPin, Clock, RefreshCw, Settings, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, getDay } from 'date-fns'
 import { it } from 'date-fns/locale'
@@ -31,7 +31,6 @@ function TrainingModal({ training, onClose, onSaved, misterId }) {
       .then(({ data }) => setVenues(data || []))
   }, [])
 
-  // Controlla conflitti struttura quando cambia data o venue
   useEffect(() => {
     if (!form.venue_id || !form.data) { setVenueConflicts([]); return }
     supabase.from('trainings')
@@ -112,7 +111,6 @@ function TrainingModal({ training, onClose, onSaved, misterId }) {
                   : 'GPS non configurato per questa struttura'}
               </div>
             )}
-            {/* Conflitti struttura */}
             {venueConflicts.length > 0 && (
               <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded p-3 space-y-1">
                 <p className="text-xs font-semibold text-yellow-700">⚠️ Struttura già occupata in questa data:</p>
@@ -251,10 +249,12 @@ function TemplateModal({ template, onClose, onSaved, misterId }) {
 export default function Trainings() {
   const { profile, isAdmin, isMister } = useAuth()
   const [trainings, setTrainings]           = useState([])
-  const [allTrainings, setAllTrainings]     = useState([]) // SC trainings per admin
+  const [allTrainings, setAllTrainings]     = useState([])
   const [templates, setTemplates]           = useState([])
   const [currentDate, setCurrentDate]       = useState(new Date())
   const [selectedDay, setSelectedDay]       = useState(null)
+  const [trainingPresenze, setTrainingPresenze] = useState({}) // { training_id: [presenze] }
+  const [loadingPresenze, setLoadingPresenze]   = useState({}) // { training_id: bool }
   const [modal, setModal]                   = useState(null)
   const [templateModal, setTemplateModal]   = useState(null)
   const [showTemplates, setShowTemplates]   = useState(false)
@@ -269,7 +269,6 @@ export default function Trainings() {
     const start = startOfMonth(currentDate).toISOString().split('T')[0]
     const end   = endOfMonth(currentDate).toISOString().split('T')[0]
 
-    // Allenamenti PS
     let q = supabase.from('trainings')
       .select('*, profiles(nome,cognome), venues(nome,indirizzo,citta,lat,lng,raggio_timbratura)')
       .gte('data', start).lte('data', end)
@@ -279,7 +278,6 @@ export default function Trainings() {
     const { data } = await q
     setTrainings(data || [])
 
-    // Admin carica anche allenamenti SC per vedere disponibilità strutture
     if (isAdmin) {
       const { data: scData } = await supabase.from('trainings')
         .select('*, profiles(nome,cognome), categories(nome,colore), venues(nome,citta,lat,lng,raggio_timbratura)')
@@ -301,6 +299,19 @@ export default function Trainings() {
     if (isMister && !isAdmin) q = q.eq('creato_da', profile.id)
     const { data } = await q
     setTemplates(data || [])
+  }
+
+  // Carica le presenze per un allenamento specifico
+  async function loadPresenze(trainingId) {
+    if (trainingPresenze[trainingId]) return // già caricate
+    setLoadingPresenze(p => ({ ...p, [trainingId]: true }))
+    const { data } = await supabase.from('attendances')
+      .select('*, profiles(nome,cognome)')
+      .eq('training_id', trainingId)
+      .eq('type', 'training')
+      .order('profiles(cognome)')
+    setTrainingPresenze(p => ({ ...p, [trainingId]: data || [] }))
+    setLoadingPresenze(p => ({ ...p, [trainingId]: false }))
   }
 
   async function generateFromTemplates() {
@@ -362,6 +373,13 @@ export default function Trainings() {
     : []
   const canEdit = isAdmin || isMister
 
+  // Quando cambia il giorno selezionato, carica le presenze per gli allenamenti PS del giorno
+  useEffect(() => {
+    if (!selectedDay || !isAdmin) return
+    const psTrainings = trainings.filter(t => isSameDay(new Date(t.data), selectedDay))
+    psTrainings.forEach(t => { if (t.id) loadPresenze(t.id) })
+  }, [selectedDay, trainings])
+
   return (
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
@@ -389,19 +407,17 @@ export default function Trainings() {
         )}
       </div>
 
-      {/* Legenda colori — solo admin */}
       {isAdmin && (
         <div className="flex items-center gap-4 text-xs text-[#999]">
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 rounded-full bg-[#1ab394] inline-block"/>⚽ Prima Squadra
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-full bg-[#27ae60] inline-block"/>🏫 Scuola Calcio (colore categoria)
+            <span className="w-3 h-3 rounded-full bg-[#27ae60] inline-block"/>🏫 Scuola Calcio
           </span>
         </div>
       )}
 
-      {/* Template fissi */}
       {showTemplates && canEdit && (
         <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -487,8 +503,7 @@ export default function Trainings() {
                 {dayTrainings.map(t => (
                   <div key={t.id}
                     className="text-xs rounded px-1 py-0.5 mb-0.5 truncate font-medium text-white"
-                    style={{ background: t.categories?.colore || '#1ab394', opacity: 0.9 }}
-                    title={t.categories ? `🏫 SC - ${t.categories.nome}` : '⚽ PS'}>
+                    style={{ background: t.categories?.colore || '#1ab394', opacity: 0.9 }}>
                     {t.ora_inizio ? t.ora_inizio.slice(0,5) : ''} {t.titolo}
                   </div>
                 ))}
@@ -515,57 +530,93 @@ export default function Trainings() {
           {selectedDayTrainings.length === 0 ? (
             <p className="text-[#999] text-sm">Nessun allenamento in questo giorno.</p>
           ) : (
-            <div className="space-y-3">
-              {selectedDayTrainings.map(t => (
-                <div key={t.id} className="flex items-start justify-between gap-3 p-3 bg-gray-50 rounded border border-[#e7eaec]">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white"
-                      style={{ background: t.categories?.colore || '#1ab394' }}>
-                      <Dumbbell size={15}/>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <div className="text-[#2f4050] font-semibold text-sm">{t.titolo}</div>
-                        {t.categories
-                          ? <span className="text-xs text-white px-1.5 py-0.5 rounded" style={{ background: t.categories.colore }}>🏫 {t.categories.nome}</span>
-                          : <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">⚽ PS</span>}
+            <div className="space-y-4">
+              {selectedDayTrainings.map(t => {
+                const presenze = trainingPresenze[t.id] || []
+                const isLoadingP = loadingPresenze[t.id]
+                return (
+                  <div key={t.id} className="p-3 bg-gray-50 rounded border border-[#e7eaec]">
+                    {/* Info allenamento */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white"
+                          style={{ background: t.categories?.colore || '#1ab394' }}>
+                          <Dumbbell size={15}/>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <div className="text-[#2f4050] font-semibold text-sm">{t.titolo}</div>
+                            {t.categories
+                              ? <span className="text-xs text-white px-1.5 py-0.5 rounded" style={{ background: t.categories.colore }}>🏫 {t.categories.nome}</span>
+                              : <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">⚽ PS</span>}
+                          </div>
+                          {(t.ora_inizio || t.ora_fine) && (
+                            <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
+                              <Clock size={11}/>
+                              {t.ora_inizio?.slice(0,5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0,5)}` : ''}
+                            </div>
+                          )}
+                          {t.venues && (
+                            <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
+                              <MapPin size={11}/>
+                              {t.venues.nome}{t.venues.citta ? ` — ${t.venues.citta}` : ''}
+                              {t.venues.lat && t.venues.lng
+                                ? <span className="text-green-600 ml-1">✅ GPS</span>
+                                : <span className="text-yellow-600 ml-1">⚠️ No GPS</span>}
+                            </div>
+                          )}
+                          {t.note && <div className="text-xs text-[#999] mt-1 italic">{t.note}</div>}
+                          {isAdmin && t.profiles && (
+                            <div className="text-xs text-[#999] mt-0.5">Mister: {t.profiles.nome} {t.profiles.cognome}</div>
+                          )}
+                        </div>
                       </div>
-                      {(t.ora_inizio || t.ora_fine) && (
-                        <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
-                          <Clock size={11}/>
-                          {t.ora_inizio?.slice(0,5)}{t.ora_fine ? ` — ${t.ora_fine.slice(0,5)}` : ''}
+                      {canEdit && !t.categories && (profile.id === t.creato_da || isAdmin) && (
+                        <div className="flex gap-2 flex-shrink-0">
+                          <button onClick={() => setModal(t)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={14}/></button>
+                          <button onClick={() => deleteTraining(t.id)} className="text-[#999] hover:text-red-500"><Trash2 size={14}/></button>
                         </div>
-                      )}
-                      {t.venues && (
-                        <div className="flex items-center gap-1 text-xs text-[#999] mt-0.5">
-                          <MapPin size={11}/>
-                          {t.venues.nome}{t.venues.citta ? ` — ${t.venues.citta}` : ''}
-                          {t.venues.lat && t.venues.lng
-                            ? <span className="text-green-600 ml-1">✅ GPS</span>
-                            : <span className="text-yellow-600 ml-1">⚠️ No GPS</span>}
-                        </div>
-                      )}
-                      {t.note && <div className="text-xs text-[#999] mt-1 italic">{t.note}</div>}
-                      {isAdmin && t.profiles && (
-                        <div className="text-xs text-[#999] mt-0.5">Mister: {t.profiles.nome} {t.profiles.cognome}</div>
                       )}
                     </div>
+
+                    {/* Presenze — solo allenamenti PS */}
+                    {!t.categories && isAdmin && (
+                      <div className="border-t border-[#e7eaec] pt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Users size={13} className="text-[#999]"/>
+                          <span className="text-xs font-semibold text-[#999] uppercase tracking-wide">
+                            Presenti ({isLoadingP ? '…' : presenze.length})
+                          </span>
+                        </div>
+                        {isLoadingP ? (
+                          <div className="flex items-center gap-2 text-xs text-[#999]">
+                            <div className="w-3 h-3 border border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+                            Caricamento...
+                          </div>
+                        ) : presenze.length === 0 ? (
+                          <p className="text-xs text-[#999] italic">Nessuna presenza registrata per questo allenamento.</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {presenze.map(a => (
+                              <div key={a.id} className="flex items-center gap-1.5 bg-[#1ab394]/10 text-[#1ab394] rounded px-2 py-1">
+                                <div className="w-5 h-5 rounded-full bg-[#1ab394]/20 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                  {(a.profiles?.nome?.[0]||'')+(a.profiles?.cognome?.[0]||'')}
+                                </div>
+                                <span className="text-xs font-medium">{a.profiles?.cognome} {a.profiles?.nome}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {/* Solo allenamenti PS modificabili da qui */}
-                  {canEdit && !t.categories && (profile.id === t.creato_da || isAdmin) && (
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => setModal(t)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={14}/></button>
-                      <button onClick={() => deleteTraining(t.id)} className="text-[#999] hover:text-red-500"><Trash2 size={14}/></button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* Modali */}
       {modal !== null && (
         <TrainingModal
           training={modal}
