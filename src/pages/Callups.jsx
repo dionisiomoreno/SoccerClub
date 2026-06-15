@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 
 function CallupsModal({ onClose, onSaved }) {
+  const { profile } = useAuth()
   const [matches, setMatches] = useState([])
   const [players, setPlayers] = useState([])
   const [form, setForm] = useState({ match_id: '', ora_ritrovo: '', luogo_ritrovo: '', note: '' })
@@ -15,7 +16,7 @@ function CallupsModal({ onClose, onSaved }) {
 
   useEffect(() => {
     supabase.from('matches').select('*').gte('date', new Date().toISOString().split('T')[0]).order('date').then(({ data }) => setMatches(data || []))
-    supabase.from('profiles').select('id,nome,cognome').eq('active', true).in('role', ['player_paid','player_volunteer']).order('cognome').then(({ data }) => setPlayers(data || []))
+    supabase.from('profiles').select('id,nome,cognome').eq('active', true).eq('club_id', profile?.club_id).in('role', ['player_paid','player_volunteer']).order('cognome').then(({ data }) => setPlayers(data || []))
   }, [])
 
   function togglePlayer(id) { setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]) }
@@ -95,6 +96,7 @@ function CallupsModal({ onClose, onSaved }) {
 
 export default function Callups() {
   const { profile, isAdmin, isMister } = useAuth()
+  const isMisterPS = isMister && !profile?.category_id
   const [callups, setCallups] = useState([])
   const [expanded, setExpanded] = useState(null)
   const [modal, setModal] = useState(false)
@@ -104,15 +106,32 @@ export default function Callups() {
 
   async function load() {
     setLoading(true)
-    let q = supabase.from('callups').select('*, matches(avversario,date,time,campo), callup_players(player_id, profiles(nome,cognome))').order('created_at', { ascending: false })
-    if (!isAdmin && !isMister) {
-      const { data: myCallups } = await supabase.from('callup_players').select('callup_id').eq('player_id', profile.id)
-      const ids = (myCallups || []).map(c => c.callup_id)
-      if (ids.length === 0) { setCallups([]); setLoading(false); return }
-      q = q.in('id', ids)
+    try {
+      // calciatori PS: cerca prima le loro convocazioni
+      if (!isAdmin && !isMisterPS) {
+        const { data: myCallups } = await supabase
+          .from('callup_players')
+          .select('callup_id')
+          .eq('player_id', profile.id)
+        const ids = (myCallups || []).map(c => c.callup_id)
+        if (ids.length === 0) { setCallups([]); setLoading(false); return }
+        const { data } = await supabase
+          .from('callups')
+          .select('*, matches(avversario,date,time,campo), callup_players(player_id, profiles(nome,cognome))')
+          .in('id', ids)
+          .order('created_at', { ascending: false })
+        setCallups(data || [])
+      } else {
+        // admin o mister PS: vede tutte le convocazioni del proprio club
+        const { data } = await supabase
+          .from('callups')
+          .select('*, matches(avversario,date,time,campo), callup_players(player_id, profiles(nome,cognome))')
+          .order('created_at', { ascending: false })
+        setCallups(data || [])
+      }
+    } catch(e) {
+      toast.error('Errore caricamento convocazioni')
     }
-    const { data } = await q
-    setCallups(data || [])
     setLoading(false)
   }
 
@@ -123,7 +142,7 @@ export default function Callups() {
           <h1 className="text-2xl font-bold text-[#2f4050]">Convocazioni</h1>
           <p className="text-sm text-[#999] mt-1">Lista convocati per le partite</p>
         </div>
-        {(isAdmin || isMister) && (
+        {(isAdmin || isMisterPS) && (
           <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
             <Plus size={16}/> Nuova
           </button>
@@ -139,7 +158,7 @@ export default function Callups() {
           {callups.map(c => {
             const players = c.callup_players || []
             const isExpanded = expanded === c.id
-            const isConvocato = !isAdmin && !isMister && players.some(p => p.player_id === profile?.id)
+            const isConvocato = !isAdmin && !isMisterPS && players.some(p => p.player_id === profile?.id)
             return (
               <div key={c.id} className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
                 <button className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
