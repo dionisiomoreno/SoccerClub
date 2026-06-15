@@ -182,9 +182,9 @@ export default function Materials() {
               </div>
               <div className="text-[#2f4050] font-semibold text-sm">{m.nome}</div>
               {m.descrizione && <div className="text-[#999] text-xs">{m.descrizione}</div>}
-              {isAdmin && (
-  <div className={clsx('text-2xl font-bold', m.quantita > 5 ? 'text-[#1ab394]' : m.quantita > 0 ? 'text-yellow-500' : 'text-red-500')}>{m.quantita}</div>
-)}
+              <div className={clsx('text-2xl font-bold', m.quantita > 5 ? 'text-[#1ab394]' : m.quantita > 0 ? 'text-yellow-500' : 'text-red-500')}>
+  {m.quantita}
+</div>
             </div>
           ))}
           {materials.length === 0 && <div className="col-span-4 text-center text-[#999] py-10 text-sm">Nessun materiale</div>}
