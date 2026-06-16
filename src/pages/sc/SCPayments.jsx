@@ -986,11 +986,16 @@ export default function SCPayments() {
       )}
 
       {tab === 'receipts' && (
-        loading ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
-          </div>
-        ) : (
+  <>
+    <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-700 mb-3">
+      ℹ️ Qui trovi le ricevute generate dai pagamenti delle <strong>quote occasionali</strong>.
+      Le ricevute delle rette mensili si trovano nel tab "Scadenziario Rette".
+    </div>
+    {loading ? (
+      <div className="flex items-center justify-center h-32">
+        <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+      </div>
+    ) : (
           <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
             {receipts.length === 0 ? (
               <div className="text-center text-[#999] py-10 text-sm">Nessuna ricevuta</div>
