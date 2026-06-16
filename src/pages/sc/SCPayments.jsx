@@ -896,12 +896,12 @@ export default function SCPayments() {
         </>
       )}
 
-      {/* Tab */}
+     {/* Tab */}
       <div className="flex gap-1 border-b border-[#e7eaec]">
         {[
           ['scadenziario', '📅 Scadenziario Rette'],
           ['payments',     'Quote occasionali'],
-          ['receipts',     'Ricevute'],
+          ['receipts',     'Ricevute quote occasionali'],
           ['configs',      'Quote configurate']
         ].map(([v,l]) => (
           <button key={v} onClick={() => setTab(v)}
