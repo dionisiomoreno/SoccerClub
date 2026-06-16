@@ -47,7 +47,7 @@ const NAV_SCUOLA_CALCIO = [
   { to: '/sc/allenamenti',    label: 'Allenamenti',   icon: Dumbbell,        roles: ['admin','segreteria','mister'],   group: 'Squadra' },
   { to: '/sc/convocazioni',   label: 'Convocazioni',  icon: Bell,            roles: ['admin','segreteria','mister','player_sc'], group: 'Squadra' },
   { to: '/sc/calendario',     label: 'Calendario',    icon: Calendar,        roles: ['admin','segreteria','mister','player_sc'], group: 'Gare' },
-  { to: '/sc/magazzino',      label: 'Magazzino',     icon: ShoppingBag,     roles: ['admin','segreteria'],            group: 'Gestione' },
+  { to: '/sc/magazzino', label: 'Magazzino', icon: ShoppingBag, roles: ['admin','segreteria','mister'], group: 'Gestione' },
   { to: '/sc/documenti',      label: 'Documenti',     icon: FileText,        roles: null,                              group: 'Gestione' },
   { to: '/sc/pagamenti',      label: 'Pagamenti',     icon: Wallet,          roles: ['admin','segreteria'],            group: 'Economico' },
   { to: '/sc/contabilita',    label: 'Contabilità',   icon: BookOpen,        roles: ['admin','segreteria'],            group: 'Economico' },
