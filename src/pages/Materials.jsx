@@ -130,8 +130,26 @@ export default function Materials() {
   }
 
   async function updateStatus(id, status, playerId, materialName) {
+    // Se consegnato → scala la quantità dal magazzino
+    if (status === 'delivered') {
+      const { data: req } = await supabase.from('material_requests')
+        .select('material_id, quantita').eq('id', id).single()
+      if (req) {
+        const { data: mat } = await supabase.from('materials')
+          .select('quantita').eq('id', req.material_id).single()
+        if (mat) {
+          const nuova = Math.max(0, mat.quantita - (req.quantita || 1))
+          await supabase.from('materials').update({ quantita: nuova }).eq('id', req.material_id)
+        }
+      }
+    }
     await supabase.from('material_requests').update({ status }).eq('id', id)
-    await supabase.from('notifications').insert([{ user_id: playerId, type: status === 'approved' ? 'request_approved' : 'request_rejected', message: `Richiesta "${materialName}" ${STATUS_LABELS[status].toLowerCase()}`, read: false }])
+    await supabase.from('notifications').insert([{
+      user_id: playerId,
+      type: status === 'approved' ? 'request_approved' : 'request_rejected',
+      message: `Richiesta "${materialName}" ${STATUS_LABELS[status].toLowerCase()}`,
+      read: false
+    }])
     toast.success('Stato aggiornato')
     load()
   }
