@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   Plus, Edit2, Trash2, X, ShoppingBag, Package,
   AlertTriangle, Download, ChevronDown, ChevronUp,
-  ArrowUp, ArrowDown, ClipboardList, Check
+  ArrowDown, ClipboardList, Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
@@ -23,6 +23,13 @@ const STATO_KIT = {
   ordinato:   { label:'Ordinato',   color:'bg-blue-100 text-blue-600' },
   consegnato: { label:'Consegnato', color:'bg-green-100 text-green-600' },
 }
+const STATUS_LABELS = { pending:'In attesa', approved:'Approvata', delivered:'Consegnata', rejected:'Rifiutata' }
+const STATUS_COLORS = {
+  pending:  'bg-yellow-100 text-yellow-600',
+  approved: 'bg-green-100 text-green-600',
+  delivered:'bg-blue-100 text-blue-600',
+  rejected: 'bg-red-100 text-red-600'
+}
 
 // ── PDF ordine fornitore ─────────────────────────────────────
 function generateOrderPDF(kit, assignments, ts) {
@@ -35,8 +42,6 @@ function generateOrderPDF(kit, assignments, ts) {
   doc.setTextColor(0,0,0); doc.setFontSize(10)
   doc.text(`Generato il ${format(new Date(),'dd/MM/yyyy')}`, 14, 38)
   doc.text(`Totale atleti: ${assignments.length}`, 14, 46)
-
-  // Riepilogo per articolo + taglia
   const byItem = {}
   assignments.forEach(a => {
     ;(a.sc_kit_assignment_items||[]).forEach(item => {
@@ -47,40 +52,43 @@ function generateOrderPDF(kit, assignments, ts) {
       byItem[key].qta += (item.quantita || 1)
     })
   })
-
   autoTable(doc, {
     startY: 54,
     head: [['Articolo','Taglia','Quantità totale']],
     body: Object.values(byItem).map(r => [r.nome, r.taglia, r.qta]),
     headStyles: { fillColor: [26,179,148] }, styles: { fontSize: 9 }
   })
-
-  // Dettaglio per atleta
-  const articleNames = [...new Set(
-    assignments.flatMap(a =>
-      (a.sc_kit_assignment_items||[]).map(i => i.warehouse_items?.nome || '—')
-    )
-  )]
-
-  if (articleNames.length > 0) {
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 10,
-      head: [['Atleta', ...articleNames]],
-      body: assignments.map(a => {
-        const itemMap = {}
-        ;(a.sc_kit_assignment_items||[]).forEach(i => {
-          itemMap[i.warehouse_items?.nome || '—'] = i.taglia || '—'
-        })
-        return [
-          `${a.youth_players?.cognome||''} ${a.youth_players?.nome||''}`,
-          ...articleNames.map(n => itemMap[n] || '—')
-        ]
-      }),
-      headStyles: { fillColor: [80,80,80] }, styles: { fontSize: 8 }
-    })
-  }
-
   doc.save(`ordine_${kit.nome.replace(/\s+/g,'_')}_${format(new Date(),'ddMMyyyy')}.pdf`)
+}
+
+// ── PDF ordine fornitore richiesta materiale ─────────────────
+function generateRichiestaOrdinePDF(request, ts) {
+  const doc = new jsPDF()
+  doc.setFillColor(26,179,148); doc.rect(0,0,210,28,'F')
+  doc.setTextColor(255,255,255); doc.setFontSize(16); doc.setFont('helvetica','bold')
+  doc.text(ts?.nome_squadra||'SoccerClub', 14, 13)
+  doc.setFontSize(9); doc.setFont('helvetica','normal')
+  doc.text('Ordine Fornitore — Richiesta Materiale', 14, 22)
+  doc.setTextColor(0,0,0); doc.setFontSize(10)
+  doc.text(`Data: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 38)
+  doc.text(`Richiedente: ${request.profiles?.cognome} ${request.profiles?.nome}`, 14, 46)
+  const nomeArticolo = request.tipo === 'struttura'
+    ? request.sc_structure_materials?.nome
+    : request.warehouse_items?.nome || request.materials?.nome
+  autoTable(doc, {
+    startY: 56,
+    head: [['Tipo','Articolo','Quantità','Note']],
+    body: [[
+      request.tipo === 'struttura' ? '⚽ Struttura' : '👕 Abbigliamento',
+      nomeArticolo || '—',
+      request.quantita,
+      request.note || '—'
+    ]],
+    headStyles: { fillColor: [26,179,148] }, styles: { fontSize: 10 }
+  })
+  doc.setFontSize(9); doc.setTextColor(150)
+  doc.text('Firma responsabile: ______________________', 14, doc.lastAutoTable.finalY + 20)
+  doc.save(`ordine_richiesta_${format(new Date(),'ddMMyyyy')}.pdf`)
 }
 
 // ── PDF verbale consegna ─────────────────────────────────────
@@ -225,7 +233,6 @@ function KitConfigModal({ categories, items, onClose, onSaved }) {
               <label className="text-xs font-semibold text-[#999] uppercase tracking-wide">Articoli del kit</label>
               <button onClick={addRow} className="text-xs text-[#1ab394] hover:underline">+ Aggiungi</button>
             </div>
-            <p className="text-xs text-[#999] mb-2">Le taglie verranno raccolte al momento dell'assegnazione all'atleta.</p>
             {rows.map((row,i)=>(
               <div key={i} className="flex gap-2 mb-2 items-center">
                 <select value={row.warehouse_item_id} onChange={e=>setRow(i,'warehouse_item_id',e.target.value)} className="flex-1 border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]">
@@ -248,7 +255,7 @@ function KitConfigModal({ categories, items, onClose, onSaved }) {
   )
 }
 
-// ── Modal assegnazione kit ad atleta ─────────────────────────
+// ── Modal assegnazione kit ───────────────────────────────────
 function AssignKitModal({ kit, players, onClose, onSaved }) {
   const [selected, setSelected] = useState([])
   const [taglie, setTaglie] = useState({})
@@ -268,54 +275,23 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
     setTaglie(initial)
   }, [selected])
 
-  function togglePlayer(id) {
-    setSelected(s => s.includes(id) ? s.filter(x=>x!==id) : [...s, id])
-  }
-
-  function setTaglia(playerId, itemId, val) {
-    setTaglie(t => ({ ...t, [playerId]: { ...(t[playerId]||{}), [itemId]: val } }))
-  }
+  function togglePlayer(id) { setSelected(s => s.includes(id) ? s.filter(x=>x!==id) : [...s, id]) }
+  function setTaglia(pid, itemId, val) { setTaglie(t => ({ ...t, [pid]: { ...(t[pid]||{}), [itemId]: val } })) }
 
   async function save() {
     if (!selected.length) return toast.error('Seleziona almeno un atleta')
     setLoading(true)
     for (const pid of selected) {
-      // Controlla se esiste già un'assegnazione NON consegnata
-      const { data: existing } = await supabase
-        .from('sc_kit_assignments')
-        .select('id, stato')
-        .eq('kit_config_id', kit.id)
-        .eq('youth_player_id', pid)
-        .neq('stato', 'consegnato')
-        .maybeSingle()
-
+      const { data: existing } = await supabase.from('sc_kit_assignments').select('id,stato').eq('kit_config_id', kit.id).eq('youth_player_id', pid).neq('stato','consegnato').maybeSingle()
       if (existing) {
-        // Aggiorna quella esistente
         await supabase.from('sc_kit_assignment_items').delete().eq('assignment_id', existing.id)
-        const items = (kit.sc_kit_config_items||[]).map(item => ({
-          assignment_id: existing.id,
-          kit_config_item_id: item.id,
-          warehouse_item_id: item.warehouse_item_id,
-          taglia: taglie[pid]?.[item.id] || 'M',
-          quantita: item.quantita
-        }))
+        const items = (kit.sc_kit_config_items||[]).map(item => ({ assignment_id: existing.id, kit_config_item_id: item.id, warehouse_item_id: item.warehouse_item_id, taglia: taglie[pid]?.[item.id] || 'M', quantita: item.quantita }))
         await supabase.from('sc_kit_assignment_items').insert(items)
         await supabase.from('sc_kit_assignments').update({ stato: 'in_attesa' }).eq('id', existing.id)
       } else {
-        // Crea nuova (anche se esiste una consegnata → nuova stagione)
-        const { data: ass, error } = await supabase.from('sc_kit_assignments').insert([{
-          kit_config_id: kit.id,
-          youth_player_id: pid,
-          stato: 'in_attesa'
-        }]).select().single()
+        const { data: ass, error } = await supabase.from('sc_kit_assignments').insert([{ kit_config_id: kit.id, youth_player_id: pid, stato: 'in_attesa' }]).select().single()
         if (error) { toast.error(error.message); setLoading(false); return }
-        const items = (kit.sc_kit_config_items||[]).map(item => ({
-          assignment_id: ass.id,
-          kit_config_item_id: item.id,
-          warehouse_item_id: item.warehouse_item_id,
-          taglia: taglie[pid]?.[item.id] || 'M',
-          quantita: item.quantita
-        }))
+        const items = (kit.sc_kit_config_items||[]).map(item => ({ assignment_id: ass.id, kit_config_item_id: item.id, warehouse_item_id: item.warehouse_item_id, taglia: taglie[pid]?.[item.id] || 'M', quantita: item.quantita }))
         await supabase.from('sc_kit_assignment_items').insert(items)
       }
     }
@@ -331,11 +307,9 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
           <h2 className="text-[#2f4050] font-bold">Assegna — {kit.nome}</h2>
           <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
         </div>
-
         {step === 1 && (
           <>
             <div className="p-4">
-              <p className="text-xs text-[#999] mb-3">Seleziona gli atleti. Le taglie verranno pre-compilate dall'anagrafica.</p>
               <div className="space-y-1 max-h-72 overflow-y-auto border border-[#e7eaec] rounded p-2">
                 {players.map(p => (
                   <label key={p.id} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50 cursor-pointer">
@@ -353,51 +327,37 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
             </div>
             <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
               <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
-              <button onClick={() => setStep(2)} disabled={!selected.length}
-                className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
-                Avanti — Verifica taglie ({selected.length})
-              </button>
+              <button onClick={() => setStep(2)} disabled={!selected.length} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">Avanti ({selected.length})</button>
             </div>
           </>
         )}
-
         {step === 2 && (
           <>
             <div className="p-4 space-y-4">
-              <p className="text-xs text-[#999]">Verifica e modifica le taglie per ogni atleta.</p>
               {selected.map(pid => {
                 const p = players.find(x=>x.id===pid)
                 return (
                   <div key={pid} className="border border-[#e7eaec] rounded p-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-7 h-7 rounded-full bg-[#1ab394]/20 text-[#1ab394] flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {(p?.nome?.[0]||'')+(p?.cognome?.[0]||'')}
-                      </div>
+                      <div className="w-7 h-7 rounded-full bg-[#1ab394]/20 text-[#1ab394] flex items-center justify-center text-xs font-bold">{(p?.nome?.[0]||'')+(p?.cognome?.[0]||'')}</div>
                       <span className="text-sm font-semibold text-[#2f4050]">{p?.cognome} {p?.nome}</span>
                     </div>
-                    <div className="space-y-2">
-                      {(kit.sc_kit_config_items||[]).map(item => (
-                        <div key={item.id} className="flex items-center justify-between gap-3">
-                          <span className="text-xs text-[#676a6c] flex-1">{item.warehouse_items?.nome} ×{item.quantita}</span>
-                          <select
-                            value={taglie[pid]?.[item.id] || 'M'}
-                            onChange={e=>setTaglia(pid, item.id, e.target.value)}
-                            className="border border-[#e7eaec] rounded px-2 py-1 text-[#676a6c] text-xs outline-none focus:border-[#1ab394] w-24">
-                            {TAGLIE.map(t=><option key={t}>{t}</option>)}
-                          </select>
-                        </div>
-                      ))}
-                    </div>
+                    {(kit.sc_kit_config_items||[]).map(item => (
+                      <div key={item.id} className="flex items-center justify-between gap-3 mt-2">
+                        <span className="text-xs text-[#676a6c] flex-1">{item.warehouse_items?.nome} ×{item.quantita}</span>
+                        <select value={taglie[pid]?.[item.id] || 'M'} onChange={e=>setTaglia(pid, item.id, e.target.value)}
+                          className="border border-[#e7eaec] rounded px-2 py-1 text-[#676a6c] text-xs outline-none focus:border-[#1ab394] w-24">
+                          {TAGLIE.map(t=><option key={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    ))}
                   </div>
                 )
               })}
             </div>
             <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
               <button onClick={()=>setStep(1)} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">← Indietro</button>
-              <button onClick={save} disabled={loading}
-                className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
-                {loading ? 'Salvataggio...' : 'Conferma assegnazione'}
-              </button>
+              <button onClick={save} disabled={loading} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">{loading?'Salvataggio...':'Conferma'}</button>
             </div>
           </>
         )}
@@ -475,58 +435,151 @@ function MaterialModal({ material, categories, onClose, onSaved }) {
   )
 }
 
-// ── Modal movimento materiale struttura ──────────────────────
-function MovementModal({ material, onClose, onSaved }) {
+// ── Modal richiesta materiale (mister SC) ────────────────────
+function RichiestaModal({ items, structureMaterials, onClose, onSaved }) {
   const { profile } = useAuth()
-  const [tipo, setTipo] = useState('carico')
-  const [quantita, setQuantita] = useState(1)
-  const [note, setNote] = useState('')
+  const [tipo, setTipo] = useState('abbigliamento')
+  const [form, setForm] = useState({ warehouse_item_id:'', structure_material_id:'', quantita:1, note:'' })
   const [loading, setLoading] = useState(false)
+
   async function save() {
-    if (quantita <= 0) return toast.error('Quantità non valida')
+    if (tipo === 'abbigliamento' && !form.warehouse_item_id) return toast.error('Seleziona un articolo')
+    if (tipo === 'struttura' && !form.structure_material_id) return toast.error('Seleziona un articolo')
     setLoading(true)
-    const delta = tipo === 'carico' ? quantita : -quantita
-    const nuova = Math.max(0, material.quantita_disponibile + delta)
-    await supabase.from('sc_structure_materials').update({ quantita_disponibile: nuova }).eq('id', material.id)
-    await supabase.from('sc_structure_movements').insert([{ item_id: material.id, tipo, quantita, note, operatore_id: profile?.id }])
-    toast.success(tipo === 'carico' ? `+${quantita} caricati` : `-${quantita} scaricati`)
-    onSaved()
+    const { error } = await supabase.from('material_requests').insert([{
+      player_id:             profile?.id,
+      club_id:               profile?.club_id,
+      richiedente_role:      profile?.role,
+      tipo,
+      warehouse_item_id:     tipo === 'abbigliamento' ? form.warehouse_item_id : null,
+      structure_material_id: tipo === 'struttura' ? form.structure_material_id : null,
+      quantita:              form.quantita,
+      note:                  form.note,
+      status:                'pending',
+    }])
+    if (error) toast.error(error.message)
+    else { toast.success('Richiesta inviata'); onSaved() }
     setLoading(false)
   }
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-sm">
         <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
-          <h2 className="text-[#2f4050] font-bold">Movimento — {material.nome}</h2>
+          <h2 className="text-[#2f4050] font-bold">Richiedi Materiale</h2>
           <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
         </div>
         <div className="p-4 space-y-3">
           <div className="flex gap-2">
-            {['carico','scarico'].map(t=>(
-              <button key={t} onClick={()=>setTipo(t)}
+            {[['abbigliamento','👕 Abbigliamento'],['struttura','⚽ Struttura']].map(([v,l]) => (
+              <button key={v} onClick={() => setTipo(v)}
                 className={clsx('flex-1 py-2 rounded text-sm font-semibold border transition-colors',
-                  tipo===t
-                    ? t==='carico' ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'
-                    : 'border-[#e7eaec] text-[#999] hover:bg-gray-50')}>
-                {t==='carico' ? '▲ Carico' : '▼ Scarico'}
+                  tipo === v ? 'bg-[#1ab394] border-[#1ab394] text-white' : 'border-[#e7eaec] text-[#999] hover:bg-gray-50')}>
+                {l}
               </button>
             ))}
           </div>
+          {tipo === 'abbigliamento' ? (
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Articolo</label>
+              <select value={form.warehouse_item_id} onChange={e=>setForm(f=>({...f,warehouse_item_id:e.target.value}))}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+                <option value="">Seleziona...</option>
+                {items.map(m=><option key={m.id} value={m.id}>{m.nome} (disp. {m.quantita_disponibile})</option>)}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Articolo struttura</label>
+              <select value={form.structure_material_id} onChange={e=>setForm(f=>({...f,structure_material_id:e.target.value}))}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+                <option value="">Seleziona...</option>
+                {structureMaterials.map(m=><option key={m.id} value={m.id}>{m.nome} (disp. {m.quantita_disponibile})</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Quantità</label>
-            <input type="number" min="1" value={quantita} onChange={e=>setQuantita(+e.target.value)} className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+            <input type="number" min="1" value={form.quantita} onChange={e=>setForm(f=>({...f,quantita:+e.target.value}))}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Note</label>
-            <input value={note} onChange={e=>setNote(e.target.value)} className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-          </div>
-          <div className={clsx('rounded p-3 text-sm font-medium', tipo==='carico' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}>
-            Disponibile dopo: {Math.max(0, material.quantita_disponibile + (tipo==='carico' ? quantita : -quantita))} pz
+            <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] resize-none"/>
           </div>
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
-          <button onClick={save} disabled={loading} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">{loading?'Salvataggio...':'Conferma'}</button>
+          <button onClick={save} disabled={loading} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">{loading?'Invio...':'Invia'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal scarico manuale (mister SC) ────────────────────────
+function ScaricoModal({ structureMaterials, onClose, onSaved }) {
+  const { profile } = useAuth()
+  const [form, setForm] = useState({ item_id:'', quantita:1, motivo:'' })
+  const [loading, setLoading] = useState(false)
+
+  async function save() {
+    if (!form.item_id) return toast.error('Seleziona un articolo')
+    if (!form.motivo) return toast.error('Inserisci il motivo')
+    setLoading(true)
+    const { error } = await supabase.from('material_scarichi').insert([{
+      club_id:      profile?.club_id,
+      item_id:      form.item_id,
+      quantita:     form.quantita,
+      motivo:       form.motivo,
+      operatore_id: profile?.id,
+    }])
+    if (error) { toast.error(error.message); setLoading(false); return }
+    const mat = structureMaterials.find(m => m.id === form.item_id)
+    if (mat) {
+      const nuova = Math.max(0, mat.quantita_disponibile - form.quantita)
+      await supabase.from('sc_structure_materials').update({ quantita_disponibile: nuova }).eq('id', form.item_id)
+    }
+    toast.success('Scarico registrato')
+    onSaved()
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-sm">
+        <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
+          <h2 className="text-[#2f4050] font-bold">Scarico Materiale</h2>
+          <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs text-yellow-700">
+            ⚠️ Lo scarico verrà registrato e comunicato alla società.
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Articolo</label>
+            <select value={form.item_id} onChange={e=>setForm(f=>({...f,item_id:e.target.value}))}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+              <option value="">Seleziona...</option>
+              {structureMaterials.map(m=><option key={m.id} value={m.id}>{m.nome} (disp. {m.quantita_disponibile})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Quantità</label>
+            <input type="number" min="1" value={form.quantita} onChange={e=>setForm(f=>({...f,quantita:+e.target.value}))}
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Motivo *</label>
+            <textarea value={form.motivo} onChange={e=>setForm(f=>({...f,motivo:e.target.value}))} rows={2}
+              placeholder="Es. Pallone danneggiato, cono rotto..."
+              className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] resize-none"/>
+          </div>
+        </div>
+        <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
+          <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
+          <button onClick={save} disabled={loading} className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">{loading?'Registrazione...':'Registra scarico'}</button>
         </div>
       </div>
     </div>
@@ -535,49 +588,45 @@ function MovementModal({ material, onClose, onSaved }) {
 
 // ── Componente principale ────────────────────────────────────
 export default function SCWarehouse() {
-  const { profile, isAdmin, isSegreteria } = useAuth()
-  const canEdit = isAdmin || isSegreteria
+  const { profile, isAdmin, isSegreteria, isMister } = useAuth()
+  const canEdit    = isAdmin || isSegreteria
+  const canRequest = isMister // mister può fare richieste e scarichi
 
-  const [tab, setTab] = useState('abbigliamento')
-  const [kitSubTab, setKitSubTab] = useState('configs')
-  const [items, setItems] = useState([])
-  const [players, setPlayers] = useState([])
-  const [deliveries, setDeliveries] = useState([])
-  const [kitConfigs, setKitConfigs] = useState([])
-  const [assignments, setAssignments] = useState([])
-  const [materials, setMaterials] = useState([])
-  const [movements, setMovements] = useState({})
-  const [categories, setCategories] = useState([])
-  const [filterCat, setFilterCat] = useState('')
-  const [filterMatCat, setFilterMatCat] = useState('')
+  const [tab, setTab]                         = useState('abbigliamento')
+  const [kitSubTab, setKitSubTab]             = useState('configs')
+  const [items, setItems]                     = useState([])
+  const [players, setPlayers]                 = useState([])
+  const [kitConfigs, setKitConfigs]           = useState([])
+  const [assignments, setAssignments]         = useState([])
+  const [structureMaterials, setStructureMaterials] = useState([])
+  const [requests, setRequests]               = useState([])
+  const [scarichi, setScarichi]               = useState([])
+  const [categories, setCategories]           = useState([])
+  const [teamSettings, setTeamSettings]       = useState(null)
   const [filterKitConfig, setFilterKitConfig] = useState('')
-  const [itemModal, setItemModal] = useState(null)
-  const [kitModal, setKitModal] = useState(false)
-  const [assignModal, setAssignModal] = useState(null)
-  const [materialModal, setMaterialModal] = useState(null)
-  const [movementModal, setMovementModal] = useState(null)
-  const [expandedKit, setExpandedKit] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [itemModal, setItemModal]             = useState(null)
+  const [kitModal, setKitModal]               = useState(false)
+  const [assignModal, setAssignModal]         = useState(null)
+  const [materialModal, setMaterialModal]     = useState(null)
+  const [richiestaModal, setRichiestaModal]   = useState(false)
+  const [scaricoModal, setScaricoModal]       = useState(false)
+  const [expandedKit, setExpandedKit]         = useState(null)
+  const [loading, setLoading]                 = useState(true)
 
   useEffect(() => {
     supabase.from('categories').select('*').order('ordine').then(({ data }) => setCategories(data||[]))
     supabase.from('youth_players').select('id,nome,cognome,taglia,category_id').eq('active',true).order('cognome').then(({ data }) => setPlayers(data||[]))
+    supabase.from('team_settings').select('*').single().then(({ data }) => setTeamSettings(data))
+    // Carica sempre struttura e abbigliamento (servono a più tab)
+    supabase.from('sc_structure_materials').select('*').eq('active',true).order('nome').then(({ data }) => setStructureMaterials(data||[]))
+    supabase.from('warehouse_items').select('*').eq('active',true).order('nome').then(({ data }) => setItems(data||[]))
   }, [])
 
-  useEffect(() => { load() }, [tab, kitSubTab, filterCat, filterMatCat, filterKitConfig])
+  useEffect(() => { load() }, [tab, kitSubTab, filterKitConfig])
 
   async function load() {
     setLoading(true)
     if (tab === 'abbigliamento') {
-      let q = supabase.from('warehouse_items').select('*').eq('active',true).order('nome')
-      if (filterCat) q = q.eq('categoria', filterCat)
-      const { data: its } = await q
-      setItems(its||[])
-      const { data: del } = await supabase.from('deliveries')
-        .select('*, youth_players(nome,cognome), delivery_items(*, warehouse_items(nome,taglia))')
-        .order('created_at', { ascending:false }).limit(20)
-      setDeliveries(del||[])
-    } else if (tab === 'kit') {
       const { data: kits } = await supabase.from('sc_kit_configs')
         .select('*, categories(nome,colore), sc_kit_config_items(*, warehouse_items(nome,categoria))')
         .eq('active', true).order('nome')
@@ -591,24 +640,57 @@ export default function SCWarehouse() {
         setAssignments(ass||[])
       }
     } else if (tab === 'materiale') {
-      let q = supabase.from('sc_structure_materials').select('*, categories(nome,colore)').eq('active',true).order('nome')
-      if (filterMatCat) q = q.eq('categoria', filterMatCat)
-      const { data: mats } = await q
-      setMaterials(mats||[])
+      const { data: mats } = await supabase.from('sc_structure_materials').select('*, categories(nome,colore)').eq('active',true).order('nome')
+      setStructureMaterials(mats||[])
+    } else if (tab === 'richieste') {
+      let q = supabase.from('material_requests')
+        .select('*, warehouse_items(nome), sc_structure_materials(nome), profiles!material_requests_player_id_fkey(nome,cognome,role)')
+        .order('created_at', { ascending: false })
+      if (!canEdit) q = q.eq('player_id', profile.id)
+      const { data } = await q
+      setRequests(data||[])
+    } else if (tab === 'scarichi') {
+      const { data } = await supabase.from('material_scarichi')
+        .select('*, sc_structure_materials(nome), profiles!material_scarichi_operatore_id_fkey(nome,cognome)')
+        .order('created_at', { ascending: false })
+      setScarichi(data||[])
     }
     setLoading(false)
   }
 
-  async function loadMovements(itemId) {
-    const { data } = await supabase.from('sc_structure_movements')
-      .select('*').eq('item_id', itemId).order('created_at', { ascending: false }).limit(10)
-    setMovements(m => ({ ...m, [itemId]: data||[] }))
+  async function updateRequestStatus(id, status, request) {
+    // Se consegnata e tipo struttura → aumenta giacenza
+    if (status === 'delivered' && request.tipo === 'struttura' && request.structure_material_id) {
+      const mat = structureMaterials.find(m => m.id === request.structure_material_id)
+      const qta = mat ? mat.quantita_disponibile : 0
+      await supabase.from('sc_structure_materials')
+        .update({ quantita_disponibile: qta + (request.quantita || 1) })
+        .eq('id', request.structure_material_id)
+      // Aggiorna locale
+      setStructureMaterials(prev => prev.map(m =>
+        m.id === request.structure_material_id
+          ? { ...m, quantita_disponibile: qta + (request.quantita || 1) }
+          : m
+      ))
+    }
+    await supabase.from('material_requests').update({ status }).eq('id', id)
+    toast.success('Stato aggiornato')
+    load()
   }
 
-  async function deleteItem(id) {
-    if (!confirm('Eliminare?')) return
-    await supabase.from('warehouse_items').update({ active:false }).eq('id',id)
-    toast.success('Eliminato'); load()
+  async function updateAssignmentStato(id, stato, assignment) {
+    await supabase.from('sc_kit_assignments').update({ stato }).eq('id', id)
+    if (stato === 'consegnato') generateDeliveryPDF(assignment.youth_players, assignment.sc_kit_assignment_items, teamSettings)
+    toast.success(stato === 'ordinato' ? 'Segnato come ordinato' : 'Consegnato!')
+    load()
+  }
+
+  async function generateOrderForKit(kit) {
+    const { data: ass } = await supabase.from('sc_kit_assignments')
+      .select('*, youth_players(nome,cognome), sc_kit_assignment_items(*, warehouse_items(nome))')
+      .eq('kit_config_id', kit.id).neq('stato', 'consegnato')
+    if (!ass?.length) { toast.error('Nessuna assegnazione da ordinare'); return }
+    generateOrderPDF(kit, ass, teamSettings)
   }
 
   async function deleteKit(id) {
@@ -623,60 +705,61 @@ export default function SCWarehouse() {
     toast.success('Eliminato'); load()
   }
 
-  async function updateAssignmentStato(id, stato, assignment) {
-    await supabase.from('sc_kit_assignments').update({ stato }).eq('id', id)
-    if (stato === 'consegnato') {
-      const { data: ts } = await supabase.from('team_settings').select('*').single()
-      generateDeliveryPDF(assignment.youth_players, assignment.sc_kit_assignment_items, ts)
-    }
-    toast.success(stato === 'ordinato' ? 'Segnato come ordinato' : 'Consegnato!')
-    load()
-  }
-
-  async function generateOrderForKit(kit) {
-    const { data: ass, error } = await supabase
-      .from('sc_kit_assignments')
-      .select(`*, youth_players(nome,cognome), sc_kit_assignment_items(*, warehouse_items(nome))`)
-      .eq('kit_config_id', kit.id)
-      .neq('stato', 'consegnato')
-    if (error) { toast.error(error.message); return }
-    if (!ass?.length) { toast.error('Nessuna assegnazione da ordinare per questo kit'); return }
-    const { data: ts } = await supabase.from('team_settings').select('*').single()
-    generateOrderPDF(kit, ass, ts)
-  }
-
   const lowStockItems = items.filter(i => i.quantita_disponibile <= i.quantita_minima)
-  const lowStockMats  = materials.filter(m => m.quantita_disponibile <= m.quantita_minima)
+  const lowStockMats  = structureMaterials.filter(m => m.quantita_disponibile <= (m.quantita_minima||0))
+  const pendingRequests = requests.filter(r => r.status === 'pending').length
 
   return (
     <div className="space-y-4">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#2f4050]">Magazzino SC</h1>
-          <p className="text-sm text-[#999] mt-1">Abbigliamento, kit e materiale struttura</p>
+          <p className="text-sm text-[#999] mt-1">Abbigliamento, kit, materiale e richieste</p>
         </div>
-        {canEdit && (
-          <div className="flex gap-2">
-            {tab === 'abbigliamento' && (
-              <button onClick={() => setItemModal({})} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold"><Plus size={16}/> Articolo</button>
-            )}
-            {tab === 'kit' && kitSubTab === 'configs' && (
-              <button onClick={() => setKitModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold"><Plus size={16}/> Nuovo Kit</button>
-            )}
-            {tab === 'materiale' && (
-              <button onClick={() => setMaterialModal({})} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold"><Plus size={16}/> Materiale</button>
-            )}
-          </div>
-        )}
+        <div className="flex gap-2">
+          {/* Mister: scarico e richiesta */}
+          {canRequest && (
+            <>
+              <button onClick={() => setScaricoModal(true)}
+                className="flex items-center gap-1 border border-red-200 hover:bg-red-50 text-red-500 px-3 py-2 rounded text-sm">
+                <ArrowDown size={14}/> Scarico
+              </button>
+              <button onClick={() => setRichiestaModal(true)}
+                className="flex items-center gap-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
+                <Plus size={14}/> Richiedi
+              </button>
+            </>
+          )}
+          {/* Admin: aggiunge articoli */}
+          {canEdit && tab === 'abbigliamento' && kitSubTab === 'configs' && (
+            <button onClick={() => setKitModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold"><Plus size={16}/> Nuovo Kit</button>
+          )}
+          {canEdit && tab === 'abbigliamento' && kitSubTab === 'inventory' && (
+            <button onClick={() => setItemModal({})} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold"><Plus size={16}/> Articolo</button>
+          )}
+          {canEdit && tab === 'materiale' && (
+            <button onClick={() => setMaterialModal({})} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold"><Plus size={16}/> Materiale</button>
+          )}
+        </div>
       </div>
 
       {/* Tab principali */}
-      <div className="flex gap-1 border-b border-[#e7eaec]">
-        {[['abbigliamento','👕 Abbigliamento'],['kit','🎒 Kit Standard'],['materiale','⚽ Materiale Struttura']].map(([v,l])=>(
+      <div className="flex gap-1 border-b border-[#e7eaec] flex-wrap">
+        {[
+          ['abbigliamento', '👕 Abbigliamento & Kit'],
+          ['materiale',     '⚽ Materiale Struttura'],
+          ['richieste',     '📋 Richieste'],
+          ...(canEdit ? [['scarichi', '▼ Scarichi']] : []),
+        ].map(([v,l]) => (
           <button key={v} onClick={() => setTab(v)}
-            className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+            className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px flex items-center gap-1',
               tab===v ? 'border-[#1ab394] text-[#1ab394]' : 'border-transparent text-[#999] hover:text-[#676a6c]')}>
             {l}
+            {v === 'richieste' && pendingRequests > 0 && (
+              <span className="w-5 h-5 bg-yellow-400 text-yellow-900 text-xs rounded-full flex items-center justify-center font-bold">
+                {pendingRequests}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -685,81 +768,11 @@ export default function SCWarehouse() {
         <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/></div>
       ) : (
         <>
-          {/* ── TAB ABBIGLIAMENTO ── */}
+          {/* ── TAB ABBIGLIAMENTO & KIT ── */}
           {tab === 'abbigliamento' && (
             <div className="space-y-4">
-              {lowStockItems.length > 0 && (
-                <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">
-                  <AlertTriangle size={16}/> <strong>{lowStockItems.length}</strong> articolo/i sotto scorta minima
-                </div>
-              )}
-              <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}
-                className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-                <option value="">Tutte le categorie</option>
-                {CAT_ABB.map(c=><option key={c} value={c}>{CAT_ABB_LABELS[c]}</option>)}
-              </select>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {items.map(item=>(
-                  <div key={item.id} className={clsx('bg-white border rounded shadow-sm p-4 space-y-2', item.quantita_disponibile<=item.quantita_minima ? 'border-yellow-300' : 'border-[#e7eaec]')}>
-                    <div className="flex items-start justify-between">
-                      <ShoppingBag size={18} className="text-[#999]"/>
-                      {canEdit && (
-                        <div className="flex gap-1">
-                          <button onClick={()=>setItemModal(item)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={13}/></button>
-                          <button onClick={()=>deleteItem(item.id)} className="text-[#999] hover:text-red-500"><Trash2 size={13}/></button>
-                        </div>
-                      )}
-                    </div>
-                    {item.codice && <div className="text-xs text-[#999] font-mono">{item.codice}</div>}
-                    <div className="text-[#2f4050] font-semibold text-sm">{item.nome}</div>
-                    <div className="text-xs text-[#999]">{CAT_ABB_LABELS[item.categoria]}</div>
-                    <div className={clsx('text-2xl font-bold',
-                      item.quantita_disponibile<=0 ? 'text-red-500'
-                      : item.quantita_disponibile<=item.quantita_minima ? 'text-yellow-500'
-                      : 'text-[#1ab394]')}>{item.quantita_disponibile}</div>
-                    {item.prezzo>0 && <div className="text-xs text-[#999]">€{item.prezzo}</div>}
-                  </div>
-                ))}
-                {items.length===0 && <div className="col-span-4 text-center text-[#999] py-10 text-sm">Nessun articolo</div>}
-              </div>
-              {deliveries.length > 0 && (
-                <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#e7eaec]">
-                    <h3 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide">Ultime consegne manuali</h3>
-                  </div>
-                  <div className="divide-y divide-[#e7eaec]">
-                    {deliveries.map(d=>(
-                      <div key={d.id} className="flex items-start justify-between px-4 py-3">
-                        <div>
-                          <div className="text-[#2f4050] font-medium text-sm">{d.youth_players?.cognome} {d.youth_players?.nome}</div>
-                          <div className="text-xs text-[#999] mt-0.5">{format(new Date(d.data_consegna),'dd MMM yyyy',{locale:it})}</div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {(d.delivery_items||[]).map(di=>(
-                              <span key={di.id} className="text-xs bg-gray-100 text-[#676a6c] px-2 py-0.5 rounded">
-                                {di.warehouse_items?.nome}{di.taglia?` (${di.taglia})`:''} ×{di.quantita}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <button onClick={()=>{
-                          const p = players.find(p=>p.id===d.youth_player_id)||d.youth_players
-                          generateDeliveryPDF(p, d.delivery_items, null)
-                        }} className="text-[#999] hover:text-[#1ab394] flex items-center gap-1 text-xs flex-shrink-0">
-                          <Download size={13}/> PDF
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── TAB KIT STANDARD ── */}
-          {tab === 'kit' && (
-            <div className="space-y-4">
               <div className="flex gap-1 bg-gray-100 rounded p-1 w-fit">
-                {[['configs','Configurazioni'],['assignments','Assegnazioni']].map(([v,l])=>(
+                {[['configs','Kit Standard'],['assignments','Assegnazioni'],['inventory','Inventario']].map(([v,l])=>(
                   <button key={v} onClick={()=>setKitSubTab(v)}
                     className={clsx('px-4 py-1.5 rounded text-xs font-semibold transition-colors',
                       kitSubTab===v ? 'bg-white text-[#2f4050] shadow-sm' : 'text-[#999] hover:text-[#676a6c]')}>
@@ -768,12 +781,44 @@ export default function SCWarehouse() {
                 ))}
               </div>
 
+              {kitSubTab === 'inventory' && (
+                <div>
+                  {lowStockItems.length > 0 && (
+                    <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm mb-3">
+                      <AlertTriangle size={16}/> <strong>{lowStockItems.length}</strong> articolo/i sotto scorta minima
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {items.map(item=>(
+                      <div key={item.id} className={clsx('bg-white border rounded shadow-sm p-4 space-y-2',
+                        item.quantita_disponibile<=item.quantita_minima ? 'border-yellow-300' : 'border-[#e7eaec]')}>
+                        <div className="flex items-start justify-between">
+                          <ShoppingBag size={18} className="text-[#999]"/>
+                          {canEdit && (
+                            <div className="flex gap-1">
+                              <button onClick={()=>setItemModal(item)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={13}/></button>
+                            </div>
+                          )}
+                        </div>
+                        {item.codice && <div className="text-xs text-[#999] font-mono">{item.codice}</div>}
+                        <div className="text-[#2f4050] font-semibold text-sm">{item.nome}</div>
+                        <div className="text-xs text-[#999]">{CAT_ABB_LABELS[item.categoria]}</div>
+                        <div className={clsx('text-2xl font-bold',
+                          item.quantita_disponibile<=0 ? 'text-red-500'
+                          : item.quantita_disponibile<=item.quantita_minima ? 'text-yellow-500'
+                          : 'text-[#1ab394]')}>{item.quantita_disponibile}</div>
+                      </div>
+                    ))}
+                    {items.length===0 && <div className="col-span-4 text-center text-[#999] py-6 text-sm">Nessun articolo</div>}
+                  </div>
+                </div>
+              )}
+
               {kitSubTab === 'configs' && (
                 kitConfigs.length === 0 ? (
                   <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-10 text-center">
                     <ShoppingBag size={32} className="mx-auto text-[#999] mb-3"/>
                     <p className="text-[#999] text-sm">Nessun kit configurato.</p>
-                    {canEdit && <p className="text-xs text-[#999] mt-1">Clicca "Nuovo Kit" per crearne uno.</p>}
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -782,14 +827,11 @@ export default function SCWarehouse() {
                         <div className="flex items-center justify-between p-4">
                           <button className="flex items-center gap-3 flex-1 text-left"
                             onClick={() => setExpandedKit(expandedKit===kit.id ? null : kit.id)}>
-                            <div className="w-9 h-9 rounded-full bg-[#1ab394]/10 text-[#1ab394] flex items-center justify-center flex-shrink-0">
-                              <ShoppingBag size={18}/>
-                            </div>
+                            <div className="w-9 h-9 rounded-full bg-[#1ab394]/10 text-[#1ab394] flex items-center justify-center flex-shrink-0"><ShoppingBag size={18}/></div>
                             <div>
                               <div className="text-[#2f4050] font-bold text-sm">{kit.nome}</div>
                               <div className="flex items-center gap-2 mt-0.5">
-                                {kit.categories
-                                  ? <span className="text-xs text-white px-2 py-0.5 rounded font-medium" style={{ background: kit.categories.colore }}>{kit.categories.nome}</span>
+                                {kit.categories ? <span className="text-xs text-white px-2 py-0.5 rounded font-medium" style={{ background: kit.categories.colore }}>{kit.categories.nome}</span>
                                   : <span className="text-xs bg-gray-100 text-[#999] px-2 py-0.5 rounded">Tutte le categorie</span>}
                                 <span className="text-xs text-[#999]">{kit.sc_kit_config_items?.length||0} articoli</span>
                               </div>
@@ -812,23 +854,18 @@ export default function SCWarehouse() {
                         </div>
                         {expandedKit===kit.id && (
                           <div className="border-t border-[#e7eaec] px-4 py-3">
-                            {kit.descrizione && <p className="text-sm text-[#999] mb-3 italic">{kit.descrizione}</p>}
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="border-b border-[#e7eaec]">
                                   <th className="text-left text-xs text-[#999] py-2 font-semibold uppercase tracking-wide">Articolo</th>
-                                  <th className="text-left text-xs text-[#999] py-2 font-semibold uppercase tracking-wide">Tipo</th>
                                   <th className="text-left text-xs text-[#999] py-2 font-semibold uppercase tracking-wide">Qta</th>
-                                  <th className="text-left text-xs text-[#999] py-2 font-semibold uppercase tracking-wide">Note</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {(kit.sc_kit_config_items||[]).map(item=>(
                                   <tr key={item.id} className="border-b border-[#e7eaec] last:border-0">
                                     <td className="py-2 text-[#2f4050] font-medium">{item.warehouse_items?.nome}</td>
-                                    <td className="py-2 text-xs text-[#999]">{CAT_ABB_LABELS[item.warehouse_items?.categoria]||'—'}</td>
                                     <td className="py-2 text-[#676a6c]">×{item.quantita}</td>
-                                    <td className="py-2 text-xs text-[#999]">{item.note||'—'}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -858,11 +895,9 @@ export default function SCWarehouse() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-[#e7eaec] bg-gray-50">
-                            <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Atleta</th>
-                            <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Kit</th>
-                            <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Taglie</th>
-                            <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Stato</th>
-                            {canEdit && <th className="px-4 py-3"/>}
+                            {['Atleta','Kit','Taglie','Stato',''].map(h=>(
+                              <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
@@ -870,9 +905,7 @@ export default function SCWarehouse() {
                             const S = STATO_KIT[a.stato]
                             return (
                               <tr key={a.id} className="border-b border-[#e7eaec] hover:bg-gray-50">
-                                <td className="px-4 py-3 text-[#2f4050] font-medium">
-                                  {a.youth_players?.cognome} {a.youth_players?.nome}
-                                </td>
+                                <td className="px-4 py-3 text-[#2f4050] font-medium">{a.youth_players?.cognome} {a.youth_players?.nome}</td>
                                 <td className="px-4 py-3 text-[#999] text-xs">{a.sc_kit_configs?.nome}</td>
                                 <td className="px-4 py-3">
                                   <div className="flex flex-wrap gap-1">
@@ -891,9 +924,7 @@ export default function SCWarehouse() {
                                     <div className="flex gap-1">
                                       {a.stato === 'in_attesa' && (
                                         <button onClick={()=>updateAssignmentStato(a.id,'ordinato',a)}
-                                          className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs hover:bg-blue-200">
-                                          Ordinato
-                                        </button>
+                                          className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs hover:bg-blue-200">Ordinato</button>
                                       )}
                                       {(a.stato === 'in_attesa' || a.stato === 'ordinato') && (
                                         <button onClick={()=>updateAssignmentStato(a.id,'consegnato',a)}
@@ -924,71 +955,148 @@ export default function SCWarehouse() {
                   <AlertTriangle size={16}/> <strong>{lowStockMats.length}</strong> materiale/i sotto scorta minima
                 </div>
               )}
-              <select value={filterMatCat} onChange={e=>setFilterMatCat(e.target.value)}
-                className="border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-                <option value="">Tutti i tipi</option>
-                {CAT_MAT.map(c=><option key={c} value={c}>{CAT_MAT_LABELS[c]}</option>)}
-              </select>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {materials.map(mat=>(
-                  <div key={mat.id} className={clsx('bg-white border rounded shadow-sm p-4 space-y-2', mat.quantita_disponibile<=mat.quantita_minima ? 'border-yellow-300' : 'border-[#e7eaec]')}>
+                {structureMaterials.map(m=>(
+                  <div key={m.id} className={clsx('bg-white border rounded shadow-sm p-4 space-y-2',
+                    m.quantita_disponibile<=(m.quantita_minima||0) ? 'border-yellow-300' : 'border-[#e7eaec]')}>
                     <div className="flex items-start justify-between">
                       <Package size={18} className="text-[#999]"/>
-                      {canEdit && (
-                        <div className="flex gap-1">
-                          <button onClick={()=>setMaterialModal(mat)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={13}/></button>
-                          <button onClick={()=>deleteMaterial(mat.id)} className="text-[#999] hover:text-red-500"><Trash2 size={13}/></button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-[#2f4050] font-semibold text-sm">{mat.nome}</div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-[#999]">{CAT_MAT_LABELS[mat.categoria]}</span>
-                      {mat.categories && (
-                        <span className="text-xs text-white px-1.5 py-0.5 rounded font-medium" style={{ background: mat.categories.colore }}>{mat.categories.nome}</span>
-                      )}
-                    </div>
-                    <div className={clsx('text-2xl font-bold',
-                      mat.quantita_disponibile<=0 ? 'text-red-500'
-                      : mat.quantita_disponibile<=mat.quantita_minima ? 'text-yellow-500'
-                      : 'text-[#1ab394]')}>{mat.quantita_disponibile}</div>
-                    {canEdit && (
-                      <button onClick={()=>setMovementModal(mat)}
-                        className="w-full flex items-center justify-center gap-1 border border-[#e7eaec] hover:bg-gray-50 rounded py-1 text-xs text-[#676a6c] mt-1">
-                        <ArrowUp size={11} className="text-green-500"/> <ArrowDown size={11} className="text-red-500"/> Movimento
-                      </button>
-                    )}
-                    {movements[mat.id] && (
-                      <div className="pt-1 space-y-0.5">
-                        {movements[mat.id].slice(0,3).map(mv=>(
-                          <div key={mv.id} className="flex items-center justify-between text-xs">
-                            <span className={mv.tipo==='carico' ? 'text-green-600' : 'text-red-500'}>
-                              {mv.tipo==='carico' ? '+' : '-'}{mv.quantita}{mv.note ? ` (${mv.note})` : ''}
-                            </span>
-                            <span className="text-[#999]">{format(new Date(mv.created_at),'dd/MM')}</span>
+                      <div className="flex items-center gap-1">
+                        {m.quantita_disponibile<=(m.quantita_minima||0) && <AlertTriangle size={13} className="text-yellow-500"/>}
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <button onClick={()=>setMaterialModal(m)} className="text-[#999] hover:text-[#1c84c6]"><Edit2 size={13}/></button>
+                            <button onClick={()=>deleteMaterial(m.id)} className="text-[#999] hover:text-red-500"><Trash2 size={13}/></button>
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                    {canEdit && !movements[mat.id] && (
-                      <button onClick={()=>loadMovements(mat.id)} className="text-xs text-[#999] hover:text-[#1ab394] hover:underline">
-                        Vedi movimenti
-                      </button>
-                    )}
+                    </div>
+                    <div className="text-[#2f4050] font-semibold text-sm">{m.nome}</div>
+                    <div className="text-xs text-[#999]">{CAT_MAT_LABELS[m.categoria]}</div>
+                    {m.categories && <span className="text-xs text-white px-1.5 py-0.5 rounded font-medium" style={{ background: m.categories.colore }}>{m.categories.nome}</span>}
+                    <div className={clsx('text-2xl font-bold',
+                      m.quantita_disponibile<=0 ? 'text-red-500'
+                      : m.quantita_disponibile<=(m.quantita_minima||0) ? 'text-yellow-500'
+                      : 'text-[#1ab394]')}>{m.quantita_disponibile}</div>
+                    <div className="text-xs text-[#999]">min. {m.quantita_minima||0} pz</div>
                   </div>
                 ))}
-                {materials.length===0 && <div className="col-span-4 text-center text-[#999] py-10 text-sm">Nessun materiale</div>}
+                {structureMaterials.length===0 && <div className="col-span-4 text-center text-[#999] py-6 text-sm">Nessun materiale struttura</div>}
               </div>
+            </div>
+          )}
+
+          {/* ── TAB RICHIESTE ── */}
+          {tab === 'richieste' && (
+            <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
+              {requests.length === 0 ? (
+                <div className="text-center text-[#999] py-10 text-sm">Nessuna richiesta</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#e7eaec] bg-gray-50">
+                      {canEdit && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Richiedente</th>}
+                      <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Tipo</th>
+                      <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Articolo</th>
+                      <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Qta</th>
+                      <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Stato</th>
+                      {canEdit && <th className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">Azioni</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requests.map(r => (
+                      <tr key={r.id} className="border-b border-[#e7eaec] hover:bg-gray-50">
+                        {canEdit && (
+                          <td className="px-4 py-3 text-[#2f4050] font-medium">
+                            {r.profiles?.cognome} {r.profiles?.nome}
+                            <div className="text-xs text-[#999]">{r.profiles?.role}</div>
+                          </td>
+                        )}
+                        <td className="px-4 py-3">
+                          <span className={clsx('px-2 py-0.5 rounded text-xs font-medium',
+                            r.tipo === 'struttura' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600')}>
+                            {r.tipo === 'struttura' ? '⚽ Struttura' : '👕 Abbigliamento'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-[#676a6c]">
+                          {r.tipo === 'struttura' ? r.sc_structure_materials?.nome : r.warehouse_items?.nome}
+                          {r.note && <div className="text-xs text-[#999] italic">{r.note}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-[#999]">{r.quantita}</td>
+                        <td className="px-4 py-3">
+                          <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', STATUS_COLORS[r.status])}>
+                            {STATUS_LABELS[r.status]}
+                          </span>
+                        </td>
+                        {canEdit && (
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1 flex-wrap">
+                              {r.status === 'pending' && <>
+                                <button onClick={() => updateRequestStatus(r.id, 'approved', r)}
+                                  className="px-2 py-1 bg-green-100 text-green-600 rounded text-xs hover:bg-green-200">Approva</button>
+                                <button onClick={() => updateRequestStatus(r.id, 'rejected', r)}
+                                  className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs hover:bg-red-200">Rifiuta</button>
+                              </>}
+                              {r.status === 'approved' && <>
+                                <button onClick={() => updateRequestStatus(r.id, 'delivered', r)}
+                                  className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs hover:bg-blue-200">Consegnato</button>
+                                {r.tipo === 'struttura' && (
+                                  <button onClick={() => generateRichiestaOrdinePDF(r, teamSettings)}
+                                    className="px-2 py-1 bg-gray-100 text-[#676a6c] rounded text-xs hover:bg-gray-200 flex items-center gap-1">
+                                    <Download size={11}/> PDF
+                                  </button>
+                                )}
+                              </>}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* ── TAB SCARICHI ── */}
+          {tab === 'scarichi' && canEdit && (
+            <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
+              {scarichi.length === 0 ? (
+                <div className="text-center text-[#999] py-10 text-sm">Nessuno scarico registrato</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#e7eaec] bg-gray-50">
+                      {['Data','Articolo','Qta','Motivo','Operatore'].map(h=>(
+                        <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scarichi.map(s=>(
+                      <tr key={s.id} className="border-b border-[#e7eaec] hover:bg-gray-50">
+                        <td className="px-4 py-3 text-[#999] text-xs">{format(new Date(s.created_at),'dd/MM/yyyy HH:mm',{locale:it})}</td>
+                        <td className="px-4 py-3 text-[#2f4050] font-medium">{s.sc_structure_materials?.nome||'—'}</td>
+                        <td className="px-4 py-3 text-red-500 font-bold">-{s.quantita}</td>
+                        <td className="px-4 py-3 text-[#676a6c]">{s.motivo||'—'}</td>
+                        <td className="px-4 py-3 text-[#999] text-xs">{s.profiles?.cognome} {s.profiles?.nome}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
         </>
       )}
 
+      {/* Modali */}
       {itemModal !== null && <ItemModal item={itemModal} onClose={()=>setItemModal(null)} onSaved={()=>{setItemModal(null);load()}}/>}
       {kitModal && <KitConfigModal categories={categories} items={items} onClose={()=>setKitModal(false)} onSaved={()=>{setKitModal(false);load()}}/>}
       {assignModal && <AssignKitModal kit={assignModal} players={players} onClose={()=>setAssignModal(null)} onSaved={()=>{setAssignModal(null);load()}}/>}
       {materialModal !== null && <MaterialModal material={materialModal} categories={categories} onClose={()=>setMaterialModal(null)} onSaved={()=>{setMaterialModal(null);load()}}/>}
-      {movementModal && <MovementModal material={movementModal} onClose={()=>setMovementModal(null)} onSaved={()=>{setMovementModal(null);load()}}/>}
+      {richiestaModal && <RichiestaModal items={items} structureMaterials={structureMaterials} onClose={()=>setRichiestaModal(false)} onSaved={()=>{setRichiestaModal(false);load()}}/>}
+      {scaricoModal && <ScaricoModal structureMaterials={structureMaterials} onClose={()=>setScaricoModal(false)} onSaved={()=>{setScaricoModal(false);load()}}/>}
     </div>
   )
 }
