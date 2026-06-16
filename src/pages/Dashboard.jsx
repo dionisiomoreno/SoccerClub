@@ -23,6 +23,9 @@ function KpiCard({ icon: Icon, label, value, sub, color = '#1ab394' }) {
 
 export default function Dashboard() {
   const { profile, isAdmin, isMister, isPlayer } = useAuth()
+  const isMisterSC = isMister && !!profile?.category_id
+  const isMisterPS = isMister && !profile?.category_id
+
   const [kpi, setKpi] = useState({})
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -32,9 +35,10 @@ export default function Dashboard() {
   async function load() {
     const now = new Date()
     const monthStart = startOfMonth(now).toISOString()
-    const monthEnd = endOfMonth(now).toISOString()
+    const monthEnd   = endOfMonth(now).toISOString()
 
-    if (isAdmin || isMister) {
+    // ── Admin ──────────────────────────────────────────────────
+    if (isAdmin) {
       const [players, trainings, matches, payslips, requests, docs] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact' }).eq('active', true),
         supabase.from('attendances').select('id', { count: 'exact' }).eq('type', 'training'),
@@ -53,6 +57,70 @@ export default function Dashboard() {
       }))
       setKpi({ players: players.count || 0, trainings: trainings.count || 0, matches: matches.count || 0, rimborsiMese, requests: requests.count || 0, docs: docs.count || 0 })
       setChartData(chartArr)
+
+    // ── Mister PS ──────────────────────────────────────────────
+    } else if (isMisterPS) {
+      const [trainings, matches, payslip] = await Promise.all([
+        supabase.from('attendances').select('id', { count: 'exact' }).eq('type', 'training'),
+        supabase.from('attendances').select('id', { count: 'exact' }).eq('type', 'match'),
+        supabase.from('coach_payslips')
+          .select('compenso, month, year')
+          .eq('player_id', profile.id)
+          .eq('month', now.getMonth() + 1)
+          .eq('year', now.getFullYear())
+          .maybeSingle()
+      ])
+      const months = Array.from({ length: 6 }, (_, i) => subMonths(now, 5 - i))
+      const chartArr = await Promise.all(months.map(async m => {
+        const { data } = await supabase.from('coach_payslips')
+          .select('compenso')
+          .eq('player_id', profile.id)
+          .eq('month', m.getMonth() + 1)
+          .eq('year', m.getFullYear())
+        return { name: format(m, 'MMM', { locale: it }), compenso: (data || []).reduce((s, p) => s + (p.compenso || 0), 0) }
+      }))
+      setKpi({
+        trainings: trainings.count || 0,
+        matches:   matches.count   || 0,
+        compensoMese: payslip.data?.compenso ?? null,
+      })
+      setChartData(chartArr)
+
+    // ── Mister SC ──────────────────────────────────────────────
+    } else if (isMisterSC) {
+      const [trainings, matches, payslip] = await Promise.all([
+        supabase.from('trainings').select('id', { count: 'exact' })
+          .eq('category_id', profile.category_id)
+          .gte('data', format(startOfMonth(now), 'yyyy-MM-dd'))
+          .lte('data', format(endOfMonth(now), 'yyyy-MM-dd')),
+        supabase.from('sc_attendances').select('id', { count: 'exact' })
+          .eq('category_id', profile.category_id)
+          .gte('date', format(startOfMonth(now), 'yyyy-MM-dd'))
+          .lte('date', format(endOfMonth(now), 'yyyy-MM-dd')),
+        supabase.from('coach_payslips')
+          .select('compenso, month, year')
+          .eq('player_id', profile.id)
+          .eq('month', now.getMonth() + 1)
+          .eq('year', now.getFullYear())
+          .maybeSingle()
+      ])
+      const months = Array.from({ length: 6 }, (_, i) => subMonths(now, 5 - i))
+      const chartArr = await Promise.all(months.map(async m => {
+        const { data } = await supabase.from('coach_payslips')
+          .select('compenso')
+          .eq('player_id', profile.id)
+          .eq('month', m.getMonth() + 1)
+          .eq('year', m.getFullYear())
+        return { name: format(m, 'MMM', { locale: it }), compenso: (data || []).reduce((s, p) => s + (p.compenso || 0), 0) }
+      }))
+      setKpi({
+        trainings:    trainings.count || 0,
+        presenze:     matches.count   || 0,
+        compensoMese: payslip.data?.compenso ?? null,
+      })
+      setChartData(chartArr)
+
+    // ── Calciatore ─────────────────────────────────────────────
     } else {
       const [attMese, attTotali, payslip] = await Promise.all([
         supabase.from('attendances').select('type').eq('player_id', profile.id).gte('date', monthStart).lte('date', monthEnd),
@@ -61,7 +129,7 @@ export default function Dashboard() {
       ])
       const att = attMese.data || []
       const trainings = att.filter(a => a.type === 'training').length
-      const matches = att.filter(a => a.type === 'match').length
+      const matches   = att.filter(a => a.type === 'match').length
       const months = Array.from({ length: 6 }, (_, i) => subMonths(now, 5 - i))
       const chartArr = await Promise.all(months.map(async m => {
         const { data } = await supabase.from('attendances').select('id', { count: 'exact' }).eq('player_id', profile.id).gte('date', startOfMonth(m).toISOString()).lte('date', endOfMonth(m).toISOString())
@@ -81,7 +149,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
-      {/* Page header */}
       <div className="border-b border-[#e7eaec] pb-4">
         <h1 className="text-2xl font-bold text-[#2f4050]">Dashboard</h1>
         <p className="text-sm text-[#999] mt-1">
@@ -89,23 +156,22 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {(isAdmin || isMister) ? (
+      {/* ── Admin ── */}
+      {isAdmin && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard icon={Users} label="Calciatori attivi" value={kpi.players} color="#1ab394"/>
-            <KpiCard icon={Dumbbell} label="Allenamenti totali" value={kpi.trainings} color="#1c84c6"/>
-            <KpiCard icon={Trophy} label="Partite totali" value={kpi.matches} color="#f8ac59"/>
-            <KpiCard icon={Euro} label="Rimborsi mese" value={`€${kpi.rimborsiMese}`} color="#23c6c8"/>
+            <KpiCard icon={Users}     label="Calciatori attivi"  value={kpi.players}                  color="#1ab394"/>
+            <KpiCard icon={Dumbbell}  label="Allenamenti totali" value={kpi.trainings}                color="#1c84c6"/>
+            <KpiCard icon={Trophy}    label="Partite totali"     value={kpi.matches}                  color="#f8ac59"/>
+            <KpiCard icon={Euro}      label="Rimborsi mese"      value={`€${kpi.rimborsiMese}`}       color="#23c6c8"/>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            <KpiCard icon={FileText} label="Cedolini pending" value="-" color="#9b59b6"/>
-            <KpiCard icon={Package} label="Richieste materiale" value={kpi.requests} color="#f8ac59"/>
-            <KpiCard icon={AlertTriangle} label="Documenti in scadenza" value={kpi.docs} color="#ed5565"/>
+            <KpiCard icon={FileText}      label="Cedolini pending"       value="-"            color="#9b59b6"/>
+            <KpiCard icon={Package}       label="Richieste materiale"    value={kpi.requests} color="#f8ac59"/>
+            <KpiCard icon={AlertTriangle} label="Documenti in scadenza"  value={kpi.docs}     color="#ed5565"/>
           </div>
           <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide">Rimborsi mensili</h2>
-            </div>
+            <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide mb-4">Rimborsi mensili</h2>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData}>
                 <XAxis dataKey="name" tick={{ fill: '#999', fontSize: 12 }} axisLine={false} tickLine={false}/>
@@ -116,20 +182,73 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
         </>
-      ) : (
+      )}
+
+      {/* ── Mister PS ── */}
+      {isMisterPS && (
         <>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-  <KpiCard icon={Dumbbell} label="Allenamenti mese" value={kpi.trainings} color="#1c84c6"/>
-  <KpiCard icon={Trophy} label="Partite mese" value={kpi.matches} color="#f8ac59"/>
-  {profile?.role === 'player_paid' && (
-    <KpiCard icon={Euro} label="Rimborso stimato" value={`€${kpi.rimborso}`} color="#1ab394"/>
-  )}
-  <KpiCard icon={Users} label="Presenze totali" value={kpi.totAtt} color="#23c6c8"/>
-</div>
+          <div className="grid grid-cols-3 gap-4">
+            <KpiCard icon={Dumbbell} label="Allenamenti totali" value={kpi.trainings} color="#1c84c6"/>
+            <KpiCard icon={Trophy}   label="Partite totali"     value={kpi.matches}   color="#f8ac59"/>
+            <KpiCard icon={Euro}     label="Compenso mese"
+              value={kpi.compensoMese !== null ? `€${kpi.compensoMese}` : '—'}
+              sub={kpi.compensoMese === null ? 'Nessun cedolino questo mese' : undefined}
+              color="#1ab394"/>
+          </div>
           <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide">Presenze per mese</h2>
-            </div>
+            <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide mb-4">Compenso mensile</h2>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chartData}>
+                <XAxis dataKey="name" tick={{ fill: '#999', fontSize: 12 }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fill: '#999', fontSize: 12 }} axisLine={false} tickLine={false}/>
+                <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e7eaec', borderRadius: 4, fontSize: 12 }}
+                  formatter={val => [`€${val}`, 'Compenso']}/>
+                <Bar dataKey="compenso" fill="#1ab394" radius={[2,2,0,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+
+      {/* ── Mister SC ── */}
+      {isMisterSC && (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            <KpiCard icon={Dumbbell} label="Allenamenti mese"  value={kpi.trainings} color="#27ae60"/>
+            <KpiCard icon={Users}    label="Presenze mese"     value={kpi.presenze}  color="#1c84c6"/>
+            <KpiCard icon={Euro}     label="Compenso mese"
+              value={kpi.compensoMese !== null ? `€${kpi.compensoMese}` : '—'}
+              sub={kpi.compensoMese === null ? 'Nessun cedolino questo mese' : undefined}
+              color="#27ae60"/>
+          </div>
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
+            <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide mb-4">Compenso mensile</h2>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chartData}>
+                <XAxis dataKey="name" tick={{ fill: '#999', fontSize: 12 }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fill: '#999', fontSize: 12 }} axisLine={false} tickLine={false}/>
+                <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e7eaec', borderRadius: 4, fontSize: 12 }}
+                  formatter={val => [`€${val}`, 'Compenso']}/>
+                <Bar dataKey="compenso" fill="#27ae60" radius={[2,2,0,0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+
+      {/* ── Calciatore ── */}
+      {isPlayer && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <KpiCard icon={Dumbbell} label="Allenamenti mese"  value={kpi.trainings} color="#1c84c6"/>
+            <KpiCard icon={Trophy}   label="Partite mese"      value={kpi.matches}   color="#f8ac59"/>
+            {profile?.role === 'player_paid' && (
+              <KpiCard icon={Euro}   label="Rimborso stimato"  value={`€${kpi.rimborso}`} color="#1ab394"/>
+            )}
+            <KpiCard icon={Users}    label="Presenze totali"   value={kpi.totAtt}    color="#23c6c8"/>
+          </div>
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
+            <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide mb-4">Presenze per mese</h2>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={chartData}>
                 <XAxis dataKey="name" tick={{ fill: '#999', fontSize: 12 }} axisLine={false} tickLine={false}/>
