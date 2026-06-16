@@ -371,7 +371,11 @@ export default function DMS({ modulo = 'ps' }) {
     if (isAdmin || isSegreteria) return true
     if (isMister && folder.permesso === 'mister') return true
     if (isPlayer && ['players','players_parent'].includes(folder.permesso)) return true
-    if (isParent && ['parent','players_parent'].includes(folder.permesso)) return true
+    // Genitore: può caricare solo nelle cartelle Documenti Medici
+    if (isParent && ['parent','players_parent'].includes(folder.permesso)) {
+      const nomeLower = folder.nome.toLowerCase()
+      return nomeLower.includes('medic') || nomeLower.includes('certificat')
+    }
     return false
   }
 
