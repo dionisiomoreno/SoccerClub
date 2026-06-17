@@ -9,14 +9,17 @@ import clsx from 'clsx'
 
 export default function SCAttendances() {
   const { profile, isAdmin, isSegreteria, isMister } = useAuth()
+  const isClubView = isAdmin || isSegreteria // "società": vista riepilogativa, no marcatura
 
   const [players, setPlayers]           = useState([])
+  const [categories, setCategories]     = useState([])
   const [selected, setSelected]         = useState([])   // ids presenti oggi
   const [savedToday, setSavedToday]     = useState([])   // ids già salvati oggi
   const [todayTraining, setTodayTraining] = useState(null)
   const [attendances, setAttendances]   = useState([])   // storico
   const [filterMonth, setFilterMonth]   = useState(format(new Date(), 'yyyy-MM'))
   const [filterPlayer, setFilterPlayer] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
   const [loading, setLoading]           = useState(true)
   const [saving, setSaving]             = useState(false)
   const [showHistory, setShowHistory]   = useState(false)
@@ -25,21 +28,30 @@ export default function SCAttendances() {
   const categoryId = profile?.category_id || null
 
   useEffect(() => { loadAll() }, [])
-  useEffect(() => { loadHistory() }, [filterMonth, filterPlayer])
+  useEffect(() => { loadHistory() }, [filterMonth, filterPlayer, filterCategory])
 
   async function loadAll() {
     setLoading(true)
-    await Promise.all([loadPlayers(), loadTodayTraining(), loadTodayAttendances()])
+    if (isClubView) {
+      await Promise.all([loadPlayers(), loadCategories()])
+    } else {
+      await Promise.all([loadPlayers(), loadTodayTraining(), loadTodayAttendances()])
+    }
     setLoading(false)
   }
 
   async function loadPlayers() {
     let q = supabase.from('youth_players')
-      .select('id, nome, cognome, numero_maglia, categories(nome,colore)')
+      .select('id, nome, cognome, numero_maglia, category_id, categories(nome,colore)')
       .eq('active', true).order('cognome')
     if (categoryId) q = q.eq('category_id', categoryId)
     const { data } = await q
     setPlayers(data || [])
+  }
+
+  async function loadCategories() {
+    const { data } = await supabase.from('categories').select('id, nome, colore').order('nome')
+    setCategories(data || [])
   }
 
   async function loadTodayTraining() {
@@ -68,10 +80,11 @@ export default function SCAttendances() {
     const end   = endOfMonth(new Date(+y, +m - 1)).toISOString().split('T')[0]
 
     let q = supabase.from('sc_attendances')
-      .select('*, youth_players(nome,cognome), trainings(titolo,ora_inizio,venues(nome))')
+      .select('*, youth_players(nome,cognome,categories(nome,colore)), trainings(titolo,ora_inizio,venues(nome))')
       .gte('date', start).lte('date', end)
       .order('date', { ascending: false })
     if (categoryId) q = q.eq('category_id', categoryId)
+    if (isClubView && filterCategory) q = q.eq('category_id', filterCategory)
     if (filterPlayer) q = q.eq('youth_player_id', filterPlayer)
     const { data } = await q
     setAttendances(data || [])
@@ -123,12 +136,111 @@ export default function SCAttendances() {
 
   const hasChanges = JSON.stringify([...selected].sort()) !== JSON.stringify([...savedToday].sort())
 
+  // KPI per vista società
+  const sessioniMese    = Object.keys(byDate).length
+  const atletiCoinvolti = new Set(attendances.map(a => a.youth_player_id)).size
+  const presenzeTotali  = attendances.length
+  const mediaPresenza   = sessioniMese ? (presenzeTotali / sessioniMese).toFixed(1) : '0'
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 border-2 border-[#27ae60] border-t-transparent rounded-full animate-spin"/>
     </div>
   )
 
+  // ============================================================
+  // VISTA SOCIETÀ (admin / segreteria) — solo consultazione storico
+  // ============================================================
+  if (isClubView) {
+    return (
+      <div className="space-y-5">
+        <div className="border-b border-[#e7eaec] pb-4">
+          <h1 className="text-2xl font-bold text-[#2f4050]">Presenze SC</h1>
+          <p className="text-sm text-[#999] mt-1">Riepilogo presenze Scuola Calcio</p>
+        </div>
+
+        {/* KPI */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
+            <div className="text-2xl font-bold text-[#27ae60]">{sessioniMese}</div>
+            <div className="text-xs text-[#999] uppercase tracking-wide mt-1">Sessioni</div>
+          </div>
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
+            <div className="text-2xl font-bold text-[#2f4050]">{atletiCoinvolti}</div>
+            <div className="text-xs text-[#999] uppercase tracking-wide mt-1">Atleti coinvolti</div>
+          </div>
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">{presenzeTotali}</div>
+            <div className="text-xs text-[#999] uppercase tracking-wide mt-1">Presenze totali</div>
+          </div>
+          <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 text-center">
+            <div className="text-2xl font-bold text-orange-500">{mediaPresenza}</div>
+            <div className="text-xs text-[#999] uppercase tracking-wide mt-1">Media a sessione</div>
+          </div>
+        </div>
+
+        {/* Filtri */}
+        <div className="flex flex-wrap gap-2">
+          <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
+            className="border border-[#e7eaec] rounded px-3 py-1.5 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]"/>
+          <select value={filterCategory} onChange={e => { setFilterCategory(e.target.value); setFilterPlayer('') }}
+            className="border border-[#e7eaec] rounded px-3 py-1.5 text-[#676a6c] text-sm outline-none focus:border-[#27ae60]">
+            <option value="">Tutte le categorie</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+          <select value={filterPlayer} onChange={e => setFilterPlayer(e.target.value)}
+            className="border border-[#e7eaec] rounded px-3 py-1.5 text-[#676a6c] text-sm outline-none flex-1 min-w-[180px] focus:border-[#27ae60]">
+            <option value="">Tutti gli atleti</option>
+            {players
+              .filter(p => !filterCategory || p.category_id === filterCategory)
+              .map(p => (
+                <option key={p.id} value={p.id}>{p.cognome} {p.nome}</option>
+              ))}
+          </select>
+        </div>
+
+        {/* Storico */}
+        <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
+          {Object.keys(byDate).length === 0 ? (
+            <div className="text-center text-[#999] py-10 text-sm">Nessuna presenza nel periodo selezionato</div>
+          ) : (
+            <div className="divide-y divide-[#e7eaec]">
+              {Object.entries(byDate).map(([date, atts]) => (
+                <div key={date} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-[#2f4050] capitalize">
+                      {format(new Date(date), 'EEEE d MMMM yyyy', { locale: it })}
+                    </span>
+                    <span className="text-xs text-[#999]">{atts.length} presenti</span>
+                  </div>
+                  {atts[0]?.trainings && (
+                    <div className="flex items-center gap-1 text-xs text-blue-600 mb-2">
+                      <Dumbbell size={11}/>
+                      {atts[0].trainings.titolo}
+                      {atts[0].trainings.ora_inizio && ` — ${atts[0].trainings.ora_inizio.slice(0,5)}`}
+                      {atts[0].trainings.venues && ` @ ${atts[0].trainings.venues.nome}`}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-1">
+                    {atts.map(a => (
+                      <span key={a.id} className="bg-[#27ae60]/10 text-[#27ae60] text-xs px-2 py-0.5 rounded font-medium">
+                        {a.youth_players?.cognome} {a.youth_players?.nome}
+                        {!filterCategory && a.youth_players?.categories?.nome ? ` · ${a.youth_players.categories.nome}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ============================================================
+  // VISTA MISTER SC — marcatura presenze giornaliera
+  // ============================================================
   return (
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4">
