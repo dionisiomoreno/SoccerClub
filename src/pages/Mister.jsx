@@ -334,6 +334,7 @@ export default function Mister() {
   const [payslipModal, setPayslipModal] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('anagrafica')
+  const [statusFilter, setStatusFilter] = useState('tutti') // 'tutti' | 'attivi' | 'non_attivi'
 
   useEffect(() => { load() }, [tab])
 
@@ -366,6 +367,10 @@ export default function Mister() {
     load()
   }
 
+  const filteredMisters = misters.filter(m =>
+    statusFilter === 'tutti' ? true : statusFilter === 'attivi' ? m.active : !m.active
+  )
+
   return (
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
@@ -392,17 +397,37 @@ export default function Mister() {
         ))}
       </div>
 
+      {tab === 'anagrafica' && (
+        <div className="flex items-center gap-2 text-xs">
+          <button onClick={() => setStatusFilter('tutti')}
+            className={clsx('px-3 py-1.5 rounded-full border font-medium transition-colors',
+              statusFilter === 'tutti' ? 'bg-[#2f4050] text-white border-[#2f4050]' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            Tutti
+          </button>
+          <button onClick={() => setStatusFilter('attivi')}
+            className={clsx('px-3 py-1.5 rounded-full border font-medium transition-colors',
+              statusFilter === 'attivi' ? 'bg-green-600 text-white border-green-600' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            Attivi
+          </button>
+          <button onClick={() => setStatusFilter('non_attivi')}
+            className={clsx('px-3 py-1.5 rounded-full border font-medium transition-colors',
+              statusFilter === 'non_attivi' ? 'bg-gray-500 text-white border-gray-500' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            Non attivi
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center h-32">
           <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
         </div>
       ) : tab === 'anagrafica' ? (
         <div className="space-y-3">
-          {misters.length === 0 ? (
+          {filteredMisters.length === 0 ? (
             <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-8 text-center text-[#999] text-sm">
-              Nessun mister PS trovato. Clicca "Nuovo Mister" per aggiungerne uno.
+              {misters.length === 0 ? 'Nessun mister PS trovato. Clicca "Nuovo Mister" per aggiungerne uno.' : 'Nessun mister corrisponde al filtro selezionato.'}
             </div>
-          ) : misters.map(m => (
+          ) : filteredMisters.map(m => (
             <div key={m.id} className={clsx('bg-white border border-[#e7eaec] rounded shadow-sm p-4', !m.active && 'opacity-60')}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
