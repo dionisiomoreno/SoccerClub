@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { UserCog, Plus, Edit2, X, Check, Trash2, Euro, Download } from 'lucide-react'
+import { UserCog, Plus, Edit2, X, Check, Power, Euro, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { format } from 'date-fns'
@@ -12,6 +13,17 @@ import { registraCedolinoInContabilita } from '../../lib/contabilitaHelper'
 
 const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
 const YEARS = [2024, 2025, 2026]
+
+// Client temporaneo usato SOLO per creare il nuovo account auth.
+// persistSession:false evita che la nuova sessione sovrascriva
+// quella dell'admin/segreteria loggato nel browser.
+function createTempAuthClient() {
+  return createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+}
 
 // ── PDF cedolino mister SC ───────────────────────────────────
 function generateMisterPDF(payslip, mister, teamSettings) {
@@ -87,10 +99,15 @@ function MisterModal({ mister, categories, onClose, onSaved }) {
         if (error) throw new Error(error.message)
         toast.success('Mister aggiornato')
       } else {
-        const { data: authData, error: authError } = await supabase.auth.signUp({ email: form.email, password })
+        // Creazione account auth su un client temporaneo, per non
+        // sovrascrivere la sessione di chi sta creando il mister
+        const tempClient = createTempAuthClient()
+        const { data: authData, error: authError } = await tempClient.auth.signUp({ email: form.email, password })
         if (authError) throw new Error('Errore creazione account: ' + authError.message)
         const userId = authData.user?.id
         if (!userId) throw new Error('ID utente non disponibile')
+        await tempClient.auth.signOut().catch(() => {})
+
         const { error: profileError } = await supabase.from('profiles').upsert([{
           id: userId, club_id: profile?.club_id, role: 'mister',
           nome: form.nome, cognome: form.cognome, email: form.email,
@@ -179,7 +196,7 @@ function MisterModal({ mister, categories, onClose, onSaved }) {
 
 // ── Modal cedolino mister SC ─────────────────────────────────
 function PayslipModal({ mister, teamSettings, onClose, onSaved }) {
-  const { profile } = useAuth()   // ← aggiunto
+  const { profile } = useAuth()
   const [form, setForm] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
@@ -290,6 +307,7 @@ export default function SCMister() {
   const [categories, setCategories] = useState([])
   const [teamSettings, setTeamSettings] = useState(null)
   const [tab, setTab] = useState('anagrafica')
+  const [statusFilter, setStatusFilter] = useState('tutti') // 'tutti' | 'attivi' | 'non_attivi'
   const [editModal, setEditModal] = useState(null)
   const [payslipModal, setPayslipModal] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -335,12 +353,19 @@ export default function SCMister() {
   setLoading(false)
 }
 
-  async function deleteMister(m) {
-    if (!confirm(`Eliminare ${m.nome} ${m.cognome}?`)) return
-    await supabase.from('profiles').delete().eq('id', m.id)
-    toast.success('Mister eliminato')
+  async function toggleActive(m) {
+    if (!confirm(m.active
+      ? `Disattivare ${m.cognome} ${m.nome}? Non potrà più accedere, ma lo storico resterà intatto.`
+      : `Riattivare ${m.cognome} ${m.nome}?`)) return
+    const { error } = await supabase.from('profiles').update({ active: !m.active }).eq('id', m.id)
+    if (error) return toast.error(error.message)
+    toast.success(m.active ? 'Mister disattivato' : 'Mister riattivato')
     load()
   }
+
+  const filteredMisters = misters.filter(m =>
+    statusFilter === 'tutti' ? true : statusFilter === 'attivi' ? m.active : !m.active
+  )
 
   return (
     <div className="space-y-5">
@@ -367,6 +392,27 @@ export default function SCMister() {
           </button>
         ))}
       </div>
+
+      {/* Filtro stato */}
+      {tab === 'anagrafica' && (
+        <div className="flex items-center gap-2 text-xs">
+          <button onClick={() => setStatusFilter('tutti')}
+            className={clsx('px-3 py-1.5 rounded-full border font-medium transition-colors',
+              statusFilter === 'tutti' ? 'bg-[#2f4050] text-white border-[#2f4050]' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            Tutti
+          </button>
+          <button onClick={() => setStatusFilter('attivi')}
+            className={clsx('px-3 py-1.5 rounded-full border font-medium transition-colors',
+              statusFilter === 'attivi' ? 'bg-[#27ae60] text-white border-[#27ae60]' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            Attivi
+          </button>
+          <button onClick={() => setStatusFilter('non_attivi')}
+            className={clsx('px-3 py-1.5 rounded-full border font-medium transition-colors',
+              statusFilter === 'non_attivi' ? 'bg-gray-500 text-white border-gray-500' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            Non attivi
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center h-32">
@@ -400,13 +446,15 @@ export default function SCMister() {
             </div>
           )}
 
-          {misters.length === 0 ? (
+          {filteredMisters.length === 0 ? (
             <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-8 text-center">
               <UserCog size={32} className="mx-auto text-[#999] mb-2"/>
-              <p className="text-[#999] text-sm">Nessun mister SC trovato.</p>
+              <p className="text-[#999] text-sm">
+                {misters.length === 0 ? 'Nessun mister SC trovato.' : 'Nessun mister corrisponde al filtro selezionato.'}
+              </p>
             </div>
-          ) : misters.map(m => (
-            <div key={m.id} className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
+          ) : filteredMisters.map(m => (
+            <div key={m.id} className={clsx('bg-white border border-[#e7eaec] rounded shadow-sm p-4', !m.active && 'opacity-60')}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0"
@@ -439,9 +487,10 @@ export default function SCMister() {
                     className="flex items-center gap-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-1.5 rounded text-xs">
                     <Edit2 size={13}/> Modifica
                   </button>
-                  <button onClick={() => deleteMister(m)}
-                    className="text-[#999] hover:text-red-500 p-1.5">
-                    <Trash2 size={15}/>
+                  <button onClick={() => toggleActive(m)}
+                    className={clsx('flex items-center gap-1 border px-3 py-1.5 rounded text-xs font-medium',
+                      m.active ? 'border-red-200 text-red-500 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50')}>
+                    <Power size={13}/> {m.active ? 'Disattiva' : 'Riattiva'}
                   </button>
                 </div>
               </div>
