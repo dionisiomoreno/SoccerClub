@@ -253,6 +253,7 @@ export default function Trainings() {
   const [templates, setTemplates]           = useState([])
   const [currentDate, setCurrentDate]       = useState(new Date())
   const [selectedDay, setSelectedDay]       = useState(null)
+  const [viewFilter, setViewFilter]         = useState('all') // 'all' | 'ps' | 'sc' — solo per admin
   const [trainingPresenze, setTrainingPresenze] = useState({}) // { training_id: [presenze] }
   const [loadingPresenze, setLoadingPresenze]   = useState({}) // { training_id: bool }
   const [modal, setModal]                   = useState(null)
@@ -368,17 +369,22 @@ export default function Trainings() {
   const days = eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) })
   const firstDayOfMonth = getDay(startOfMonth(currentDate))
   const emptyDays = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1
+
+  // Liste filtrate in base a viewFilter (rilevante solo per admin: per mister "trainings" è già solo PS)
+  const visiblePsTrainings = viewFilter === 'sc' ? [] : trainings
+  const visibleScTrainings = (isAdmin && viewFilter !== 'ps') ? allTrainings : []
+
   const selectedDayTrainings = selectedDay
-    ? [...trainings, ...(isAdmin ? allTrainings : [])].filter(t => isSameDay(new Date(t.data), selectedDay))
+    ? [...visiblePsTrainings, ...visibleScTrainings].filter(t => isSameDay(new Date(t.data), selectedDay))
     : []
   const canEdit = isAdmin || isMister
 
-  // Quando cambia il giorno selezionato, carica le presenze per gli allenamenti PS del giorno
+  // Quando cambia il giorno selezionato (o il filtro), carica le presenze per gli allenamenti PS del giorno
   useEffect(() => {
-    if (!selectedDay || !isAdmin) return
+    if (!selectedDay || !isAdmin || viewFilter === 'sc') return
     const psTrainings = trainings.filter(t => isSameDay(new Date(t.data), selectedDay))
     psTrainings.forEach(t => { if (t.id) loadPresenze(t.id) })
-  }, [selectedDay, trainings])
+  }, [selectedDay, trainings, viewFilter])
 
   return (
     <div className="space-y-5">
@@ -408,13 +414,24 @@ export default function Trainings() {
       </div>
 
       {isAdmin && (
-        <div className="flex items-center gap-4 text-xs text-[#999]">
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-full bg-[#1ab394] inline-block"/>⚽ Prima Squadra
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded-full bg-[#27ae60] inline-block"/>🏫 Scuola Calcio
-          </span>
+        <div className="flex items-center gap-2 text-xs">
+          <button onClick={() => setViewFilter('all')}
+            className={clsx('px-3 py-1.5 rounded-full border font-medium transition-colors',
+              viewFilter === 'all' ? 'bg-[#2f4050] text-white border-[#2f4050]' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            Tutti
+          </button>
+          <button onClick={() => setViewFilter('ps')}
+            className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-medium transition-colors',
+              viewFilter === 'ps' ? 'bg-[#1ab394] text-white border-[#1ab394]' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            <span className={clsx('w-2.5 h-2.5 rounded-full inline-block', viewFilter === 'ps' ? 'bg-white' : 'bg-[#1ab394]')}/>
+            ⚽ Prima Squadra
+          </button>
+          <button onClick={() => setViewFilter('sc')}
+            className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-medium transition-colors',
+              viewFilter === 'sc' ? 'bg-[#27ae60] text-white border-[#27ae60]' : 'border-[#e7eaec] text-[#676a6c] hover:bg-gray-50')}>
+            <span className={clsx('w-2.5 h-2.5 rounded-full inline-block', viewFilter === 'sc' ? 'bg-white' : 'bg-[#27ae60]')}/>
+            🏫 Scuola Calcio
+          </button>
         </div>
       )}
 
@@ -482,8 +499,8 @@ export default function Trainings() {
             <div key={`empty-${i}`} className="min-h-[80px] border-b border-r border-[#e7eaec] bg-gray-50"/>
           ))}
           {days.map(day => {
-            const psTrainings = trainings.filter(t => isSameDay(new Date(t.data), day))
-            const scTrainings = isAdmin ? allTrainings.filter(t => isSameDay(new Date(t.data), day)) : []
+            const psTrainings = visiblePsTrainings.filter(t => isSameDay(new Date(t.data), day))
+            const scTrainings = visibleScTrainings.filter(t => isSameDay(new Date(t.data), day))
             const dayTrainings = [...psTrainings, ...scTrainings]
             const isSelected = selectedDay && isSameDay(day, selectedDay)
             const today = isToday(day)
@@ -528,7 +545,7 @@ export default function Trainings() {
             )}
           </div>
           {selectedDayTrainings.length === 0 ? (
-            <p className="text-[#999] text-sm">Nessun allenamento in questo giorno.</p>
+            <p className="text-[#999] text-sm">Nessun allenamento in questo giorno{viewFilter !== 'all' ? ' per il filtro selezionato' : ''}.</p>
           ) : (
             <div className="space-y-4">
               {selectedDayTrainings.map(t => {
