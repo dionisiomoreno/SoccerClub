@@ -286,16 +286,18 @@ export default function Accounting({ modulo = 'ps' }) {
       const start = startOfMonth(new Date(filterYear, m)).toISOString().split('T')[0]
       const end = endOfMonth(new Date(filterYear, m)).toISOString().split('T')[0]
      const { data } = await supabase.from('accounting_entries')
-  .select('tipo, importo').gte('data', start).lte('data', end)
-  .eq('modulo', modulo)
-      const entrate = (data||[]).filter(e=>e.tipo==='entrata').reduce((s,e)=>s+(+e.importo),0)
-      const uscite = (data||[]).filter(e=>e.tipo==='uscita').reduce((s,e)=>s+(+e.importo),0)
-      return {
-        name: format(new Date(filterYear, m), 'MMM', { locale: it }),
-        entrate: Math.round(entrate * 100) / 100,
-        uscite: Math.round(uscite * 100) / 100,
-        saldo: Math.round((entrate - uscite) * 100) / 100
-      }
+.select('tipo, importo, fonte').gte('data', start).lte('data', end)
+.eq('modulo', modulo)
+    const entrate = (data||[]).filter(e=>e.tipo==='entrata').reduce((s,e)=>s+(+e.importo),0)
+    const uscite = (data||[]).filter(e=>e.tipo==='uscita').reduce((s,e)=>s+(+e.importo),0)
+    const rette = (data||[]).filter(e=>e.fonte==='retta_sc').reduce((s,e)=>s+(+e.importo),0)
+    return {
+      name: format(new Date(filterYear, m), 'MMM', { locale: it }),
+      entrate: Math.round(entrate * 100) / 100,
+      uscite: Math.round(uscite * 100) / 100,
+      saldo: Math.round((entrate - uscite) * 100) / 100,
+      rette: Math.round(rette * 100) / 100
+    }
     }))
     setChartData(rows)
   }
