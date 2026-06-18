@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { Package, Plus, Edit2, Trash2, Download, AlertTriangle, ArrowDown } from 'lucide-react'
+import { Package, Plus, Edit2, Trash2, Download, AlertTriangle, ArrowDown, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { format } from 'date-fns'
@@ -89,13 +89,12 @@ function MaterialModal({ material, onClose, onSaved }) {
 }
 
 // ── Modal richiesta materiale ─────────────────────────────────
-function RequestModal({ materials, structureMaterials, onClose, onSaved }) {
+function RequestModal({ materials, structureMaterials, initialMaterialId, onClose, onSaved }) {
   const { profile } = useAuth()
   const isMister = profile?.role === 'mister'
-  const isPlayer = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
 
   const [tipo, setTipo] = useState('abbigliamento')
-  const [form, setForm] = useState({ material_id: '', structure_material_id: '', quantita: 1, note: '' })
+  const [form, setForm] = useState({ material_id: initialMaterialId || '', structure_material_id: '', quantita: 1, note: '' })
   const [loading, setLoading] = useState(false)
 
   async function save() {
@@ -145,7 +144,7 @@ function RequestModal({ materials, structureMaterials, onClose, onSaved }) {
               <select value={form.material_id} onChange={e => setForm(f => ({ ...f, material_id: e.target.value }))}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
                 <option value="">Seleziona...</option>
-                {materials.map(m => <option key={m.id} value={m.id}>{m.nome} (disp. {m.quantita})</option>)}
+                {materials.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
             </div>
           )}
@@ -264,6 +263,7 @@ export default function Materials() {
   const [teamSettings, setTeamSettings]       = useState(null)
   const [modal, setModal]                     = useState(null)
   const [reqModal, setReqModal]               = useState(false)
+  const [reqPreset, setReqPreset]             = useState(null) // material_id preselezionato dal catalogo
   const [scaricoModal, setScaricoModal]       = useState(false)
   const [loading, setLoading]                 = useState(true)
 
@@ -331,12 +331,19 @@ export default function Materials() {
     load()
   }
 
+  function openRequest(materialId = null) {
+    setReqPreset(materialId)
+    setReqModal(true)
+  }
+
   return (
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#2f4050]">Materiale</h1>
-          <p className="text-sm text-[#999] mt-1">Inventario, richieste e scarichi</p>
+          <p className="text-sm text-[#999] mt-1">
+            {isPlayer ? 'Catalogo abbigliamento e richieste' : 'Inventario, richieste e scarichi'}
+          </p>
         </div>
         <div className="flex gap-2">
           {/* Scarico — solo mister */}
@@ -348,7 +355,7 @@ export default function Materials() {
           )}
           {/* Richiesta — tutti tranne admin */}
           {!isAdmin && (
-            <button onClick={() => setReqModal(true)}
+            <button onClick={() => openRequest()}
               className="border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-4 py-2 rounded text-sm">
               Richiedi
             </button>
@@ -365,7 +372,7 @@ export default function Materials() {
       {/* Tab */}
       <div className="flex gap-1 border-b border-[#e7eaec]">
         {[
-          ['inventory', 'Inventario'],
+          ['inventory', isPlayer ? 'Catalogo' : 'Inventario'],
           ['requests',  'Richieste'],
           ...(isAdmin ? [['scarichi', 'Scarichi']] : []),
         ].map(([v,l]) => (
@@ -400,43 +407,53 @@ export default function Materials() {
                   </div>
                   <div className="text-[#2f4050] font-semibold text-sm">{m.nome}</div>
                   {m.descrizione && <div className="text-[#999] text-xs">{m.descrizione}</div>}
-                  <div className={clsx('text-2xl font-bold',
-                    m.quantita > 5 ? 'text-[#1ab394]' : m.quantita > 0 ? 'text-yellow-500' : 'text-red-500')}>
-                    {m.quantita}
-                  </div>
+
+                  {isPlayer ? (
+                    <button onClick={() => openRequest(m.id)}
+                      className="w-full flex items-center justify-center gap-1.5 bg-[#1ab394]/10 hover:bg-[#1ab394]/20 text-[#1ab394] py-1.5 rounded text-xs font-semibold transition-colors">
+                      <Send size={12}/> Richiedi
+                    </button>
+                  ) : (
+                    <div className={clsx('text-2xl font-bold',
+                      m.quantita > 5 ? 'text-[#1ab394]' : m.quantita > 0 ? 'text-yellow-500' : 'text-red-500')}>
+                      {m.quantita}
+                    </div>
+                  )}
                 </div>
               ))}
               {materials.length === 0 && <div className="col-span-4 text-center text-[#999] py-6 text-sm">Nessun articolo</div>}
             </div>
           </div>
 
-          {/* Materiale struttura */}
-          <div>
-            <h2 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">⚽ Materiale Struttura</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {structureMaterials.map(m => (
-                <div key={m.id} className={clsx('bg-white border rounded shadow-sm p-4 space-y-2',
-                  m.quantita_disponibile <= (m.quantita_minima || 0) ? 'border-yellow-300' : 'border-[#e7eaec]')}>
-                  <div className="flex items-start justify-between">
-                    <Package size={20} className="text-[#999]"/>
-                    {m.quantita_disponibile <= (m.quantita_minima || 0) && (
-                      <AlertTriangle size={14} className="text-yellow-500"/>
-                    )}
+          {/* Materiale struttura — non visibile a calciatori e volontari */}
+          {!isPlayer && (
+            <div>
+              <h2 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">⚽ Materiale Struttura</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {structureMaterials.map(m => (
+                  <div key={m.id} className={clsx('bg-white border rounded shadow-sm p-4 space-y-2',
+                    m.quantita_disponibile <= (m.quantita_minima || 0) ? 'border-yellow-300' : 'border-[#e7eaec]')}>
+                    <div className="flex items-start justify-between">
+                      <Package size={20} className="text-[#999]"/>
+                      {m.quantita_disponibile <= (m.quantita_minima || 0) && (
+                        <AlertTriangle size={14} className="text-yellow-500"/>
+                      )}
+                    </div>
+                    <div className="text-[#2f4050] font-semibold text-sm">{m.nome}</div>
+                    {m.descrizione && <div className="text-[#999] text-xs">{m.descrizione}</div>}
+                    <div className={clsx('text-2xl font-bold',
+                      m.quantita_disponibile <= 0 ? 'text-red-500'
+                      : m.quantita_disponibile <= (m.quantita_minima || 0) ? 'text-yellow-500'
+                      : 'text-[#1ab394]')}>
+                      {m.quantita_disponibile}
+                    </div>
+                    <div className="text-xs text-[#999]">min. {m.quantita_minima || 0} pz</div>
                   </div>
-                  <div className="text-[#2f4050] font-semibold text-sm">{m.nome}</div>
-                  {m.descrizione && <div className="text-[#999] text-xs">{m.descrizione}</div>}
-                  <div className={clsx('text-2xl font-bold',
-                    m.quantita_disponibile <= 0 ? 'text-red-500'
-                    : m.quantita_disponibile <= (m.quantita_minima || 0) ? 'text-yellow-500'
-                    : 'text-[#1ab394]')}>
-                    {m.quantita_disponibile}
-                  </div>
-                  <div className="text-xs text-[#999]">min. {m.quantita_minima || 0} pz</div>
-                </div>
-              ))}
-              {structureMaterials.length === 0 && <div className="col-span-4 text-center text-[#999] py-6 text-sm">Nessun articolo struttura</div>}
+                ))}
+                {structureMaterials.length === 0 && <div className="col-span-4 text-center text-[#999] py-6 text-sm">Nessun articolo struttura</div>}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
       ) : tab === 'requests' ? (
@@ -558,8 +575,9 @@ export default function Materials() {
         <RequestModal
           materials={materials}
           structureMaterials={structureMaterials}
-          onClose={() => setReqModal(false)}
-          onSaved={() => { setReqModal(false); load() }}
+          initialMaterialId={reqPreset}
+          onClose={() => { setReqModal(false); setReqPreset(null) }}
+          onSaved={() => { setReqModal(false); setReqPreset(null); load() }}
         />
       )}
       {scaricoModal && (
