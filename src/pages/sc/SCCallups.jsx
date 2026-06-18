@@ -70,13 +70,7 @@ function CallupModal({ onClose, onSaved }) {
     setLoading(true)
     try {
       // Crea convocazione
-      const { data: callup, error } = await supabase.from('sc_callups')
-        .insert([{
-          ...form,
-          club_id:    club?.id || profile?.club_id,
-          creato_da:  profile?.id,
-        }])
-        .select().single()
+      const { data: callup, error
       if (error) throw new Error(error.message)
 
       // Aggiungi atleti convocati
