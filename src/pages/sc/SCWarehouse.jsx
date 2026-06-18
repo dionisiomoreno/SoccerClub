@@ -604,7 +604,7 @@ export default function SCWarehouse() {
   const canRequest = isMister // mister può fare richieste e scarichi
 
   const [tab, setTab]                         = useState('abbigliamento')
-  const [kitSubTab, setKitSubTab]             = useState('configs')
+  const [kitSubTab, setKitSubTab]             = useState(canEdit ? 'configs' : 'inventory')
   const [items, setItems]                     = useState([])
   const [players, setPlayers]                 = useState([])
   const [kitConfigs, setKitConfigs]           = useState([])
