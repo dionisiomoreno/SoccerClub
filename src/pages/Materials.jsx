@@ -47,7 +47,7 @@ function generateOrdinePDF(request, teamSettings) {
 // ── Modal nuovo materiale (admin) ─────────────────────────────
 function MaterialModal({ material, onClose, onSaved }) {
   const isEdit = !!material?.id
-  const [form, setForm] = useState({ nome: '', quantita: 0, descrizione: '', ...material })
+  const [form, setForm] = useState({ nome: '', quantita: 0, descrizione: '', richiedibile_giocatori: true, ...material })
   const [loading, setLoading] = useState(false)
   async function save() {
     setLoading(true)
@@ -78,6 +78,12 @@ function MaterialModal({ material, onClose, onSaved }) {
             <input type="number" min="0" value={form.quantita} onChange={e => setForm(f => ({ ...f, quantita: +e.target.value }))}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input type="checkbox" checked={form.richiedibile_giocatori}
+              onChange={e => setForm(f => ({ ...f, richiedibile_giocatori: e.target.checked }))}
+              className="accent-[#1ab394]"/>
+            <span className="text-sm text-[#676a6c]">Richiedibile da calciatori/volontari</span>
+          </label>
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
@@ -92,6 +98,9 @@ function MaterialModal({ material, onClose, onSaved }) {
 function RequestModal({ materials, structureMaterials, initialMaterialId, onClose, onSaved }) {
   const { profile } = useAuth()
   const isMister = profile?.role === 'mister'
+  const isPlayer = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
+  // Calciatori/volontari vedono in elenco solo gli articoli abilitati dalla società
+  const visibleMaterials = isPlayer ? materials.filter(m => m.richiedibile_giocatori) : materials
 
   const [tipo, setTipo] = useState('abbigliamento')
   const [form, setForm] = useState({ material_id: initialMaterialId || '', structure_material_id: '', quantita: 1, note: '' })
@@ -144,8 +153,11 @@ function RequestModal({ materials, structureMaterials, initialMaterialId, onClos
               <select value={form.material_id} onChange={e => setForm(f => ({ ...f, material_id: e.target.value }))}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
                 <option value="">Seleziona...</option>
-                {materials.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                {visibleMaterials.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
+              {isPlayer && visibleMaterials.length === 0 && (
+                <p className="text-xs text-[#999] mt-1">Nessun articolo al momento richiedibile.</p>
+              )}
             </div>
           )}
 
@@ -336,6 +348,10 @@ export default function Materials() {
     setReqModal(true)
   }
 
+  // Articoli effettivamente visibili nel catalogo per calciatori/volontari
+  const playerVisibleMaterials = materials.filter(m => m.richiedibile_giocatori)
+  const displayedMaterials = isPlayer ? playerVisibleMaterials : materials
+
   return (
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
@@ -394,7 +410,7 @@ export default function Materials() {
           <div>
             <h2 className="text-xs font-semibold text-[#999] uppercase tracking-wide mb-3">👕 Abbigliamento</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {materials.map(m => (
+              {displayedMaterials.map(m => (
                 <div key={m.id} className="bg-white border border-[#e7eaec] rounded shadow-sm p-4 space-y-2">
                   <div className="flex items-start justify-between">
                     <Package size={20} className="text-[#999]"/>
@@ -407,6 +423,12 @@ export default function Materials() {
                   </div>
                   <div className="text-[#2f4050] font-semibold text-sm">{m.nome}</div>
                   {m.descrizione && <div className="text-[#999] text-xs">{m.descrizione}</div>}
+                  {!isPlayer && (
+                    <span className={clsx('inline-block text-xs px-1.5 py-0.5 rounded font-medium',
+                      m.richiedibile_giocatori ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
+                      {m.richiedibile_giocatori ? 'Visibile ai giocatori' : 'Non visibile ai giocatori'}
+                    </span>
+                  )}
 
                   {isPlayer ? (
                     <button onClick={() => openRequest(m.id)}
@@ -421,7 +443,11 @@ export default function Materials() {
                   )}
                 </div>
               ))}
-              {materials.length === 0 && <div className="col-span-4 text-center text-[#999] py-6 text-sm">Nessun articolo</div>}
+              {displayedMaterials.length === 0 && (
+                <div className="col-span-4 text-center text-[#999] py-6 text-sm">
+                  {isPlayer ? 'Nessun articolo disponibile per la richiesta al momento.' : 'Nessun articolo'}
+                </div>
+              )}
             </div>
           </div>
 
