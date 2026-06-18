@@ -232,8 +232,8 @@ export default function Payslips() {
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#2f4050]">Cedolini Calciatori</h1>
-          <p className="text-sm text-[#999] mt-1">Rimborsi mensili calciatori</p>
+         <h1 className="text-2xl font-bold text-[#2f4050]">{isAdmin ? 'Cedolini Calciatori' : 'I miei cedolini'}</h1>
+          <p className="text-sm text-[#999] mt-1">{isAdmin ? 'Rimborsi mensili calciatori' : 'I tuoi rimborsi mensili'}</p>
         </div>
        {isAdmin && (
   <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
