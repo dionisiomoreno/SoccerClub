@@ -70,13 +70,14 @@ function CallupModal({ onClose, onSaved }) {
     setLoading(true)
     try {
       // Crea convocazione
-      const { data: callup, error
-      if (error) throw new Error(error.message)
-
-      // Aggiungi atleti convocati
-      await supabase.from('sc_callup_players').insert(
-        selected.map(pid => ({ callup_id: callup.id, youth_player_id: pid }))
-      )
+      const { data: callup, error } = await supabase.from('sc_callups')
+  .insert([{
+    ...form,
+    ora_ritrovo: form.ora_ritrovo || null,
+    club_id:    club?.id || profile?.club_id,
+    creato_da:  profile?.id,
+  }])
+  .select().single()
 
       // Notifica agli atleti con account player_sc
       const { data: accounts } = await supabase
