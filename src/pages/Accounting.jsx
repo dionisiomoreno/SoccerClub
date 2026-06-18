@@ -616,7 +616,7 @@ export default function Accounting({ modulo = 'ps' }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#e7eaec] bg-gray-50">
-                  {['Mese','Entrate','Uscite','Saldo'].map(h => (
+                  {(modulo === 'sc' ? ['Mese','Rette incassate','Entrate','Uscite','Saldo'] : ['Mese','Entrate','Uscite','Saldo']).map(h => (
                     <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -625,6 +625,9 @@ export default function Accounting({ modulo = 'ps' }) {
                 {chartData.map((row, i) => (
                   <tr key={i} className="border-b border-[#e7eaec] hover:bg-gray-50">
                     <td className="px-4 py-3 text-[#2f4050] font-medium capitalize">{row.name}</td>
+                    {modulo === 'sc' && (
+                      <td className="px-4 py-3 text-blue-600 font-medium">€{row.rette.toFixed(2)}</td>
+                    )}
                     <td className="px-4 py-3 text-green-600 font-medium">€{row.entrate.toFixed(2)}</td>
                     <td className="px-4 py-3 text-red-500 font-medium">€{row.uscite.toFixed(2)}</td>
                     <td className={clsx('px-4 py-3 font-bold', row.saldo >= 0 ? 'text-green-700' : 'text-red-600')}>
@@ -635,6 +638,9 @@ export default function Accounting({ modulo = 'ps' }) {
                 {/* Totale anno */}
                 <tr className="bg-gray-50 font-bold border-t-2 border-[#e7eaec]">
                   <td className="px-4 py-3 text-[#2f4050]">Totale anno</td>
+                  {modulo === 'sc' && (
+                    <td className="px-4 py-3 text-blue-600">€{chartData.reduce((s,r)=>s+r.rette,0).toFixed(2)}</td>
+                  )}
                   <td className="px-4 py-3 text-green-600">€{chartData.reduce((s,r)=>s+r.entrate,0).toFixed(2)}</td>
                   <td className="px-4 py-3 text-red-500">€{chartData.reduce((s,r)=>s+r.uscite,0).toFixed(2)}</td>
                   <td className={clsx('px-4 py-3',
