@@ -302,6 +302,9 @@ function PayslipModal({ mister, teamSettings, onClose, onSaved }) {
 
 // ── Componente principale ────────────────────────────────────
 export default function SCMister() {
+  const { profile, isAdmin, isSegreteria, isMister } = useAuth()
+  const isMisterSC = isMister && !!profile?.category_id
+  const canAdmin = isAdmin || isSegreteria
   const [misters, setMisters] = useState([])
   const [payslips, setPayslips] = useState([])
   const [categories, setCategories] = useState([])
@@ -334,10 +337,17 @@ export default function SCMister() {
   }))
   setMisters(enriched)
 
-  if (tab === 'cedolini') {
-    const { data: ps } = await supabase.from('coach_payslips')
+if (tab === 'cedolini') {
+    let psQuery = supabase.from('coach_payslips')
       .select('*, profiles(nome,cognome,category_id)')
-      .in('player_id', (m||[]).map(x => x.id))
+      .order('year', { ascending: false })
+      .order('month', { ascending: false })
+    if (isMisterSC) {
+      psQuery = psQuery.eq('player_id', profile.id)
+    } else {
+      psQuery = psQuery.in('player_id', (m||[]).map(x => x.id))
+    }
+    const { data: ps } = await psQuery
       .order('year', { ascending: false })
       .order('month', { ascending: false })
     // Arricchisci cedolini con categoria
