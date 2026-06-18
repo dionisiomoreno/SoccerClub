@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   Plus, Edit2, Trash2, X, ShoppingBag, Package,
   AlertTriangle, Download, ChevronDown, ChevronUp,
-  ArrowDown, ClipboardList, Check
+  ArrowDown, ClipboardList, Check, Send
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
@@ -118,7 +118,7 @@ function generateDeliveryPDF(player, items, ts) {
 // ── Modal articolo abbigliamento ─────────────────────────────
 function ItemModal({ item, onClose, onSaved }) {
   const isEdit = !!item?.id
-  const [form, setForm] = useState({ codice:'', nome:'', descrizione:'', categoria:'kit_gara', quantita_disponibile:0, quantita_minima:2, prezzo:0, active:true, ...item })
+  const [form, setForm] = useState({ codice:'', nome:'', descrizione:'', categoria:'kit_gara', quantita_disponibile:0, quantita_minima:2, prezzo:0, active:true, richiedibile_mister:true, ...item })
   const [loading, setLoading] = useState(false)
   function set(k,v) { setForm(f=>({...f,[k]:v})) }
   async function save() {
@@ -169,6 +169,12 @@ function ItemModal({ item, onClose, onSaved }) {
               <input type="number" min="0" step="0.01" value={form.prezzo} onChange={e=>set('prezzo',+e.target.value)} className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input type="checkbox" checked={form.richiedibile_mister}
+              onChange={e=>set('richiedibile_mister', e.target.checked)}
+              className="accent-[#1ab394]"/>
+            <span className="text-sm text-[#676a6c]">Richiedibile dal mister</span>
+          </label>
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
@@ -436,10 +442,12 @@ function MaterialModal({ material, categories, onClose, onSaved }) {
 }
 
 // ── Modal richiesta materiale (mister SC) ────────────────────
-function RichiestaModal({ items, structureMaterials, onClose, onSaved }) {
+function RichiestaModal({ items, structureMaterials, initialItemId, onClose, onSaved }) {
   const { profile } = useAuth()
+  // Il mister vede in elenco solo gli articoli abilitati dalla società
+  const visibleItems = items.filter(i => i.richiedibile_mister)
   const [tipo, setTipo] = useState('abbigliamento')
-  const [form, setForm] = useState({ warehouse_item_id:'', structure_material_id:'', quantita:1, note:'' })
+  const [form, setForm] = useState({ warehouse_item_id: initialItemId || '', structure_material_id:'', quantita:1, note:'' })
   const [loading, setLoading] = useState(false)
 
   async function save() {
@@ -485,8 +493,11 @@ function RichiestaModal({ items, structureMaterials, onClose, onSaved }) {
               <select value={form.warehouse_item_id} onChange={e=>setForm(f=>({...f,warehouse_item_id:e.target.value}))}
                 className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
                 <option value="">Seleziona...</option>
-                {items.map(m=><option key={m.id} value={m.id}>{m.nome} (disp. {m.quantita_disponibile})</option>)}
+                {visibleItems.map(m=><option key={m.id} value={m.id}>{m.nome}</option>)}
               </select>
+              {visibleItems.length === 0 && (
+                <p className="text-xs text-[#999] mt-1">Nessun articolo al momento richiedibile.</p>
+              )}
             </div>
           ) : (
             <div>
@@ -609,6 +620,7 @@ export default function SCWarehouse() {
   const [assignModal, setAssignModal]         = useState(null)
   const [materialModal, setMaterialModal]     = useState(null)
   const [richiestaModal, setRichiestaModal]   = useState(false)
+  const [richiestaPreset, setRichiestaPreset] = useState(null) // warehouse_item_id preselezionato
   const [scaricoModal, setScaricoModal]       = useState(false)
   const [expandedKit, setExpandedKit]         = useState(null)
   const [loading, setLoading]                 = useState(true)
@@ -705,6 +717,15 @@ export default function SCWarehouse() {
     toast.success('Eliminato'); load()
   }
 
+  function openRichiesta(itemId = null) {
+    setRichiestaPreset(itemId)
+    setRichiestaModal(true)
+  }
+
+  // Mister vede solo gli articoli abilitati dalla società, in stile catalogo (no giacenza)
+  const misterVisibleItems = items.filter(i => i.richiedibile_mister)
+  const displayedItems = canEdit ? items : misterVisibleItems
+
   const lowStockItems = items.filter(i => i.quantita_disponibile <= i.quantita_minima)
   const lowStockMats  = structureMaterials.filter(m => m.quantita_disponibile <= (m.quantita_minima||0))
   const pendingRequests = requests.filter(r => r.status === 'pending').length
@@ -724,7 +745,7 @@ export default function SCWarehouse() {
                 className="flex items-center gap-1 border border-red-200 hover:bg-red-50 text-red-500 px-3 py-2 rounded text-sm">
                 <ArrowDown size={14}/> Scarico
               </button>
-              <button onClick={() => setRichiestaModal(true)}
+              <button onClick={() => openRichiesta()}
                 className="flex items-center gap-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] px-3 py-2 rounded text-sm">
                 <Plus size={14}/> Richiedi
               </button>
@@ -772,7 +793,7 @@ export default function SCWarehouse() {
           {tab === 'abbigliamento' && (
             <div className="space-y-4">
               <div className="flex gap-1 bg-gray-100 rounded p-1 w-fit">
-                {[['configs','Kit Standard'],['assignments','Assegnazioni'],['inventory','Inventario']].map(([v,l])=>(
+                {[['configs','Kit Standard'],['assignments','Assegnazioni'],['inventory', canEdit ? 'Inventario' : 'Catalogo']].map(([v,l])=>(
                   <button key={v} onClick={()=>setKitSubTab(v)}
                     className={clsx('px-4 py-1.5 rounded text-xs font-semibold transition-colors',
                       kitSubTab===v ? 'bg-white text-[#2f4050] shadow-sm' : 'text-[#999] hover:text-[#676a6c]')}>
@@ -783,15 +804,15 @@ export default function SCWarehouse() {
 
               {kitSubTab === 'inventory' && (
                 <div>
-                  {lowStockItems.length > 0 && (
+                  {canEdit && lowStockItems.length > 0 && (
                     <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm mb-3">
                       <AlertTriangle size={16}/> <strong>{lowStockItems.length}</strong> articolo/i sotto scorta minima
                     </div>
                   )}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {items.map(item=>(
+                    {displayedItems.map(item=>(
                       <div key={item.id} className={clsx('bg-white border rounded shadow-sm p-4 space-y-2',
-                        item.quantita_disponibile<=item.quantita_minima ? 'border-yellow-300' : 'border-[#e7eaec]')}>
+                        canEdit && item.quantita_disponibile<=item.quantita_minima ? 'border-yellow-300' : 'border-[#e7eaec]')}>
                         <div className="flex items-start justify-between">
                           <ShoppingBag size={18} className="text-[#999]"/>
                           {canEdit && (
@@ -800,16 +821,33 @@ export default function SCWarehouse() {
                             </div>
                           )}
                         </div>
-                        {item.codice && <div className="text-xs text-[#999] font-mono">{item.codice}</div>}
+                        {item.codice && canEdit && <div className="text-xs text-[#999] font-mono">{item.codice}</div>}
                         <div className="text-[#2f4050] font-semibold text-sm">{item.nome}</div>
                         <div className="text-xs text-[#999]">{CAT_ABB_LABELS[item.categoria]}</div>
-                        <div className={clsx('text-2xl font-bold',
-                          item.quantita_disponibile<=0 ? 'text-red-500'
-                          : item.quantita_disponibile<=item.quantita_minima ? 'text-yellow-500'
-                          : 'text-[#1ab394]')}>{item.quantita_disponibile}</div>
+                        {canEdit && (
+                          <span className={clsx('inline-block text-xs px-1.5 py-0.5 rounded font-medium',
+                            item.richiedibile_mister ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500')}>
+                            {item.richiedibile_mister ? 'Mister ✓' : 'Mister ✕'}
+                          </span>
+                        )}
+                        {canEdit ? (
+                          <div className={clsx('text-2xl font-bold',
+                            item.quantita_disponibile<=0 ? 'text-red-500'
+                            : item.quantita_disponibile<=item.quantita_minima ? 'text-yellow-500'
+                            : 'text-[#1ab394]')}>{item.quantita_disponibile}</div>
+                        ) : (
+                          <button onClick={() => openRichiesta(item.id)}
+                            className="w-full flex items-center justify-center gap-1.5 bg-[#1ab394]/10 hover:bg-[#1ab394]/20 text-[#1ab394] py-1.5 rounded text-xs font-semibold transition-colors">
+                            <Send size={12}/> Richiedi
+                          </button>
+                        )}
                       </div>
                     ))}
-                    {items.length===0 && <div className="col-span-4 text-center text-[#999] py-6 text-sm">Nessun articolo</div>}
+                    {displayedItems.length===0 && (
+                      <div className="col-span-4 text-center text-[#999] py-6 text-sm">
+                        {canEdit ? 'Nessun articolo' : 'Nessun articolo disponibile per la richiesta al momento.'}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1095,7 +1133,15 @@ export default function SCWarehouse() {
       {kitModal && <KitConfigModal categories={categories} items={items} onClose={()=>setKitModal(false)} onSaved={()=>{setKitModal(false);load()}}/>}
       {assignModal && <AssignKitModal kit={assignModal} players={players} onClose={()=>setAssignModal(null)} onSaved={()=>{setAssignModal(null);load()}}/>}
       {materialModal !== null && <MaterialModal material={materialModal} categories={categories} onClose={()=>setMaterialModal(null)} onSaved={()=>{setMaterialModal(null);load()}}/>}
-      {richiestaModal && <RichiestaModal items={items} structureMaterials={structureMaterials} onClose={()=>setRichiestaModal(false)} onSaved={()=>{setRichiestaModal(false);load()}}/>}
+      {richiestaModal && (
+        <RichiestaModal
+          items={items}
+          structureMaterials={structureMaterials}
+          initialItemId={richiestaPreset}
+          onClose={()=>{setRichiestaModal(false); setRichiestaPreset(null)}}
+          onSaved={()=>{setRichiestaModal(false); setRichiestaPreset(null); load()}}
+        />
+      )}
       {scaricoModal && <ScaricoModal structureMaterials={structureMaterials} onClose={()=>setScaricoModal(false)} onSaved={()=>{setScaricoModal(false);load()}}/>}
     </div>
   )
