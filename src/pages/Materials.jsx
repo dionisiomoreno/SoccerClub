@@ -99,8 +99,8 @@ function RequestModal({ materials, structureMaterials, initialMaterialId, onClos
   const { profile } = useAuth()
   const isMister = profile?.role === 'mister'
   const isPlayer = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
-  // Calciatori/volontari vedono in elenco solo gli articoli abilitati dalla società
-  const visibleMaterials = isPlayer ? materials.filter(m => m.richiedibile_giocatori) : materials
+  // Calciatori, volontari e mister vedono in elenco solo gli articoli abilitati dalla società
+  const visibleMaterials = (isPlayer || isMister) ? materials.filter(m => m.richiedibile_giocatori) : materials
 
   const [tipo, setTipo] = useState('abbigliamento')
   const [form, setForm] = useState({ material_id: initialMaterialId || '', structure_material_id: '', quantita: 1, note: '' })
@@ -266,6 +266,7 @@ function ScaricoModal({ structureMaterials, onClose, onSaved }) {
 export default function Materials() {
   const { profile, isAdmin, isMister } = useAuth()
   const isPlayer = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
+  const isCatalogRole = isPlayer || isMister // mister vede l'abbigliamento come i giocatori, senza giacenza
 
   const [tab, setTab]                         = useState('inventory')
   const [materials, setMaterials]             = useState([])
@@ -348,9 +349,9 @@ export default function Materials() {
     setReqModal(true)
   }
 
-  // Articoli effettivamente visibili nel catalogo per calciatori/volontari
+  // Articoli effettivamente visibili nel catalogo per calciatori/volontari/mister
   const playerVisibleMaterials = materials.filter(m => m.richiedibile_giocatori)
-  const displayedMaterials = isPlayer ? playerVisibleMaterials : materials
+  const displayedMaterials = isCatalogRole ? playerVisibleMaterials : materials
 
   return (
     <div className="space-y-5">
@@ -423,14 +424,14 @@ export default function Materials() {
                   </div>
                   <div className="text-[#2f4050] font-semibold text-sm">{m.nome}</div>
                   {m.descrizione && <div className="text-[#999] text-xs">{m.descrizione}</div>}
-                  {!isPlayer && (
+                  {isAdmin && (
                     <span className={clsx('inline-block text-xs px-1.5 py-0.5 rounded font-medium',
                       m.richiedibile_giocatori ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500')}>
                       {m.richiedibile_giocatori ? 'Visibile ai giocatori' : 'Non visibile ai giocatori'}
                     </span>
                   )}
 
-                  {isPlayer ? (
+                  {isCatalogRole ? (
                     <button onClick={() => openRequest(m.id)}
                       className="w-full flex items-center justify-center gap-1.5 bg-[#1ab394]/10 hover:bg-[#1ab394]/20 text-[#1ab394] py-1.5 rounded text-xs font-semibold transition-colors">
                       <Send size={12}/> Richiedi
@@ -445,7 +446,7 @@ export default function Materials() {
               ))}
               {displayedMaterials.length === 0 && (
                 <div className="col-span-4 text-center text-[#999] py-6 text-sm">
-                  {isPlayer ? 'Nessun articolo disponibile per la richiesta al momento.' : 'Nessun articolo'}
+                  {isCatalogRole ? 'Nessun articolo disponibile per la richiesta al momento.' : 'Nessun articolo'}
                 </div>
               )}
             </div>
