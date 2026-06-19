@@ -109,7 +109,7 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
           .insert([{ ...form }]).select().single()
         if (error) throw new Error(error.message)
         playerId = data.id
-        await createPlayerFolder({ clubId: profile?.club_id, modulo: 'sc', youthPlayerId: playerId, nome: form.nome, cognome: form.cognome })
+       await createPlayerFolder({ clubId: profile?.club_id, modulo: 'sc', youthPlayerId: playerId, categoryId: form.category_id, nome: form.nome, cognome: form.cognome })
       }
 
       // Salva genitori
