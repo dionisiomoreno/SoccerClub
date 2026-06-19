@@ -377,14 +377,14 @@ if (tab === 'cedolini') {
     statusFilter === 'tutti' ? true : statusFilter === 'attivi' ? m.active : !m.active
   )
 
-  return (
+ return (
     <div className="space-y-5">
       <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#2f4050]">Mister SC</h1>
-          <p className="text-sm text-[#999] mt-1">Anagrafica e cedolini mister Scuola Calcio</p>
+          <h1 className="text-2xl font-bold text-[#2f4050]">{isMisterSC ? 'I miei cedolini' : 'Mister SC'}</h1>
+          <p className="text-sm text-[#999] mt-1">{isMisterSC ? 'Storico dei tuoi cedolini' : 'Anagrafica e cedolini mister Scuola Calcio'}</p>
         </div>
-        {tab === 'anagrafica' && (
+        {tab === 'anagrafica' && !isMisterSC && (
           <button onClick={() => setEditModal({})}
             className="flex items-center gap-2 bg-[#27ae60] hover:bg-[#229954] text-white px-4 py-2 rounded text-sm font-semibold">
             <Plus size={16}/> Nuovo mister
@@ -393,15 +393,17 @@ if (tab === 'cedolini') {
       </div>
 
       {/* Tab */}
-      <div className="flex gap-1 border-b border-[#e7eaec]">
-        {[['anagrafica','Anagrafica'],['cedolini','Cedolini']].map(([v,l]) => (
-          <button key={v} onClick={() => setTab(v)}
-            className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
-              tab===v ? 'border-[#27ae60] text-[#27ae60]' : 'border-transparent text-[#999] hover:text-[#676a6c]')}>
-            {l}
-          </button>
-        ))}
-      </div>
+      {!isMisterSC && (
+        <div className="flex gap-1 border-b border-[#e7eaec]">
+          {[['anagrafica','Anagrafica'],['cedolini','Cedolini']].map(([v,l]) => (
+            <button key={v} onClick={() => setTab(v)}
+              className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+                tab===v ? 'border-[#27ae60] text-[#27ae60]' : 'border-transparent text-[#999] hover:text-[#676a6c]')}>
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filtro stato */}
       {tab === 'anagrafica' && (
