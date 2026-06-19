@@ -8,6 +8,8 @@ import { format, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { createPlayerFolder } from '../../lib/dmsHelper'
+
 
 const MONTHS_FULL = [
   'Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -97,7 +99,7 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
     let playerId = form.id
 
     try {
-      // Salva atleta
+    // Salva atleta
       if (isEdit) {
         const { error } = await supabase.from('youth_players')
           .update({ ...form, updated_at: new Date().toISOString() }).eq('id', form.id)
@@ -107,6 +109,7 @@ function PlayerModal({ player, categories, onClose, onSaved }) {
           .insert([{ ...form }]).select().single()
         if (error) throw new Error(error.message)
         playerId = data.id
+        await createPlayerFolder({ clubId: profile?.club_id, modulo: 'sc', youthPlayerId: playerId, nome: form.nome, cognome: form.cognome })
       }
 
       // Salva genitori
