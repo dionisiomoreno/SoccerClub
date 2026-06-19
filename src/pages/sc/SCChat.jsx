@@ -82,7 +82,7 @@ const isPlayerSC   = profile?.role === 'player_sc'
     // ── Chat GENERALE SC ──
     // Visibile a: Admin, Segreteria, Mister PS, Mister SC, Genitori
     // NON visibile a: calciatori PS (isPlayer senza category_id)
-    const canSeeGenerale = isAdmin || isSegreteria || isMister || isParent || isPlayerSC
+    const canSeeGenerale = isAdmin || isSegreteria || isMister || isParent
     if (canSeeGenerale) {
       const chat = await getOrCreateChat('🌐 Generale SC')
       if (chat) result.push({ ...chat, colore: '#6c757d', label: '🌐 Generale SC' })
