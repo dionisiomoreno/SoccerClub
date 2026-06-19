@@ -42,7 +42,7 @@ const NAV_PRIMA_SQUADRA = [
 const NAV_SCUOLA_CALCIO = [
   { to: '/',                  label: 'Dashboard',     icon: LayoutDashboard, roles: null,                              group: null },
   { to: '/sc/atleti',         label: 'Atleti',        icon: Baby,            roles: ['admin','segreteria','mister'],   group: 'Squadra' },
-  { to: '/sc/mister',        label: 'Mister SC',     icon: UserCog,         roles: ['admin','segreteria','mister'],   group: 'Squadra' },
+ { to: '/sc/mister',         label: 'Mister SC',     icon: UserCog,         roles: ['admin','segreteria'],            group: 'Squadra' },
   { to: '/sc/cedolini',      label: 'Cedolini',      icon: CreditCard,      roles: ['mister'],                        group: 'Squadra' },
   { to: '/sc/presenze',       label: 'Presenze SC',   icon: ClipboardList,   roles: ['admin','segreteria','mister'],   group: 'Squadra' },
   { to: '/sc/allenamenti',    label: 'Allenamenti',   icon: Dumbbell,        roles: ['admin','segreteria','mister'],   group: 'Squadra' },
