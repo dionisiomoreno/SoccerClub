@@ -36,6 +36,7 @@ function AnnouncementModal({ onClose, onSaved, profile }) {
       await supabase.from('notifications').insert(
         users.map(u => ({
           user_id: u.id,
+          club_id: profile?.club_id,
           type: 'new_announcement',
           message: `📢 ${form.titolo}`,
           read: false
