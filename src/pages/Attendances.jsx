@@ -192,7 +192,7 @@ export default function Attendances() {
 
       if (!target) {
         const { error } = await supabase.from('attendances').insert([{
-          player_id: profile.id, type, date: today,
+          player_id: profile.id, club_id: profile?.club_id, type, date: today,
           amount: importoBase, rimborso_carburante: carburante,
           training_id: type === 'training' && todayTraining ? todayTraining.id : null
         }])
@@ -224,8 +224,8 @@ export default function Attendances() {
             setGeoLoading(false)
             return
           }
-          const { error } = await supabase.from('attendances').insert([{
-            player_id: profile.id, type, date: today,
+         const { error } = await supabase.from('attendances').insert([{
+            player_id: profile.id, club_id: profile?.club_id, type, date: today,
             amount: importoBase, rimborso_carburante: carburante,
             lat: pos.coords.latitude, lng: pos.coords.longitude,
             distance_meters: Math.round(dist),
@@ -392,14 +392,16 @@ export default function Attendances() {
               importo: isPaid ? (profile?.importo_allenamento ?? teamSettings?.importo_allenamento ?? 20) : null },
             { type: 'match', label: 'Partita', icon: Trophy, color: '#f8ac59',
               importo: isPaid ? (profile?.importo_partita ?? teamSettings?.importo_partita ?? 30) : null }
-          ].map(({ type, label, icon: Icon, color, importo }) => {
+         ].map(({ type, label, icon: Icon, color, importo }) => {
             const done = todayAtt.includes(type)
+            const notAvailable = type === 'match' && !todayMatch
             const carb = isPaid ? (profile?.importo_carburante ?? teamSettings?.importo_carburante ?? 0) : 0
             return (
-              <button key={type} onClick={() => register(type)} disabled={done || geoLoading}
+              <button key={type} onClick={() => register(type)} disabled={done || geoLoading || notAvailable}
                 className={clsx(
                   'flex flex-col items-center justify-center gap-2 p-6 rounded border transition-all shadow-sm',
                   done ? 'bg-green-50 border-green-200 cursor-default'
+                    : notAvailable ? 'bg-gray-50 border-[#e7eaec] opacity-50 cursor-not-allowed'
                     : geoLoading ? 'bg-gray-50 border-[#e7eaec] cursor-wait'
                     : 'bg-white border-[#e7eaec] hover:border-[#1ab394] cursor-pointer hover:shadow-md'
                 )}>
@@ -407,13 +409,16 @@ export default function Attendances() {
                   ? <Loader size={28} className="animate-spin text-[#999]"/>
                   : <Icon size={28} style={{ color: done ? '#1ab394' : color }}/>}
                 <span className="text-[#2f4050] font-semibold">{done ? '✓ ' : ''}{label}</span>
-                {!done && isPaid && importo != null && (
+                {!done && !notAvailable && isPaid && importo != null && (
                   <span className="text-xs text-[#999]">
                     +€{importo}{carb > 0 ? ` + €${carb} carb.` : ''}
                   </span>
                 )}
                 {done && <span className="text-xs text-[#1ab394]">Già registrato oggi</span>}
-                {geoActive && !done && (
+                {notAvailable && !done && (
+                  <span className="text-xs text-[#999]">Nessuna partita oggi</span>
+                )}
+                {geoActive && !done && !notAvailable && (
                   <span className="text-xs text-[#999] flex items-center gap-1">
                     <MapPin size={10}/> Richiede GPS
                   </span>
