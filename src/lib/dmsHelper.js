@@ -43,9 +43,31 @@ export async function createMisterFolder({ clubId, modulo, misterId, nome, cogno
 }
 
 // Chiamare dopo aver creato un nuovo calciatore PS (profileId) o atleta SC (youthPlayerId)
-export async function createPlayerFolder({ clubId, modulo, profileId = null, youthPlayerId = null, nome, cognome }) {
-  const { calciatoriId: parentId } = await ensureDmsRootFolders(clubId, modulo)
+async function ensureCategoryFolder(clubId, modulo, parentId, categoryId) {
+  if (!categoryId) return parentId
+  const { data: cat } = await supabase.from('categories').select('nome,colore,ordine').eq('id', categoryId).maybeSingle()
+  if (!cat) return parentId
+  const { data: existing } = await supabase.from('dms_folders')
+    .select('id').eq('club_id', clubId).eq('modulo', modulo)
+    .eq('parent_id', parentId).eq('nome', cat.nome).maybeSingle()
+  if (existing) return existing.id
+  const { data: created, error } = await supabase.from('dms_folders').insert([{
+    club_id: clubId, modulo, parent_id: parentId,
+    nome: cat.nome, icona: '📁', colore: cat.colore, permesso: 'players_parent',
+    is_system: true, ordine: cat.ordine || 0,
+  }]).select('id').single()
+  if (error) { console.error('Errore creazione cartella categoria:', error.message); return parentId }
+  return created.id
+}
+
+export async function createPlayerFolder({ clubId, modulo, profileId = null, youthPlayerId = null, categoryId = null, nome, cognome }) {
+  let { calciatoriId: parentId } = await ensureDmsRootFolders(clubId, modulo)
   if (!parentId) return null
+
+  // SC: aggiunge il livello categoria tra "Atleti" e la cartella personale
+  if (modulo === 'sc' && categoryId) {
+    parentId = await ensureCategoryFolder(clubId, modulo, parentId, categoryId)
+  }
 
   let existingQuery = supabase.from('dms_folders').select('id').eq('modulo', modulo)
   existingQuery = profileId
