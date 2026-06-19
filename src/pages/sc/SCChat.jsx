@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 import { Send, MessageCircle, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
