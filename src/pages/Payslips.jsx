@@ -115,8 +115,8 @@ function GenerateModal({ onClose, onSaved }) {
     const { data: ps, error } = await supabase.from('payslips')
       .upsert([payslipData], { onConflict: 'player_id,month,year' }).select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
-    await supabase.from('notifications').insert([{
-      user_id: form.player_id, type: 'payslip_generated',
+   await supabase.from('notifications').insert([{
+      user_id: form.player_id, club_id: profile?.club_id, type: 'payslip_generated',
       message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} — Netto: €${preview.netto}`, read: false
     }])
     generatePDF({ ...payslipData, ...ps }, player, preview.att, preview.san, teamSettings)
