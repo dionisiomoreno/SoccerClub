@@ -685,7 +685,16 @@ export default function SCWarehouse() {
           : m
       ))
     }
-    await supabase.from('material_requests').update({ status }).eq('id', id)
+await supabase.from('material_requests').update({ status }).eq('id', id)
+    if (status === 'approved' || status === 'rejected') {
+      await supabase.from('notifications').insert([{
+        user_id: request.player_id,
+        club_id: profile?.club_id,
+        type:    status === 'approved' ? 'request_approved' : 'request_rejected',
+        message: `Richiesta "${request.warehouse_items?.nome || request.sc_structure_materials?.nome}" ${status === 'approved' ? 'approvata' : 'rifiutata'}`,
+        read:    false
+      }])
+    }
     toast.success('Stato aggiornato')
     load()
   }
