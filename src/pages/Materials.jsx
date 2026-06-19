@@ -326,9 +326,10 @@ export default function Materials() {
         }
       }
     }
-    await supabase.from('material_requests').update({ status }).eq('id', id)
+ await supabase.from('material_requests').update({ status }).eq('id', id)
     await supabase.from('notifications').insert([{
       user_id: request.player_id,
+      club_id: profile?.club_id,
       type:    status === 'approved' ? 'request_approved' : 'request_rejected',
       message: `Richiesta "${request.materials?.nome || request.sc_structure_materials?.nome}" ${STATUS_LABELS[status].toLowerCase()}`,
       read:    false
