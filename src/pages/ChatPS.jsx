@@ -126,12 +126,14 @@ export default function ChatPS() {
   async function sendMessage() {
     if (!text.trim() || !activeChat) return
     setSending(true)
-    await supabase.from('messages').insert([{
+    const { error } = await supabase.from('messages').insert([{
       chat_id: activeChat.id,
       sender_id: profile.id,
-      contenuto: text.trim()
+      contenuto: text.trim(),
+      club_id: profile?.club_id
     }])
-    setText('')
+    if (error) toast.error('Errore invio messaggio: ' + error.message)
+    else setText('')
     setSending(false)
   }
 
