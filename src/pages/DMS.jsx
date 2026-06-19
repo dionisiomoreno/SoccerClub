@@ -424,7 +424,7 @@ export default function DMS({ modulo = 'ps' }) {
 
       <div className="flex gap-4 min-h-[600px]">
         {/* ── Sidebar cartelle ── */}
-        <div className="w-64 flex-shrink-0 space-y-1">
+        <div className="hidden md:block w-64 flex-shrink-0 space-y-1">
           <button onClick={() => { setActiveFolder(null); setSearch('') }}
             className={clsx('w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors',
               !activeFolder ? 'bg-[#1ab394] text-white' : 'text-[#676a6c] hover:bg-gray-100')}>
@@ -600,8 +600,8 @@ export default function DMS({ modulo = 'ps' }) {
                   )}
                 </div>
               ) : (
-                <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
-                  <table className="w-full text-sm">
+                  <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-x-auto">
+                  <table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="border-b border-[#e7eaec] bg-gray-50">
                         {['Documento','Tipo','Proprietario','Scadenza','Tag','Caricato da','Azioni'].map(h => (
