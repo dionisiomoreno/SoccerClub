@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { Dumbbell, Trophy, MapPin, Loader, Fuel, AlertTriangle } from 'lucide-react'
+import { Dumbbell, Trophy, MapPin, Loader, Fuel, AlertTriangle, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
 import { it } from 'date-fns/locale'
 import clsx from 'clsx'
 
@@ -37,9 +37,13 @@ export default function Attendances() {
   const [todayMatch, setTodayMatch]       = useState(null)
   const [distance, setDistance]           = useState(null)
   const [geoTarget, setGeoTarget]         = useState(null)
+  const [monthTrainings, setMonthTrainings] = useState([])
+  const [monthMatches, setMonthMatches]     = useState([])
+  const [myCallupMatchIds, setMyCallupMatchIds] = useState([])
 
   useEffect(() => { load() }, [filterMonth, filterPlayer])
   useEffect(() => { loadSettings(); loadTodayEvents() }, [profile])
+  useEffect(() => { if (!isAdmin && !isMister && profile) loadCalendar() }, [filterMonth, profile])
 
   async function loadSettings() {
     const { data } = await supabase.from('team_settings').select('*').single()
@@ -60,7 +64,29 @@ export default function Attendances() {
     }
     const { data: match } = await supabase
       .from('matches').select('*').eq('date', today).maybeSingle()
-    setTodayMatch(match || null)
+    if (match && !isAdmin && !isMister) {
+      const { data: cp } = await supabase
+        .from('callup_players').select('callup_id, callups(match_id)')
+        .eq('player_id', profile.id)
+      const myMatchIds = (cp || []).map(c => c.callups?.match_id).filter(Boolean)
+      setTodayMatch(myMatchIds.includes(match.id) ? match : null)
+    } else {
+      setTodayMatch(match || null)
+    }
+  }
+
+  async function loadCalendar() {
+    const [y, m] = filterMonth.split('-')
+    const start = format(startOfMonth(new Date(+y, +m - 1)), 'yyyy-MM-dd')
+    const end   = format(endOfMonth(new Date(+y, +m - 1)), 'yyyy-MM-dd')
+    const [{ data: tr }, { data: mt }, { data: cp }] = await Promise.all([
+      supabase.from('trainings').select('id,data').is('category_id', null).gte('data', start).lte('data', end),
+      supabase.from('matches').select('id,date').gte('date', start).lte('date', end),
+      supabase.from('callup_players').select('callup_id, callups(match_id)').eq('player_id', profile.id)
+    ])
+    setMonthTrainings(tr || [])
+    setMonthMatches(mt || [])
+    setMyCallupMatchIds((cp || []).map(c => c.callups?.match_id).filter(Boolean))
   }
 
   async function load() {
@@ -232,6 +258,27 @@ export default function Attendances() {
   const totalCarb = attendances.reduce((s, a) => s + (a.rimborso_carburante || 0), 0)
   const total     = totalBase + totalCarb
   const geoActive = !!(todayTraining?.venues?.lat || teamSettings?.lat)
+
+  const calendarCells = useMemo(() => {
+    const [y, m] = filterMonth.split('-')
+    const first = new Date(+y, +m - 1, 1)
+    const last  = endOfMonth(first)
+    const leadingBlanks = (first.getDay() + 6) % 7
+    const days = eachDayOfInterval({ start: first, end: last })
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const cells = Array(leadingBlanks).fill(null)
+    days.forEach(d => {
+      const ds = format(d, 'yyyy-MM-dd')
+      cells.push({
+        day: d.getDate(),
+        isToday: ds === todayStr,
+        hasTraining: monthTrainings.some(t => t.data === ds),
+        hasMatch: monthMatches.some(mt => mt.date === ds && myCallupMatchIds.includes(mt.id)),
+        attended: attendances.some(a => a.date === ds)
+      })
+    })
+    return cells
+  }, [filterMonth, monthTrainings, monthMatches, myCallupMatchIds, attendances])
 
   return (
     <div className="space-y-5">
