@@ -171,8 +171,9 @@ function AppRoutes() {
         {/* Scuola Calcio — staff */}
         <Route path="sc/atleti"      element={<PrivateRoute roles={['admin','segreteria','mister']}><YouthPlayers /></PrivateRoute>} />
         <Route path="sc/pagamenti"   element={<PrivateRoute roles={['admin','segreteria']}><SCPayments /></PrivateRoute>} />
-        <Route path="sc/magazzino" element={<PrivateRoute roles={['admin','segreteria','mister']}><SCWarehouse /></PrivateRoute>} />
-       <Route path="sc/cedolini"    element={<PrivateRoute roles={['mister']}><SCMister initialTab="cedolini" /></PrivateRoute>} />
+     <Route path="sc/magazzino" element={<PrivateRoute roles={['admin','segreteria','mister']}><SCWarehouse /></PrivateRoute>} />
+        <Route path="sc/mister"      element={<PrivateRoute roles={['admin','segreteria']}><SCMister /></PrivateRoute>} />
+        <Route path="sc/cedolini"    element={<PrivateRoute roles={['mister']}><SCMister initialTab="cedolini" /></PrivateRoute>} />
         <Route path="sc/allenamenti" element={<PrivateRoute roles={['admin','segreteria','mister']}><SCTrainings /></PrivateRoute>} />
         <Route path="sc/presenze"    element={<PrivateRoute roles={['admin','segreteria','mister']}><SCAttendances /></PrivateRoute>} />
 
