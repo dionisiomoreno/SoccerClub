@@ -90,6 +90,7 @@ function CallupModal({ onClose, onSaved }) {
         await supabase.from('notifications').insert(
           accounts.map(a => ({
             user_id: a.user_id,
+            club_id: club?.id || profile?.club_id,
             type:    'callup_published',
             message: `📋 Sei stato convocato: ${form.titolo} — ${format(new Date(form.data_evento), 'dd/MM/yyyy')}`,
             read:    false,
