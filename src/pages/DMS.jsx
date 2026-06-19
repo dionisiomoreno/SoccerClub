@@ -301,7 +301,9 @@ export default function DMS({ modulo = 'ps' }) {
   async function loadLevel() {
     setLoading(true)
     const parentId = current?.id ?? null
-    let q = supabase.from('dms_folders').select('*').eq('modulo', modulo).order('ordine').order('nome')
+    let q = supabase.from('dms_folders').select('*')
+      .eq('modulo', modulo).eq('club_id', club?.id || profile?.club_id)
+      .order('ordine').order('nome')
     q = parentId ? q.eq('parent_id', parentId) : q.is('parent_id', null)
     const { data } = await q
     setChildren(data || [])
