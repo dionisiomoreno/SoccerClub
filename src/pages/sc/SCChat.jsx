@@ -22,8 +22,7 @@ export default function SCChat() {
   const isSegreteria = profile?.role === 'segreteria'
   const isMister     = profile?.role === 'mister'
   const isParent     = profile?.role === 'parent'
-  const isPlayerSC   = profile?.role === 'player_sc'
-  const isPlayer     = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
+const isPlayerSC   = profile?.role === 'player_sc'
   const isPlayer     = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
 
   // Mister SC ha category_id, Mister PS no
