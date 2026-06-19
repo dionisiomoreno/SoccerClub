@@ -55,7 +55,9 @@ export default function SCChat() {
   async function getOrCreateChat(nome) {
     let { data: existing } = await supabase.from('chats').select('*').eq('nome', nome).maybeSingle()
     if (!existing) {
-      const { data: created } = await supabase.from('chats').insert([{ tipo: 'gruppo', nome }]).select().single()
+      const { data: created, error } = await supabase.from('chats')
+        .insert([{ tipo: 'gruppo', nome, club_id: profile?.club_id }]).select().single()
+      if (error) { console.error('Errore creazione chat:', error.message); return null }
       existing = created
     }
     if (existing) {
