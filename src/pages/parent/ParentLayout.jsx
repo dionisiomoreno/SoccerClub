@@ -158,14 +158,41 @@ export default function ParentLayout() {
               🏫 Area Genitori
             </span>
           </div>
-          {unread > 0 && (
-            <div className="relative">
-              <Bell size={18} className="text-[#999]"/>
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ed5565] text-white text-xs rounded-full flex items-center justify-center font-bold">
-                {unread}
-              </span>
-            </div>
-          )}
+       <div className="relative" ref={notifRef}>
+            <button onClick={() => setNotifOpen(o => !o)} className="relative p-2 text-[#999] hover:text-[#676a6c]">
+              <Bell size={18}/>
+              {unread > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-[#ed5565] text-white text-xs rounded-full flex items-center justify-center font-bold">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 top-10 w-80 bg-white border border-[#e7eaec] rounded shadow-lg z-50">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[#e7eaec]">
+                  <h3 className="text-sm font-bold text-[#2f4050]">Notifiche</h3>
+                  {unread > 0 && <button onClick={markAllRead} className="text-xs text-[#27ae60] hover:underline flex items-center gap-1"><Check size={12}/> Tutte lette</button>}
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.length === 0
+                    ? <div className="text-center text-[#999] py-8 text-sm">Nessuna notifica</div>
+                    : notifications.map(n => (
+                      <div key={n.id} className={clsx('flex items-start gap-3 px-4 py-3 border-b border-[#e7eaec] hover:bg-gray-50', !n.read && 'bg-green-50/40')}>
+                        <span className="text-lg flex-shrink-0">🔔</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={clsx('text-sm', !n.read ? 'text-[#2f4050] font-medium' : 'text-[#676a6c]')}>{n.message}</p>
+                          <p className="text-xs text-[#999] mt-0.5">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: it })}</p>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {!n.read && <button onClick={() => markRead(n.id)} className="text-[#999] hover:text-blue-500"><Check size={13}/></button>}
+                          <button onClick={() => deleteNotification(n.id)} className="text-[#999] hover:text-red-500"><Trash2 size={13}/></button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-[#676a6c] hidden sm:block">{profile?.nome} {profile?.cognome}</span>
             <div className="w-8 h-8 rounded-full bg-[#27ae60] flex items-center justify-center text-white text-xs font-bold">
