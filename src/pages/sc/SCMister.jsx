@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabase'
+import { createMisterFolder } from '../../lib/dmsHelper'
 import { useAuth } from '../../context/AuthContext'
 import { UserCog, Plus, Edit2, X, Check, Power, Euro, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -117,7 +118,8 @@ function MisterModal({ mister, categories, onClose, onSaved }) {
           taglia: form.taglia, active: form.active,
           category_id: form.category_id || null,
         }])
-        if (profileError) throw new Error('Errore profilo: ' + profileError.message)
+      if (profileError) throw new Error('Errore profilo: ' + profileError.message)
+        await createMisterFolder({ clubId: profile?.club_id, modulo: 'sc', misterId: userId, nome: form.nome, cognome: form.cognome })
         toast.success('Mister aggiunto!')
       }
       onSaved()
