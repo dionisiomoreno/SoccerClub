@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import {
   Folder, FolderPlus, FileText, Upload, Trash2, Download,
-  X, Edit2, Search, Tag, Calendar, AlertTriangle,
-  ChevronRight, Home, Lock, Users, User, Filter
+  X, Edit2, Search, AlertTriangle,
+  ChevronRight, Home, Lock, Users, User
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, differenceInDays } from 'date-fns'
@@ -41,12 +41,12 @@ function ExpiryBadge({ date }) {
 }
 
 // ── Modal Cartella ────────────────────────────────────────────
-function FolderModal({ folder, onClose, onSaved }) {
+function FolderModal({ folder, parentFolder, onClose, onSaved, modulo }) {
   const { profile, club } = useAuth()
   const isEdit = !!folder?.id
   const [form, setForm] = useState({
     nome: '', descrizione: '', icona: '📁',
-    colore: '#1ab394', permesso: 'admin_only', ordine: 99,
+    colore: '#1ab394', permesso: parentFolder?.permesso || 'admin_only', ordine: 99,
     ...folder
   })
   const [loading, setLoading] = useState(false)
@@ -58,6 +58,11 @@ function FolderModal({ folder, onClose, onSaved }) {
     const payload = {
       ...form,
       club_id: club?.id || profile?.club_id,
+      modulo,
+      parent_id: form.parent_id ?? parentFolder?.id ?? null,
+      // Eredita il collegamento personale dalla cartella padre, se presente
+      linked_profile_id: form.linked_profile_id ?? parentFolder?.linked_profile_id ?? null,
+      linked_youth_player_id: form.linked_youth_player_id ?? parentFolder?.linked_youth_player_id ?? null,
       created_by: profile?.id,
       updated_at: new Date().toISOString()
     }
@@ -69,20 +74,22 @@ function FolderModal({ folder, onClose, onSaved }) {
     setLoading(false)
   }
 
-  const ICONE = ['📁','📂','📄','📋','🪪','🏥','📝','⚽','🏆','💼','🔒','📊','🖊️','📌','🏫']
-
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-sm">
         <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
-          <h2 className="text-[#2f4050] font-bold">{isEdit ? 'Modifica' : 'Nuova'} Cartella</h2>
-          <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
+          <h2 className="text-[#2f4050] font-bold">{isEdit ? 'Modifica cartella' : 'Nuova cartella'}</h2>
+          <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
         </div>
         <div className="p-4 space-y-3">
+          {parentFolder && (
+            <div className="bg-gray-50 border border-[#e7eaec] rounded p-2 text-xs text-[#676a6c]">
+              Dentro: <strong>{parentFolder.nome}</strong>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome *</label>
             <input value={form.nome} onChange={e => set('nome', e.target.value)}
-              placeholder="Es. Contratti Mister"
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
           <div>
@@ -90,71 +97,48 @@ function FolderModal({ folder, onClose, onSaved }) {
             <input value={form.descrizione || ''} onChange={e => set('descrizione', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Icona</label>
-            <div className="flex flex-wrap gap-2">
-              {ICONE.map(ic => (
-                <button key={ic} onClick={() => set('icona', ic)}
-                  className={clsx('w-9 h-9 text-xl rounded border-2 transition-colors',
-                    form.icona === ic ? 'border-[#1ab394] bg-[#1ab394]/10' : 'border-[#e7eaec] hover:border-[#1ab394]/50')}>
-                  {ic}
-                </button>
-              ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Icona</label>
+              <input value={form.icona} onChange={e => set('icona', e.target.value)} maxLength={2}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] text-center text-lg"/>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ordine</label>
+              <input type="number" value={form.ordine} onChange={e => set('ordine', +e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
             </div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Colore</label>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2">
               {COLORI_PRESET.map(c => (
                 <button key={c} onClick={() => set('colore', c)}
-                  className={clsx('w-8 h-8 rounded-full border-2 transition-all',
-                    form.colore === c ? 'border-gray-800 scale-110' : 'border-transparent')}
+                  className={clsx('w-7 h-7 rounded-full border-2', form.colore === c ? 'border-[#2f4050]' : 'border-transparent')}
                   style={{ background: c }}/>
               ))}
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Permessi accesso</label>
-            <div className="space-y-2">
-              {Object.entries(PERMESSI).map(([val, { label, icon: Icon, color }]) => (
-                <label key={val} className="flex items-center gap-3 p-2 rounded border cursor-pointer transition-colors"
-                  style={form.permesso === val ? { borderColor: '#1ab394', background: '#1ab39410' } : { borderColor: '#e7eaec' }}>
-                  <input type="radio" checked={form.permesso === val}
-                    onChange={() => set('permesso', val)} className="accent-[#1ab394]"/>
-                  <div className={clsx('px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1 flex-shrink-0', color)}>
-                    <Icon size={11}/> {label}
-                  </div>
-                  <span className="text-xs text-[#999]">
-                    {val === 'admin_only'     && 'Solo la società'}
-                    {val === 'mister'         && 'Admin e mister (no calciatori)'}
-                    {val === 'players'        && 'Admin + calciatori (solo i propri file)'}
-                    {val === 'parent'         && 'Admin + genitori (solo file del figlio)'}
-                    {val === 'players_parent' && 'Admin + calciatori + genitori'}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Ordine</label>
-            <input type="number" min="1" value={form.ordine}
-              onChange={e => set('ordine', +e.target.value)}
-              className="w-24 border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
-          </div>
-          {/* Anteprima */}
-          <div className="rounded p-3 flex items-center gap-3 border"
-            style={{ background: form.colore + '15', borderColor: form.colore + '40' }}>
-            <span className="text-2xl">{form.icona}</span>
+          {!parentFolder?.linked_profile_id && !parentFolder?.linked_youth_player_id && (
             <div>
-              <div className="font-semibold text-sm" style={{ color: form.colore }}>{form.nome || 'Anteprima'}</div>
-              {form.descrizione && <div className="text-xs text-[#999]">{form.descrizione}</div>}
+              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Visibilità</label>
+              <select value={form.permesso} onChange={e => set('permesso', e.target.value)}
+                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
+                {Object.entries(PERMESSI).map(([v, { label }]) => (
+                  <option key={v} value={v}>{label}</option>
+                ))}
+              </select>
             </div>
-          </div>
+          )}
+          {(parentFolder?.linked_profile_id || parentFolder?.linked_youth_player_id) && (
+            <div className="bg-teal-50 border border-teal-200 rounded p-2 text-xs text-teal-700">
+              Cartella personale — sarà visibile solo al diretto interessato e alla società.
+            </div>
+          )}
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
           <button onClick={onClose} className="flex-1 border border-[#e7eaec] hover:bg-gray-50 text-[#676a6c] py-2 rounded text-sm">Annulla</button>
-          <button onClick={save} disabled={loading}
-            className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
+          <button onClick={save} disabled={loading} className="flex-1 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white py-2 rounded text-sm font-semibold">
             {loading ? 'Salvataggio...' : 'Salva'}
           </button>
         </div>
@@ -170,22 +154,12 @@ function UploadModal({ folder, onClose, onSaved }) {
   const fileRef = useRef()
   const [form, setForm] = useState({
     nome: '', descrizione: '', scadenza: '', tags: '',
-    owner_id: (isParent || (!isAdmin && ['players','players_parent'].includes(folder.permesso)))
-      ? profile?.id : ''
+    owner_id: folder?.linked_profile_id || profile?.id
   })
   const [file, setFile] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [players, setPlayers] = useState([])
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
-
-  useEffect(() => {
-    if (isAdmin && ['players','players_parent','parent'].includes(folder.permesso)) {
-      supabase.from('profiles').select('id,nome,cognome')
-        .in('role', ['player_paid','player_volunteer']).eq('active', true).order('cognome')
-        .then(({ data }) => setPlayers(data || []))
-    }
-  }, [])
 
   async function upload() {
     if (!file)      return toast.error('Seleziona un file')
@@ -218,78 +192,41 @@ function UploadModal({ folder, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-[#e7eaec] rounded shadow-lg w-full max-w-sm">
         <div className="flex items-center justify-between p-4 border-b border-[#e7eaec]">
-          <h2 className="text-[#2f4050] font-bold">Carica in "{folder.nome}"</h2>
-          <button onClick={onClose}><X size={18} className="text-[#999]"/></button>
+          <h2 className="text-[#2f4050] font-bold">Carica documento</h2>
+          <button onClick={onClose} className="text-[#999] hover:text-[#676a6c]"><X size={18}/></button>
         </div>
         <div className="p-4 space-y-3">
-          {/* Drop zone */}
-          <div
-            onClick={() => fileRef.current?.click()}
+          <div onClick={() => fileRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
-            onDrop={e => {
-              e.preventDefault(); setDragging(false)
-              const f = e.dataTransfer.files[0]
-              if (f) { setFile(f); if (!form.nome) set('nome', f.name.replace(/\.[^.]+$/, '')) }
-            }}
+            onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) { setFile(f); if (!form.nome) set('nome', f.name.replace(/\.[^.]+$/, '')) } }}
             className={clsx('border-2 border-dashed rounded p-6 text-center cursor-pointer transition-colors',
-              dragging ? 'border-[#1ab394] bg-[#1ab394]/5' : 'border-[#e7eaec] hover:border-[#1ab394]/50')}>
+              dragging ? 'border-[#1ab394] bg-[#1ab394]/5' : 'border-[#e7eaec] hover:border-[#1ab394]/40')}>
             <Upload size={24} className="mx-auto text-[#999] mb-2"/>
-            {file
-              ? <div>
-                  <p className="text-[#2f4050] font-medium text-sm">{file.name}</p>
-                  <p className="text-xs text-[#999] mt-0.5">{formatBytes(file.size)}</p>
-                </div>
-              : <p className="text-[#999] text-sm">Trascina un file o clicca<br/><span className="text-xs">PDF, JPG, PNG, DOCX, XLSX</span></p>}
+            {file ? (
+              <div className="text-sm text-[#2f4050] font-medium">{file.name} <span className="text-[#999]">({formatBytes(file.size)})</span></div>
+            ) : (
+              <p className="text-sm text-[#999]">Clicca o trascina un file qui</p>
+            )}
+            <input ref={fileRef} type="file" className="hidden"
+              onChange={e => { const f = e.target.files[0]; if (f) { setFile(f); if (!form.nome) set('nome', f.name.replace(/\.[^.]+$/, '')) } }}/>
           </div>
-          <input ref={fileRef} type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
-            className="hidden"
-            onChange={e => {
-              const f = e.target.files[0]
-              if (f) { setFile(f); if (!form.nome) set('nome', f.name.replace(/\.[^.]+$/, '')) }
-            }}/>
-
           <div>
             <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Nome documento *</label>
             <input value={form.nome} onChange={e => set('nome', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Descrizione</label>
-            <textarea value={form.descrizione} onChange={e => set('descrizione', e.target.value)}
-              rows={2} className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] resize-none"/>
-          </div>
-
-          {/* Assegna a calciatore — solo admin + cartella players/parent */}
-          {isAdmin && ['players','players_parent','parent'].includes(folder.permesso) && (
-            <div>
-              <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
-                Assegna a calciatore <span className="text-[#999] font-normal">(lascia vuoto = tutti)</span>
-              </label>
-              <select value={form.owner_id} onChange={e => set('owner_id', e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]">
-                <option value="">Tutti i calciatori</option>
-                {players.map(p => <option key={p.id} value={p.id}>{p.cognome} {p.nome}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
-              <Calendar size={12} className="inline mr-1"/>Scadenza documento
-            </label>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Scadenza (opzionale)</label>
             <input type="date" value={form.scadenza} onChange={e => set('scadenza', e.target.value)}
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">
-              <Tag size={12} className="inline mr-1"/>Tag <span className="font-normal">(separati da virgola)</span>
-            </label>
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Tag (separati da virgola)</label>
             <input value={form.tags} onChange={e => set('tags', e.target.value)}
-              placeholder="Es. 2024-25, stagione, contratto"
+              placeholder="2024-25, stagione, contratto"
               className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
           </div>
         </div>
@@ -308,31 +245,68 @@ function UploadModal({ folder, onClose, onSaved }) {
 // ── Componente principale DMS ─────────────────────────────────
 export default function DMS({ modulo = 'ps' }) {
   const { profile, isAdmin, isMister, club } = useAuth()
-  const isPlayer = ['player_paid','player_volunteer'].includes(profile?.role)
-  const isParent = profile?.role === 'parent'
-  const isSegreteria = profile?.role === 'segreteria'
+  const isPlayer      = ['player_paid','player_volunteer'].includes(profile?.role)
+  const isPlayerSC    = profile?.role === 'player_sc'
+  const isParent      = profile?.role === 'parent'
+  const isSegreteria  = profile?.role === 'segreteria'
+  const canManage     = isAdmin
 
-  const [folders,      setFolders]      = useState([])
-  const [activeFolder, setActiveFolder] = useState(null)
+  const [path,         setPath]         = useState([])       // breadcrumb: array di cartelle
+  const [children,     setChildren]     = useState([])       // sottocartelle del livello corrente
   const [documents,    setDocuments]    = useState([])
+  const [myAnchorId,   setMyAnchorId]   = useState(null)      // id youth_player collegato (player_sc / parent)
+  const [noPersonalFolder, setNoPersonalFolder] = useState(false)
   const [search,       setSearch]       = useState('')
   const [filterPerm,   setFilterPerm]   = useState('')
-  const [folderModal,  setFolderModal]  = useState(null)
+  const [folderModal,  setFolderModal]  = useState(null)      // {} nuova, oggetto = modifica
   const [uploadModal,  setUploadModal]  = useState(null)
   const [loading,      setLoading]      = useState(true)
   const [docsLoading,  setDocsLoading]  = useState(false)
 
-  useEffect(() => { loadFolders() }, [modulo])
-  useEffect(() => { if (activeFolder) loadDocuments(activeFolder.id) }, [activeFolder])
+  const current = path[path.length - 1] || null
 
-  async function loadFolders() {
+  useEffect(() => { init() }, [modulo, profile?.id])
+  useEffect(() => { if (path.length || isAdmin || isSegreteria) loadLevel() }, [path, modulo])
+
+  async function init() {
+    if (!profile?.id) return
+    if (isAdmin || isSegreteria) {
+      setPath([])
+      return
+    }
+    // Risolvi la cartella personale di partenza
+    let query = supabase.from('dms_folders').select('*').eq('modulo', modulo)
+    if (isMister || isPlayer) {
+      query = query.eq('linked_profile_id', profile.id)
+    } else if (isPlayerSC) {
+      const { data: yp } = await supabase.from('youth_players').select('id').eq('user_id', profile.id).maybeSingle()
+      if (!yp) { setNoPersonalFolder(true); setLoading(false); return }
+      setMyAnchorId(yp.id)
+      query = query.eq('linked_youth_player_id', yp.id)
+    } else if (isParent) {
+      const { data: parent } = await supabase.from('parents').select('youth_player_id').eq('user_id', profile.id).maybeSingle()
+      if (!parent?.youth_player_id) { setNoPersonalFolder(true); setLoading(false); return }
+      setMyAnchorId(parent.youth_player_id)
+      query = query.eq('linked_youth_player_id', parent.youth_player_id)
+    }
+    const { data: mine } = await query.is('parent_id', mine_parent_filter()).maybeSingle().catch?.(() => ({ data: null })) || { data: null }
+    // fallback semplice: prendi la cartella collegata indipendentemente dal parent_id
+    const { data: anyMine } = await query.limit(1).maybeSingle()
+    if (anyMine) setPath([anyMine])
+    else setNoPersonalFolder(true)
+    setLoading(false)
+  }
+  function mine_parent_filter() { return undefined }
+
+  async function loadLevel() {
     setLoading(true)
-    let q = supabase.from('dms_folders').select('*').order('ordine').order('nome')
-    // Filtra per modulo: cartelle SC iniziano con "SC -"
-    if (modulo === 'sc') q = q.ilike('nome', 'SC -%')
-    else                 q = q.not('nome', 'ilike', 'SC -%')
+    const parentId = current?.id ?? null
+    let q = supabase.from('dms_folders').select('*').eq('modulo', modulo).order('ordine').order('nome')
+    q = parentId ? q.eq('parent_id', parentId) : q.is('parent_id', null)
     const { data } = await q
-    setFolders(data || [])
+    setChildren(data || [])
+    if (current) loadDocuments(current.id)
+    else setDocuments([])
     setLoading(false)
   }
 
@@ -346,15 +320,18 @@ export default function DMS({ modulo = 'ps' }) {
     setDocsLoading(false)
   }
 
+  function openFolder(f)  { setPath(p => [...p, f]); setSearch('') }
+  function goToCrumb(idx) { setPath(p => p.slice(0, idx + 1)); setSearch('') }
+  function goToRoot()     { setPath([]); setSearch('') }
+
   async function deleteFolder(id) {
-    if (!confirm('Eliminare la cartella e tutti i suoi documenti?')) return
+    if (!confirm('Eliminare la cartella, le sue sottocartelle e tutti i documenti?')) return
     const { data: docs } = await supabase.from('dms_documents').select('file_path').eq('folder_id', id)
     if (docs?.length) await supabase.storage.from('soccerclub').remove(docs.map(d => d.file_path))
     await supabase.from('dms_documents').delete().eq('folder_id', id)
     await supabase.from('dms_folders').delete().eq('id', id)
     toast.success('Cartella eliminata')
-    if (activeFolder?.id === id) setActiveFolder(null)
-    loadFolders()
+    loadLevel()
   }
 
   async function deleteDocument(doc) {
@@ -362,16 +339,17 @@ export default function DMS({ modulo = 'ps' }) {
     await supabase.storage.from('soccerclub').remove([doc.file_path])
     await supabase.from('dms_documents').delete().eq('id', doc.id)
     toast.success('Documento eliminato')
-    loadDocuments(activeFolder.id)
+    loadDocuments(current.id)
   }
 
-  // Chi può caricare in questa cartella
+  // Chi può caricare nella cartella corrente
   function canUpload(folder) {
     if (!folder) return false
     if (isAdmin || isSegreteria) return true
+    if (folder.linked_profile_id && folder.linked_profile_id === profile.id) return true
+    if (folder.linked_youth_player_id && folder.linked_youth_player_id === myAnchorId) return true
     if (isMister && folder.permesso === 'mister') return true
     if (isPlayer && ['players','players_parent'].includes(folder.permesso)) return true
-    // Genitore: può caricare solo nelle cartelle Documenti Medici
     if (isParent && ['parent','players_parent'].includes(folder.permesso)) {
       const nomeLower = folder.nome.toLowerCase()
       return nomeLower.includes('medic') || nomeLower.includes('certificat')
@@ -379,12 +357,12 @@ export default function DMS({ modulo = 'ps' }) {
     return false
   }
 
-  // Filtra cartelle per permesso (filtro UI)
-  const visibleFolders = folders.filter(f =>
-    !filterPerm || f.permesso === filterPerm
-  )
+  function canDeleteDoc(doc) {
+    return isAdmin || isSegreteria || doc.created_by === profile?.id
+  }
 
-  // Filtra documenti per search
+  const visibleChildren = children.filter(f => !filterPerm || f.permesso === filterPerm)
+
   const filteredDocs = documents.filter(d => {
     const q = search.toLowerCase()
     return !q
@@ -404,168 +382,128 @@ export default function DMS({ modulo = 'ps' }) {
     d.scadenza && differenceInDays(new Date(d.scadenza), new Date()) < 0
   )
 
+  if (noPersonalFolder) {
+    return (
+      <div className="space-y-4">
+        <div className="border-b border-[#e7eaec] pb-4">
+          <h1 className="text-2xl font-bold text-[#2f4050]">Documenti</h1>
+        </div>
+        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-12 text-center">
+          <Folder size={40} className="mx-auto text-[#999] mb-3 opacity-50"/>
+          <p className="text-[#999] text-sm">La tua cartella personale non è ancora stata creata.<br/>Contatta la società.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between">
+      <div className="border-b border-[#e7eaec] pb-4 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#2f4050]">Documenti</h1>
           <p className="text-sm text-[#999] mt-1">
             {modulo === 'sc' ? 'Archivio documenti Scuola Calcio' : 'Archivio documenti Prima Squadra'}
           </p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <button onClick={() => setFolderModal({})}
             className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
-            <FolderPlus size={16}/> Nuova cartella
+            <FolderPlus size={16}/> Nuova cartella {current ? 'qui' : ''}
           </button>
         )}
       </div>
 
-      <div className="flex gap-4 min-h-[600px]">
-        {/* ── Sidebar cartelle ── */}
-        <div className="hidden md:block w-64 flex-shrink-0 space-y-1">
-          <button onClick={() => { setActiveFolder(null); setSearch('') }}
-            className={clsx('w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition-colors',
-              !activeFolder ? 'bg-[#1ab394] text-white' : 'text-[#676a6c] hover:bg-gray-100')}>
-            <Home size={16}/>
-            <span className="font-medium">Tutte le cartelle</span>
-          </button>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm flex-wrap">
+        {(isAdmin || isSegreteria) && (
+          <>
+            <button onClick={goToRoot} className={clsx('flex items-center gap-1', !current ? 'text-[#2f4050] font-semibold' : 'text-[#999] hover:text-[#1ab394]')}>
+              <Home size={14}/> Documenti
+            </button>
+          </>
+        )}
+        {path.map((f, i) => (
+          <span key={f.id} className="flex items-center gap-2">
+            {(i > 0 || isAdmin || isSegreteria) && <ChevronRight size={14} className="text-[#999]"/>}
+            <button onClick={() => goToCrumb(i)}
+              className={clsx('flex items-center gap-1', i === path.length - 1 ? 'text-[#2f4050] font-semibold' : 'text-[#999] hover:text-[#1ab394]')}>
+              <span>{f.icona}</span> {f.nome}
+            </button>
+          </span>
+        ))}
+      </div>
 
-          {/* Filtro permesso — solo admin */}
-          {isAdmin && (
-            <div className="pt-2 pb-1 px-1">
-              <select value={filterPerm} onChange={e => setFilterPerm(e.target.value)}
-                className="w-full border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]">
-                <option value="">Tutti i permessi</option>
-                {Object.entries(PERMESSI).map(([v, { label }]) => (
-                  <option key={v} value={v}>{label}</option>
-                ))}
-              </select>
+      {/* Filtro permesso — solo admin, solo a livello cartelle */}
+      {(isAdmin) && visibleChildren.length > 0 && (
+        <select value={filterPerm} onChange={e => setFilterPerm(e.target.value)}
+          className="border border-[#e7eaec] rounded px-2 py-1.5 text-[#676a6c] text-xs outline-none focus:border-[#1ab394]">
+          <option value="">Tutti i permessi</option>
+          {Object.entries(PERMESSI).map(([v, { label }]) => (
+            <option key={v} value={v}>{label}</option>
+          ))}
+        </select>
+      )}
+
+      {/* Alert scadenze (solo se siamo dentro una cartella con documenti) */}
+      {current && (expiredDocs.length > 0 || expiringDocs.length > 0) && (
+        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">
+          <AlertTriangle size={15}/>
+          {expiredDocs.length > 0  && <span><strong>{expiredDocs.length}</strong> documento/i scaduto/i.</span>}
+          {expiringDocs.length > 0 && <span><strong>{expiringDocs.length}</strong> in scadenza entro 30 giorni.</span>}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center h-32">
+          <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+        </div>
+      ) : (
+        <>
+          {/* ── Griglia sottocartelle ── */}
+          {visibleChildren.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {visibleChildren.map(f => {
+                const P = PERMESSI[f.permesso] || PERMESSI.admin_only
+                const isPersonal = f.linked_profile_id || f.linked_youth_player_id
+                return (
+                  <div key={f.id} className="relative group">
+                    <button onClick={() => openFolder(f)}
+                      className="w-full bg-white border border-[#e7eaec] rounded shadow-sm p-5 text-left hover:shadow-md hover:border-[#1ab394]/40 transition-all">
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="text-3xl">{f.icona}</span>
+                        <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', isPersonal ? 'bg-teal-100 text-teal-600' : P.color)}>
+                          {isPersonal ? 'Personale' : P.label}
+                        </span>
+                      </div>
+                      <div className="font-semibold text-[#2f4050] text-sm mb-1">{f.nome}</div>
+                      {f.descrizione && <div className="text-xs text-[#999] line-clamp-2">{f.descrizione}</div>}
+                      <div className="flex items-center gap-1 mt-3 text-xs text-[#1ab394] opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span>Apri</span><ChevronRight size={12}/>
+                      </div>
+                    </button>
+                    {canManage && !f.is_system && (
+                      <div className="absolute right-2 top-2 hidden group-hover:flex gap-1">
+                        <button onClick={() => setFolderModal(f)} className="p-1 text-[#999] hover:text-[#1c84c6] bg-white rounded shadow-sm"><Edit2 size={12}/></button>
+                        <button onClick={() => deleteFolder(f.id)} className="p-1 text-[#999] hover:text-red-500 bg-white rounded shadow-sm"><Trash2 size={12}/></button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
-          <div className="pt-1">
-            <div className="text-xs font-semibold text-[#999] uppercase tracking-wide px-3 mb-1">Cartelle</div>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center h-20">
-              <div className="w-5 h-5 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
+          {visibleChildren.length === 0 && !current && (
+            <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-16 text-center">
+              <Folder size={48} className="mx-auto text-[#999] mb-4 opacity-50"/>
+              <p className="text-[#999]">Nessuna cartella disponibile</p>
             </div>
-          ) : visibleFolders.length === 0 ? (
-            <div className="text-center text-[#999] text-xs py-6 px-3">
-              {isAdmin ? 'Nessuna cartella. Creane una!' : 'Nessuna cartella disponibile.'}
-            </div>
-          ) : visibleFolders.map(f => {
-            const P = PERMESSI[f.permesso] || PERMESSI.admin_only
-            const isActive = activeFolder?.id === f.id
-            return (
-              <div key={f.id}
-                className={clsx('group relative rounded transition-colors',
-                  isActive ? 'bg-gray-100' : 'hover:bg-gray-50')}>
-                <button onClick={() => { setActiveFolder(f); setSearch('') }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 text-left">
-                  <span className="text-xl flex-shrink-0">{f.icona}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className={clsx('text-sm font-medium truncate', isActive ? 'text-[#2f4050]' : 'text-[#676a6c]')}>
-                      {/* Rimuovi prefisso "SC - " nella sidebar SC */}
-                      {modulo === 'sc' ? f.nome.replace(/^SC - /, '') : f.nome}
-                    </div>
-                    <div className={clsx('text-xs px-1.5 py-0.5 rounded w-fit mt-0.5', P.color)}>
-                      {P.label}
-                    </div>
-                  </div>
-                </button>
-                {isAdmin && (
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-1">
-                    <button onClick={() => setFolderModal(f)}
-                      className="p-1 text-[#999] hover:text-[#1c84c6] bg-white rounded shadow-sm">
-                      <Edit2 size={12}/>
-                    </button>
-                    <button onClick={() => deleteFolder(f.id)}
-                      className="p-1 text-[#999] hover:text-red-500 bg-white rounded shadow-sm">
-                      <Trash2 size={12}/>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+          )}
 
-        {/* ── Area documenti ── */}
-        <div className="flex-1 min-w-0">
-          {!activeFolder ? (
+          {/* ── Toolbar + documenti (solo se dentro una cartella) ── */}
+          {current && (
             <div className="space-y-3">
-              <div className="text-sm font-semibold text-[#2f4050]">
-                {visibleFolders.length} cartell{visibleFolders.length === 1 ? 'a' : 'e'} disponibil{visibleFolders.length === 1 ? 'e' : 'i'}
-              </div>
-              {loading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
-                </div>
-              ) : visibleFolders.length === 0 ? (
-                <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-16 text-center">
-                  <Folder size={48} className="mx-auto text-[#999] mb-4 opacity-50"/>
-                  <p className="text-[#999]">Nessuna cartella disponibile</p>
-                  {isAdmin && (
-                    <button onClick={() => setFolderModal({})}
-                      className="mt-4 flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold mx-auto">
-                      <FolderPlus size={16}/> Crea la prima cartella
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {visibleFolders.map(f => {
-                    const P = PERMESSI[f.permesso] || PERMESSI.admin_only
-                    return (
-                      <button key={f.id} onClick={() => { setActiveFolder(f); setSearch('') }}
-                        className="bg-white border border-[#e7eaec] rounded shadow-sm p-5 text-left hover:shadow-md hover:border-[#1ab394]/40 transition-all group">
-                        <div className="flex items-start justify-between mb-3">
-                          <span className="text-3xl">{f.icona}</span>
-                          <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', P.color)}>
-                            {P.label}
-                          </span>
-                        </div>
-                        <div className="font-semibold text-[#2f4050] text-sm mb-1">
-                          {modulo === 'sc' ? f.nome.replace(/^SC - /, '') : f.nome}
-                        </div>
-                        {f.descrizione && <div className="text-xs text-[#999] line-clamp-2">{f.descrizione}</div>}
-                        <div className="flex items-center gap-1 mt-3 text-xs text-[#1ab394] opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span>Apri</span><ChevronRight size={12}/>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Breadcrumb */}
-              <div className="flex items-center gap-2 text-sm">
-                <button onClick={() => { setActiveFolder(null); setSearch('') }}
-                  className="text-[#999] hover:text-[#1ab394] flex items-center gap-1">
-                  <Home size={14}/> Documenti
-                </button>
-                <ChevronRight size={14} className="text-[#999]"/>
-                <span className="text-[#2f4050] font-semibold flex items-center gap-1">
-                  {activeFolder.icona} {modulo === 'sc' ? activeFolder.nome.replace(/^SC - /, '') : activeFolder.nome}
-                </span>
-              </div>
-
-              {/* Alert scadenze */}
-              {(expiredDocs.length > 0 || expiringDocs.length > 0) && (
-                <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded p-3 text-yellow-700 text-sm">
-                  <AlertTriangle size={15}/>
-                  {expiredDocs.length > 0  && <span><strong>{expiredDocs.length}</strong> documento/i scaduto/i.</span>}
-                  {expiringDocs.length > 0 && <span><strong>{expiringDocs.length}</strong> in scadenza entro 30 giorni.</span>}
-                </div>
-              )}
-
-              {/* Toolbar */}
               <div className="flex gap-2 items-center justify-between flex-wrap">
                 <div className="relative flex-1 min-w-48">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#999]"/>
@@ -573,15 +511,14 @@ export default function DMS({ modulo = 'ps' }) {
                     placeholder="Cerca documento, tag, calciatore..."
                     className="w-full border border-[#e7eaec] rounded pl-8 pr-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
                 </div>
-                {canUpload(activeFolder) && (
-                  <button onClick={() => setUploadModal(activeFolder)}
+                {canUpload(current) && (
+                  <button onClick={() => setUploadModal(current)}
                     className="flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold">
                     <Upload size={15}/> Carica documento
                   </button>
                 )}
               </div>
 
-              {/* Lista documenti */}
               {docsLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="w-6 h-6 border-2 border-[#1ab394] border-t-transparent rounded-full animate-spin"/>
@@ -592,19 +529,19 @@ export default function DMS({ modulo = 'ps' }) {
                   <p className="text-[#999] text-sm">
                     {search ? 'Nessun documento trovato.' : 'Nessun documento in questa cartella.'}
                   </p>
-                  {canUpload(activeFolder) && !search && (
-                    <button onClick={() => setUploadModal(activeFolder)}
+                  {canUpload(current) && !search && (
+                    <button onClick={() => setUploadModal(current)}
                       className="mt-4 flex items-center gap-2 bg-[#1ab394] hover:bg-[#18a689] text-white px-4 py-2 rounded text-sm font-semibold mx-auto">
                       <Upload size={15}/> Carica il primo documento
                     </button>
                   )}
                 </div>
               ) : (
-                  <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-x-auto">
+                <div className="bg-white border border-[#e7eaec] rounded shadow-sm overflow-x-auto">
                   <table className="w-full text-sm min-w-[640px]">
                     <thead>
                       <tr className="border-b border-[#e7eaec] bg-gray-50">
-                        {['Documento','Tipo','Proprietario','Scadenza','Tag','Caricato da','Azioni'].map(h => (
+                        {['Documento','Scadenza','Tag','Caricato da','Azioni'].map(h => (
                           <th key={h} className="text-left text-xs text-[#999] px-4 py-3 font-semibold uppercase tracking-wide">{h}</th>
                         ))}
                       </tr>
@@ -615,40 +552,28 @@ export default function DMS({ modulo = 'ps' }) {
                         const icon = ext === 'pdf' ? '📄'
                           : ['jpg','jpeg','png'].includes(ext) ? '🖼️'
                           : ['doc','docx'].includes(ext) ? '📝'
-                          : ['xls','xlsx'].includes(ext) ? '📊' : '📁'
-                        const canDel = isAdmin || doc.created_by === profile?.id
+                          : ['xls','xlsx'].includes(ext) ? '📊'
+                          : '📎'
                         return (
-                          <tr key={doc.id} className="border-b border-[#e7eaec] hover:bg-gray-50 transition-colors">
+                          <tr key={doc.id} className="border-b border-[#e7eaec] hover:bg-gray-50">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <span className="text-lg">{icon}</span>
+                                <span>{icon}</span>
                                 <div>
-                                  <div className="text-[#2f4050] font-medium text-sm">{doc.nome}</div>
-                                  {doc.descrizione && <div className="text-xs text-[#999] truncate max-w-xs">{doc.descrizione}</div>}
-                                  {doc.file_size && <div className="text-xs text-[#999]">{formatBytes(doc.file_size)}</div>}
+                                  <div className="text-[#2f4050] font-medium">{doc.nome}</div>
+                                  {doc.descrizione && <div className="text-xs text-[#999]">{doc.descrizione}</div>}
                                 </div>
                               </div>
                             </td>
+                            <td className="px-4 py-3"><ExpiryBadge date={doc.scadenza}/></td>
                             <td className="px-4 py-3">
-                              <span className="text-xs text-[#999] uppercase font-mono">{ext || '—'}</span>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-[#999]">
-                              {doc.owner ? `${doc.owner.cognome} ${doc.owner.nome}` : '—'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-1 flex-wrap">
-                                {doc.scadenza && <span className="text-xs text-[#999]">{format(new Date(doc.scadenza), 'dd/MM/yyyy')}</span>}
-                                <ExpiryBadge date={doc.scadenza}/>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex gap-1 flex-wrap">
                                 {doc.tags?.map(t => (
-                                  <span key={t} className="text-xs bg-gray-100 text-[#676a6c] px-1.5 py-0.5 rounded">{t}</span>
+                                  <span key={t} className="px-1.5 py-0.5 bg-gray-100 text-[#676a6c] rounded text-xs">{t}</span>
                                 ))}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-xs text-[#999]">
+                            <td className="px-4 py-3 text-[#999] text-xs">
                               {doc.uploader ? `${doc.uploader.nome} ${doc.uploader.cognome}` : '—'}
                               <div className="text-xs text-[#999] mt-0.5">
                                 {format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: it })}
@@ -660,7 +585,7 @@ export default function DMS({ modulo = 'ps' }) {
                                   className="text-[#999] hover:text-[#1ab394]" title="Apri/Scarica">
                                   <Download size={15}/>
                                 </a>
-                                {canDel && (
+                                {canDeleteDoc(doc) && (
                                   <button onClick={() => deleteDocument(doc)}
                                     className="text-[#999] hover:text-red-500" title="Elimina">
                                     <Trash2 size={15}/>
@@ -677,16 +602,17 @@ export default function DMS({ modulo = 'ps' }) {
               )}
             </div>
           )}
-        </div>
-      </div>
+        </>
+      )}
 
       {folderModal !== null && (
-        <FolderModal folder={folderModal} onClose={() => setFolderModal(null)}
-          onSaved={() => { setFolderModal(null); loadFolders() }}/>
+        <FolderModal folder={folderModal.id ? folderModal : null} parentFolder={current} modulo={modulo}
+          onClose={() => setFolderModal(null)}
+          onSaved={() => { setFolderModal(null); loadLevel() }}/>
       )}
       {uploadModal && (
         <UploadModal folder={uploadModal} onClose={() => setUploadModal(null)}
-          onSaved={() => { setUploadModal(null); loadDocuments(activeFolder.id) }}/>
+          onSaved={() => { setUploadModal(null); loadDocuments(current.id) }}/>
       )}
     </div>
   )
