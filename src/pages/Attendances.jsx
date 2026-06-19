@@ -282,10 +282,44 @@ export default function Attendances() {
 
   return (
     <div className="space-y-5">
-      <div className="border-b border-[#e7eaec] pb-4">
+        <div className="border-b border-[#e7eaec] pb-4">
         <h1 className="text-2xl font-bold text-[#2f4050]">Presenze</h1>
         <p className="text-sm text-[#999] mt-1">Registro presenze allenamenti e partite</p>
       </div>
+
+      {/* Calendario mese — solo calciatori/volontari */}
+      {!isAdmin && !isMister && (
+        <div className="bg-white border border-[#e7eaec] rounded shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h2 className="text-sm font-bold text-[#2f4050] uppercase tracking-wide">Calendario mese</h2>
+            <div className="flex items-center gap-3 text-xs text-[#676a6c]">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#1c84c6]"/> Allenamento</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#f8ac59]"/> Partita (convocato)</span>
+              <span className="flex items-center gap-1"><Check size={11} className="text-[#1ab394]"/> Timbrato</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-xs text-[#999] font-semibold mb-1">
+            {['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(d => <div key={d}>{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {calendarCells.map((cell, i) => cell ? (
+              <div key={i} className={clsx(
+                'rounded border p-1 min-h-[56px] flex flex-col items-center',
+                cell.isToday ? 'border-[#1ab394] bg-[#1ab394]/5' : 'border-[#e7eaec]'
+              )}>
+                <span className={clsx('text-xs font-semibold', cell.isToday ? 'text-[#1ab394]' : 'text-[#676a6c]')}>{cell.day}</span>
+                <div className="flex gap-1 mt-1">
+                  {cell.hasTraining && <span className="w-2 h-2 rounded-full bg-[#1c84c6]" title="Allenamento"/>}
+                  {cell.hasMatch && <span className="w-2 h-2 rounded-full bg-[#f8ac59]" title="Partita - convocato"/>}
+                </div>
+                {cell.attended && <Check size={11} className="text-[#1ab394] mt-1"/>}
+              </div>
+            ) : <div key={i}/>)}
+          </div>
+        </div>
+      )}
+
+      {/* Info allenamento oggi — solo calciatori */}
 
       {/* Info allenamento oggi — solo calciatori */}
       {!isAdmin && !isMister && todayTraining && (
