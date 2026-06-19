@@ -28,7 +28,7 @@ function AnnouncementModal({ categories, onClose, onSaved, profile }) {
     if (!form.titolo) return toast.error('Inserisci un titolo')
     setLoading(true)
     const { data: ann, error } = await supabase.from('announcements')
-      .insert([{ ...form, autore_id: profile?.id }]).select().single()
+      .insert([{ ...form, category_id: form.category_id || null, autore_id: profile?.id }]).select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
 
     // Notifica a tutti gli utenti
