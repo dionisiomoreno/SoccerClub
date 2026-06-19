@@ -301,7 +301,7 @@ function PayslipModal({ mister, teamSettings, onClose, onSaved }) {
 }
 
 // ── Componente principale ────────────────────────────────────
-export default function SCMister() {
+export default function SCMister({ initialTab = 'anagrafica' }) {
   const { profile, isAdmin, isSegreteria, isMister } = useAuth()
   const isMisterSC = isMister && !!profile?.category_id
   const canAdmin = isAdmin || isSegreteria
@@ -309,7 +309,7 @@ export default function SCMister() {
   const [payslips, setPayslips] = useState([])
   const [categories, setCategories] = useState([])
   const [teamSettings, setTeamSettings] = useState(null)
-  const [tab, setTab] = useState('anagrafica')
+  const [tab, setTab] = useState(initialTab)
   const [statusFilter, setStatusFilter] = useState('tutti') // 'tutti' | 'attivi' | 'non_attivi'
   const [editModal, setEditModal] = useState(null)
   const [payslipModal, setPayslipModal] = useState(null)
