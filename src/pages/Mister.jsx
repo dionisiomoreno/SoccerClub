@@ -126,7 +126,8 @@ function MisterModal({ mister, onClose, onSaved }) {
           compenso_fisso: form.compenso_fisso !== '' ? +form.compenso_fisso : null,
           taglia: form.taglia, active: form.active,
         }])
-        if (profileError) throw new Error('Errore profilo: ' + profileError.message)
+       if (profileError) throw new Error('Errore profilo: ' + profileError.message)
+        await createMisterFolder({ clubId: profile?.club_id, modulo: 'ps', misterId: userId, nome: form.nome, cognome: form.cognome })
         toast.success('Mister aggiunto! Può accedere con email e password impostate.')
       }
       onSaved()
