@@ -21,6 +21,8 @@ const navItems = [
 ]
 
 export default function ParentLayout() {
+  const { profile, signOut } = useAuth()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [child, setChild] = useState(null)
   const [notifications, setNotifications] = useState([])
