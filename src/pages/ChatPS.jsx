@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { Send, MessageCircle } from 'lucide-react'
+import { Send, MessageCircle, ArrowLeft } from 'lucide-react'
 import clsx from 'clsx'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
@@ -152,8 +152,9 @@ export default function ChatPS() {
   return (
     <div className="flex h-[calc(100vh-8rem)] bg-white border border-[#e7eaec] rounded shadow-sm overflow-hidden">
 
-      {/* Sidebar */}
-      <div className="w-64 flex-shrink-0 border-r border-[#e7eaec] flex flex-col">
+     {/* Sidebar */}
+      <div className={clsx('w-full md:w-64 flex-shrink-0 border-r border-[#e7eaec] flex-col',
+        activeChat ? 'hidden md:flex' : 'flex')}>
         <div className="p-4 border-b border-[#e7eaec]">
           <h2 className="text-[#2f4050] font-bold text-sm">⚽ Chat Prima Squadra</h2>
           <p className="text-xs text-[#999] mt-0.5">Seleziona una chat</p>
@@ -183,11 +184,14 @@ export default function ChatPS() {
         </div>
       </div>
 
-      {/* Area messaggi */}
-      <div className="flex-1 flex flex-col">
+       {/* Area messaggi */}
+      <div className={clsx('flex-1 flex-col', !activeChat ? 'hidden md:flex' : 'flex')}>
         {activeChat ? (
           <>
             <div className="p-4 border-b border-[#e7eaec] flex items-center gap-3">
+              <button onClick={() => setActiveChat(null)} className="md:hidden text-[#999] hover:text-[#676a6c] flex-shrink-0">
+                <ArrowLeft size={18}/>
+              </button>
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm"
                 style={{ background: activeChat.colore }}>
                 <MessageCircle size={16}/>
