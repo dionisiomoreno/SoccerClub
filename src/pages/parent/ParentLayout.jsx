@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import clsx from 'clsx'
 import {
   Home, User, CreditCard, FileText, Megaphone,
-  ShoppingBag, LogOut, Menu, X, Bell, MessageCircle
+  ShoppingBag, LogOut, Menu, X, Bell, MessageCircle, Check, Trash2
 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { it } from 'date-fns/locale'
 
 const navItems = [
   { to: '/genitore',           label: 'Home',          icon: Home },
@@ -19,13 +21,20 @@ const navItems = [
 ]
 
 export default function ParentLayout() {
-  const { profile, signOut } = useAuth()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [child, setChild] = useState(null)
-  const [unread, setUnread] = useState(0)
+  const [notifications, setNotifications] = useState([])
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef()
+  const unread = notifications.filter(n => !n.read).length
 
-  useEffect(() => { loadChild(); loadUnread() }, [profile])
+  useEffect(() => { loadChild(); loadNotifications() }, [profile])
+
+  useEffect(() => {
+    function handleClick(e) { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false) }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   async function loadChild() {
     if (!profile?.id) return
@@ -34,12 +43,26 @@ export default function ParentLayout() {
     if (parent?.youth_players) setChild(parent.youth_players)
   }
 
-  async function loadUnread() {
+  async function loadNotifications() {
     if (!profile?.id) return
-    const { count } = await supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', profile.id).eq('read', false)
-    setUnread(count || 0)
+    const { data } = await supabase.from('notifications').select('*').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(20)
+    setNotifications(data || [])
   }
 
+  async function markRead(id) {
+    await supabase.from('notifications').update({ read: true }).eq('id', id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+  }
+
+  async function markAllRead() {
+    await supabase.from('notifications').update({ read: true }).eq('user_id', profile.id).eq('read', false)
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  }
+
+  async function deleteNotification(id) {
+    await supabase.from('notifications').delete().eq('id', id)
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }
   async function handleLogout() { await signOut(); navigate('/login') }
 
   const initials = `${profile?.nome?.[0] || ''}${profile?.cognome?.[0] || ''}`.toUpperCase()
