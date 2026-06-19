@@ -22,11 +22,9 @@ const PIANO_COLORS = {
 
 function ClubModal({ club, onClose, onSaved }) {
   const isEdit = !!club?.id
-  const [form, setForm] = useState({
+const [form, setForm] = useState({
     nome: '', slug: '', email: '', telefono: '', citta: '',
     piano: 'full', stato: 'trial',
-    trial_ends_at: '',
-    license_expires_at: format(new Date(Date.now() + 365*24*60*60*1000), "yyyy-MM-dd'T'HH:mm"),
     max_users: 100,
     ...club,
     trial_ends_at: club?.trial_ends_at ? format(new Date(club.trial_ends_at), "yyyy-MM-dd") : format(new Date(Date.now() + 14*24*60*60*1000), "yyyy-MM-dd"),
