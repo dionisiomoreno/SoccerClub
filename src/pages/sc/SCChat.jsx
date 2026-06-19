@@ -257,19 +257,25 @@ export default function SCChat() {
               <div ref={bottomRef}/>
             </div>
 
-            <div className="p-4 border-t border-[#e7eaec]">
-              <div className="flex gap-2 items-end">
-                <textarea value={text} onChange={e => setText(e.target.value)} onKeyDown={handleKey}
-                  placeholder="Scrivi un messaggio... (Invio per inviare)"
-                  rows={1}
-                  className="flex-1 border border-[#e7eaec] rounded-xl px-4 py-2.5 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] resize-none"
-                  style={{ maxHeight: '120px' }}/>
-                <button onClick={sendMessage} disabled={!text.trim() || sending}
-                  className="w-10 h-10 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white rounded-full flex items-center justify-center flex-shrink-0">
-                  <Send size={16}/>
-                </button>
+            {activeChat.nome === '🌐 Generale SC' && !(isAdmin || isSegreteria) ? (
+              <div className="p-4 border-t border-[#e7eaec] text-center text-xs text-[#999]">
+                Solo Società e Segreteria possono scrivere in questa chat.
               </div>
-            </div>
+            ) : (
+              <div className="p-4 border-t border-[#e7eaec]">
+                <div className="flex gap-2 items-end">
+                  <textarea value={text} onChange={e => setText(e.target.value)} onKeyDown={handleKey}
+                    placeholder="Scrivi un messaggio... (Invio per inviare)"
+                    rows={1}
+                    className="flex-1 border border-[#e7eaec] rounded-xl px-4 py-2.5 text-[#676a6c] text-sm outline-none focus:border-[#1ab394] resize-none"
+                    style={{ maxHeight: '120px' }}/>
+                  <button onClick={sendMessage} disabled={!text.trim() || sending}
+                    className="w-10 h-10 bg-[#1ab394] hover:bg-[#18a689] disabled:opacity-50 text-white rounded-full flex items-center justify-center flex-shrink-0">
+                    <Send size={16}/>
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-[#999] text-sm">
