@@ -75,6 +75,7 @@ function generatePDF(payslip, player, attendances, sanctions, teamSettings) {
 }
 
 function GenerateModal({ onClose, onSaved }) {
+  const { profile } = useAuth()
   const [players, setPlayers] = useState([])
   const [teamSettings, setTeamSettings] = useState(null)
   const [form, setForm] = useState({ player_id: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() })
