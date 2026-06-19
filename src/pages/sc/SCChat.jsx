@@ -22,6 +22,8 @@ export default function SCChat() {
   const isSegreteria = profile?.role === 'segreteria'
   const isMister     = profile?.role === 'mister'
   const isParent     = profile?.role === 'parent'
+  const isPlayerSC   = profile?.role === 'player_sc'
+  const isPlayer     = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
   const isPlayer     = profile?.role === 'player_paid' || profile?.role === 'player_volunteer'
 
   // Mister SC ha category_id, Mister PS no
@@ -81,7 +83,7 @@ export default function SCChat() {
     // ── Chat GENERALE SC ──
     // Visibile a: Admin, Segreteria, Mister PS, Mister SC, Genitori
     // NON visibile a: calciatori PS (isPlayer senza category_id)
-    const canSeeGenerale = isAdmin || isSegreteria || isMister || isParent
+    const canSeeGenerale = isAdmin || isSegreteria || isMister || isParent || isPlayerSC
     if (canSeeGenerale) {
       const chat = await getOrCreateChat('🌐 Generale SC')
       if (chat) result.push({ ...chat, colore: '#6c757d', label: '🌐 Generale SC' })
@@ -102,7 +104,7 @@ export default function SCChat() {
         const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
         if (chat) result.push({ ...chat, colore: cat.colore, label: `🏫 ${cat.nome}` })
       }
-    } else if (isParent) {
+} else if (isParent) {
       // Genitore → vede la chat della categoria del figlio
       const { data: parent } = await supabase
         .from('parents')
@@ -111,6 +113,19 @@ export default function SCChat() {
         .single()
       const cat   = parent?.youth_players?.categories
       const catId = parent?.youth_players?.category_id
+      if (cat && catId) {
+        const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
+        if (chat) result.push({ ...chat, colore: cat.colore, label: `🏫 ${cat.nome}` })
+      }
+    } else if (isPlayerSC) {
+      // Atleta SC → vede la chat della propria categoria
+      const { data: yp } = await supabase
+        .from('youth_players')
+        .select('category_id, categories(nome, colore)')
+        .eq('user_id', profile.id)
+        .maybeSingle()
+      const cat   = yp?.categories
+      const catId = yp?.category_id
       if (cat && catId) {
         const chat = await getOrCreateChat(`🏫 Squadra ${cat.nome}`)
         if (chat) result.push({ ...chat, colore: cat.colore, label: `🏫 ${cat.nome}` })
