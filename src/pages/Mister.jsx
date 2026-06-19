@@ -239,7 +239,7 @@ function PayslipModal({ mister, onClose, onSaved, teamSettings }) {
       .select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
     await supabase.from('notifications').insert([{
-      user_id: mister.id, type: 'payslip_generated',
+      user_id: mister.id, club_id: profile?.club_id, type: 'payslip_generated',
       message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} disponibile — €${form.compenso}`, read: false
     }])
     generateMisterPDF({ ...form }, mister, teamSettings)
