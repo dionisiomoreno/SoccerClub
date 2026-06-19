@@ -211,7 +211,7 @@ function PayslipModal({ mister, teamSettings, onClose, onSaved }) {
       .upsert([{ player_id: mister.id, club_id: profile?.club_id, ...form }], { onConflict: 'player_id,month,year' })
       .select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
-    await supabase.from('notifications').insert([{
+   await supabase.from('notifications').insert([{
       user_id: mister.id, club_id: profile?.club_id, type: 'payslip_generated',
       message: `Cedolino ${MONTHS[form.month - 1]} ${form.year} — €${form.compenso}`, read: false
     }])
