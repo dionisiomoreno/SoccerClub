@@ -7,6 +7,7 @@ import clsx from 'clsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format, differenceInDays } from 'date-fns'
+import { createPlayerFolder } from '../lib/dmsHelper'
 
 const ROLES = ['player_paid','player_volunteer']
 const ROLE_LABELS = { admin:'Società', mister:'Mister', player_paid:'Calciatore', player_volunteer:'Volontario' }
@@ -27,6 +28,7 @@ function MedicalBadge({ date }) {
 }
 
 function PlayerModal({ player, onClose, onSaved }) {
+  const { profile } = useAuth()
   const isEdit = !!player?.id
   const [form, setForm] = useState({
     nome: '', cognome: '', email: '', telefono: '', data_nascita: '',
@@ -68,7 +70,7 @@ function PlayerModal({ player, onClose, onSaved }) {
         const userId = authData.user?.id
         if (!userId) throw new Error('ID utente non disponibile')
         const { error: profileError } = await supabase.from('profiles').upsert([{
-          id: userId, club_id: player?.club_id,
+          id: userId, club_id: profile?.club_id,
           nome: form.nome, cognome: form.cognome, email: form.email, telefono: form.telefono,
           data_nascita: form.data_nascita || null, codice_fiscale: form.codice_fiscale,
           numero_patente: form.numero_patente, numero_tessera: form.numero_tessera,
@@ -81,6 +83,7 @@ function PlayerModal({ player, onClose, onSaved }) {
           compenso_fisso: form.role === 'mister' && form.compenso_fisso !== '' ? +form.compenso_fisso : null,
         }])
         if (profileError) throw new Error('Errore profilo: ' + profileError.message)
+        await createPlayerFolder({ clubId: profile?.club_id, modulo: 'ps', profileId: userId, nome: form.nome, cognome: form.cognome })
         toast.success('Calciatore aggiunto! Può accedere con email e password impostate.')
       }
       onSaved()
