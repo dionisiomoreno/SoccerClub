@@ -188,13 +188,17 @@ function ItemModal({ item, onClose, onSaved }) {
 // ── Modal configuratore kit ──────────────────────────────────
 function KitConfigModal({ categories, items, onClose, onSaved }) {
   const { profile } = useAuth()
-  const [form, setForm] = useState({ nome:'', descrizione:'', category_id:'' })
+  const [form, setForm] = useState({ nome:'', descrizione:'', category_id:'', modalita_prezzo:'per_articolo', prezzo_fisso:0 })
   const [rows, setRows] = useState([{ warehouse_item_id:'', quantita:1, note:'' }])
   const [loading, setLoading] = useState(false)
   function setF(k,v) { setForm(f=>({...f,[k]:v})) }
   function addRow() { setRows(r=>[...r,{ warehouse_item_id:'', quantita:1, note:'' }]) }
   function setRow(i,k,v) { setRows(r=>r.map((x,idx)=>idx===i?{...x,[k]:v}:x)) }
-  function removeRow(i) { setRows(r=>r.filter((_,idx)=>idx!==i)) }
+function removeRow(i) { setRows(r=>r.filter((_,idx)=>idx!==i)) }
+  const totalePerArticolo = rows.reduce((sum, r) => {
+    const item = items.find(it => it.id === r.warehouse_item_id)
+    return sum + (item ? (+item.prezzo || 0) * (+r.quantita || 1) : 0)
+  }, 0)
   async function save() {
     if (!form.nome) return toast.error('Nome kit obbligatorio')
     const valid = rows.filter(r=>r.warehouse_item_id)
@@ -203,7 +207,9 @@ function KitConfigModal({ categories, items, onClose, onSaved }) {
     const { data: kit, error } = await supabase.from('sc_kit_configs').insert([{
       nome: form.nome, descrizione: form.descrizione,
       category_id: form.category_id || null,
-      club_id: profile?.club_id
+      club_id: profile?.club_id,
+      modalita_prezzo: form.modalita_prezzo,
+      prezzo_fisso: form.modalita_prezzo === 'fisso' ? (form.prezzo_fisso || 0) : null,
     }]).select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
     await supabase.from('sc_kit_config_items').insert(valid.map(r=>({ kit_config_id: kit.id, ...r })))
@@ -250,6 +256,35 @@ function KitConfigModal({ categories, items, onClose, onSaved }) {
                 {rows.length>1 && <button onClick={()=>removeRow(i)}><X size={14} className="text-red-400"/></button>}
               </div>
             ))}
+          </div>
+
+          <div className="bg-gray-50 border border-[#e7eaec] rounded p-3 space-y-2">
+            <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide">Prezzo kit</label>
+            <div className="flex gap-2">
+              <button onClick={()=>setF('modalita_prezzo','per_articolo')}
+                className={clsx('flex-1 px-3 py-1.5 rounded text-xs font-medium border',
+                  form.modalita_prezzo==='per_articolo' ? 'bg-[#1ab394] text-white border-[#1ab394]' : 'border-[#e7eaec] text-[#676a6c] bg-white')}>
+                Somma per articolo
+              </button>
+              <button onClick={()=>setF('modalita_prezzo','fisso')}
+                className={clsx('flex-1 px-3 py-1.5 rounded text-xs font-medium border',
+                  form.modalita_prezzo==='fisso' ? 'bg-[#1ab394] text-white border-[#1ab394]' : 'border-[#e7eaec] text-[#676a6c] bg-white')}>
+                Prezzo fisso kit
+              </button>
+            </div>
+            {form.modalita_prezzo === 'per_articolo' ? (
+              <div className="text-sm text-[#2f4050]">
+                Totale calcolato: <strong>€{totalePerArticolo.toFixed(2)}</strong>
+                <p className="text-xs text-[#999] mt-0.5">Somma di prezzo × quantità degli articoli selezionati (modificabile dal catalogo articoli).</p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-[#999] uppercase tracking-wide mb-1">Prezzo fisso kit completo €</label>
+                <input type="number" min="0" step="0.01" value={form.prezzo_fisso}
+                  onChange={e=>setF('prezzo_fisso',+e.target.value)}
+                  className="w-full border border-[#e7eaec] rounded px-3 py-2 text-[#676a6c] text-sm outline-none focus:border-[#1ab394]"/>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex gap-2 p-4 border-t border-[#e7eaec]">
@@ -639,8 +674,8 @@ export default function SCWarehouse() {
   async function load() {
     setLoading(true)
     if (tab === 'abbigliamento') {
-      const { data: kits } = await supabase.from('sc_kit_configs')
-        .select('*, categories(nome,colore), sc_kit_config_items(*, warehouse_items(nome,categoria))')
+       const { data: kits } = await supabase.from('sc_kit_configs')
+        .select('*, categories(nome,colore), sc_kit_config_items(*, warehouse_items(nome,categoria,prezzo)))')
         .eq('active', true).order('nome')
       setKitConfigs(kits||[])
       if (kitSubTab === 'assignments') {
@@ -881,6 +916,12 @@ await supabase.from('material_requests').update({ status }).eq('id', id)
                                 {kit.categories ? <span className="text-xs text-white px-2 py-0.5 rounded font-medium" style={{ background: kit.categories.colore }}>{kit.categories.nome}</span>
                                   : <span className="text-xs bg-gray-100 text-[#999] px-2 py-0.5 rounded">Tutte le categorie</span>}
                                 <span className="text-xs text-[#999]">{kit.sc_kit_config_items?.length||0} articoli</span>
+                                <span className="text-xs font-semibold text-[#1ab394]">
+                                  €{(kit.modalita_prezzo === 'fisso'
+                                    ? (+kit.prezzo_fisso || 0)
+                                    : (kit.sc_kit_config_items||[]).reduce((s,i)=>s+((+i.warehouse_items?.prezzo||0)*(+i.quantita||1)),0)
+                                  ).toFixed(2)}
+                                </span>
                               </div>
                             </div>
                           </button>
