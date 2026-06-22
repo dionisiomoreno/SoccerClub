@@ -142,7 +142,7 @@ function AppRoutes() {
         <Route index element={<ParentDashboard />} />
         <Route path="figlio"    element={<ParentChild />} />
         <Route path="pagamenti" element={<ParentPayments />} />
-        <Route path="documenti" element={<DMS modulo="ps" />} />
+        <Route path="documenti" element={<DMS modulo="sc" />} />
         <Route path="bacheca"   element={<ParentBacheca />} />
         <Route path="kit"       element={<ParentKit />} />
         <Route path="chat"      element={<SCChat />} />
