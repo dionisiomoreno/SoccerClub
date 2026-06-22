@@ -336,6 +336,7 @@ function AssignKitModal({ kit, players, onClose, onSaved }) {
         const items = (kit.sc_kit_config_items||[]).map(item => ({ assignment_id: ass.id, kit_config_item_id: item.id, warehouse_item_id: item.warehouse_item_id, taglia: taglie[pid]?.[item.id] || 'M', quantita: item.quantita }))
         await supabase.from('sc_kit_assignment_items').insert(items)
       }
+      await ensureKitPayment({ kit, youthPlayerId: pid, clubId: profile?.club_id })
     }
     toast.success(`Kit assegnato a ${selected.length} atleti`)
     onSaved()
