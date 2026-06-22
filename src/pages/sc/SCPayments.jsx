@@ -321,8 +321,8 @@ function PaymentModal({ players, categories, configs, onClose, onSaved }) {
     setLoading(true)
     const stato = form.importo_pagato >= form.importo_dovuto ? 'pagato'
       : form.importo_pagato > 0 ? 'parzialmente_pagato'
-      : new Date(form.data_scadenza) < new Date() ? 'scaduto' : 'da_pagare'
-    const { data: pay, error } = await supabase.from('payments').insert([{ ...form, stato }]).select().single()
+      : (form.data_scadenza && new Date(form.data_scadenza) < new Date()) ? 'scaduto' : 'da_pagare'
+    const { data: pay, error } = await supabase.from('payments').insert([{ ...form, data_scadenza: form.data_scadenza || null, stato }]).select().single()
     if (error) { toast.error(error.message); setLoading(false); return }
     if (form.importo_pagato > 0) {
       const num = `RIC-${Date.now()}`
