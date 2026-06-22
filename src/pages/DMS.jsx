@@ -306,9 +306,11 @@ export default function DMS({ modulo = 'ps' }) {
       setLoading(false)
       return
     }
-    const { data: mine } = await query.limit(1).maybeSingle()
-    if (mine) setPath([mine])
-    else setNoPersonalFolder(true)
+   const { data: allMine } = await query
+    if (!allMine || allMine.length === 0) { setNoPersonalFolder(true); setLoading(false); return }
+    const mineIds = new Set(allMine.map(f => f.id))
+    const mine = allMine.find(f => !mineIds.has(f.parent_id)) || allMine[0]
+    setPath([mine])
     setLoading(false)
   }
   async function loadLevel() {
