@@ -298,6 +298,7 @@ function removeRow(i) { setRows(r=>r.filter((_,idx)=>idx!==i)) }
 
 // ── Modal assegnazione kit ───────────────────────────────────
 function AssignKitModal({ kit, players, onClose, onSaved }) {
+  const { profile } = useAuth()
   const [selected, setSelected] = useState([])
   const [taglie, setTaglie] = useState({})
   const [loading, setLoading] = useState(false)
