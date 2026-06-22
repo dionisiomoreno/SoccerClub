@@ -71,9 +71,11 @@ function KitModal({ kit, child, onClose, onSaved }) {
         taglia:           taglie[item.id] || 'M',
         quantita:         item.quantita || 1,
       }))
-      const { error: itemsError } = await supabase
+const { error: itemsError } = await supabase
         .from('sc_kit_assignment_items').insert(items)
       if (itemsError) throw new Error(itemsError.message)
+
+      await ensureKitPayment({ kit, youthPlayerId: child.id, clubId: child?.club_id })
 
       toast.success('Kit ordinato! La segreteria elaborerà la richiesta.')
       onSaved()
