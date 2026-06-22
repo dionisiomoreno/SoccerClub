@@ -39,6 +39,13 @@ export async function createMisterFolder({ clubId, modulo, misterId, nome, cogno
     linked_profile_id: misterId, is_system: true, ordine: 0,
   }]).select('id').single()
   if (error) { console.error('Errore creazione cartella mister:', error.message); return null }
+
+  await supabase.from('dms_folders').insert([
+    { club_id: clubId, modulo, parent_id: created.id, nome: 'Contratto', icona: '📄',
+      permesso: 'mister', linked_profile_id: misterId, is_system: false, ordine: 0, owner_can_upload: false },
+    { club_id: clubId, modulo, parent_id: created.id, nome: 'Varie', icona: '📁',
+      permesso: 'mister', linked_profile_id: misterId, is_system: false, ordine: 1, owner_can_upload: true },
+  ])
   return created.id
 }
 
