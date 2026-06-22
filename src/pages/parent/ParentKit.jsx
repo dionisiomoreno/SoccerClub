@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { ensureKitPayment } from '../../lib/kitPaymentHelper'
 import { useAuth } from '../../context/AuthContext'
 import {
   ShoppingBag, Plus, X, AlertTriangle, Clock,
