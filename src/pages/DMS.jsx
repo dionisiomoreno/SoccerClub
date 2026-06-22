@@ -47,6 +47,7 @@ function FolderModal({ folder, parentFolder, onClose, onSaved, modulo }) {
   const [form, setForm] = useState({
     nome: '', descrizione: '', icona: '📁',
     colore: '#1ab394', permesso: parentFolder?.permesso || 'admin_only', ordine: 99,
+    owner_can_upload: true,
     ...folder
   })
   const [loading, setLoading] = useState(false)
@@ -131,8 +132,21 @@ function FolderModal({ folder, parentFolder, onClose, onSaved, modulo }) {
             </div>
           )}
           {(parentFolder?.linked_profile_id || parentFolder?.linked_youth_player_id) && (
-            <div className="bg-teal-50 border border-teal-200 rounded p-2 text-xs text-teal-700">
-              Cartella personale — sarà visibile solo al diretto interessato e alla società.
+            <div className="bg-teal-50 border border-teal-200 rounded p-2 space-y-2">
+              <div className="text-xs text-teal-700">
+                Cartella personale — sarà visibile solo al diretto interessato e alla società.
+              </div>
+              <label className="flex items-center gap-2 text-sm text-[#2f4050] cursor-pointer">
+                <input type="checkbox" checked={form.owner_can_upload}
+                  onChange={e => set('owner_can_upload', e.target.checked)}
+                  className="w-4 h-4 accent-[#1ab394]"/>
+                Il diretto interessato può caricare/modificare file qui
+              </label>
+              <p className="text-xs text-[#999]">
+                {form.owner_can_upload
+                  ? 'Cartella condivisa: sia tu che lui/lei potete caricare documenti.'
+                  : 'Solo visualizzazione per lui/lei: vede e scarica, ma non può caricare né modificare. Solo la società può gestirla.'}
+              </p>
             </div>
           )}
         </div>
@@ -348,8 +362,8 @@ export default function DMS({ modulo = 'ps' }) {
   function canUpload(folder) {
     if (!folder) return false
     if (isAdmin || isSegreteria) return true
-    if (folder.linked_profile_id && folder.linked_profile_id === profile.id) return true
-    if (folder.linked_youth_player_id && folder.linked_youth_player_id === myAnchorId) return true
+    if (folder.linked_profile_id && folder.linked_profile_id === profile.id) return folder.owner_can_upload !== false
+    if (folder.linked_youth_player_id && folder.linked_youth_player_id === myAnchorId) return folder.owner_can_upload !== false
     if (isMister && folder.permesso === 'mister') return true
     if (isPlayer && ['players','players_parent'].includes(folder.permesso)) return true
     if (isParent && ['parent','players_parent'].includes(folder.permesso)) {
