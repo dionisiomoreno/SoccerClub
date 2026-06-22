@@ -282,13 +282,12 @@ export default function DMS({ modulo = 'ps' }) {
   useEffect(() => { init() }, [modulo, profile?.id])
   useEffect(() => { if (path.length || isAdmin || isSegreteria) loadLevel() }, [path, modulo])
 
-  async function init() {
+ async function init() {
     if (!profile?.id) return
     if (isAdmin || isSegreteria) {
       setPath([])
       return
     }
-    // Risolvi la cartella personale di partenza
     let query = supabase.from('dms_folders').select('*').eq('modulo', modulo)
     if (isMister || isPlayer) {
       query = query.eq('linked_profile_id', profile.id)
@@ -302,15 +301,16 @@ export default function DMS({ modulo = 'ps' }) {
       if (!parent?.youth_player_id) { setNoPersonalFolder(true); setLoading(false); return }
       setMyAnchorId(parent.youth_player_id)
       query = query.eq('linked_youth_player_id', parent.youth_player_id)
+    } else {
+      setNoPersonalFolder(true)
+      setLoading(false)
+      return
     }
-    const { data: mine } = await query.is('parent_id', mine_parent_filter()).maybeSingle().catch?.(() => ({ data: null })) || { data: null }
-    // fallback semplice: prendi la cartella collegata indipendentemente dal parent_id
-    const { data: anyMine } = await query.limit(1).maybeSingle()
-    if (anyMine) setPath([anyMine])
+    const { data: mine } = await query.limit(1).maybeSingle()
+    if (mine) setPath([mine])
     else setNoPersonalFolder(true)
     setLoading(false)
   }
-  function mine_parent_filter() { return undefined }
   async function loadLevel() {
     setLoading(true)
     const parentId = current?.id ?? null
