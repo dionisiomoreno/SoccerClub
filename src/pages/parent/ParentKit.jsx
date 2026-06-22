@@ -186,9 +186,9 @@ export default function ParentKit() {
     setChild(yp)
 
     // Kit disponibili per la categoria del figlio o per tutte le categorie
-    const { data: kitData } = await supabase
+  const { data: kitData } = await supabase
       .from('sc_kit_configs')
-      .select('*, categories(nome,colore), sc_kit_config_items(*, warehouse_items(nome,categoria))')
+      .select('*, categories(nome,colore), sc_kit_config_items(*, warehouse_items(nome,categoria,prezzo)))')
       .eq('active', true)
       .or(`category_id.eq.${yp.category_id},category_id.is.null`)
       .order('nome')
